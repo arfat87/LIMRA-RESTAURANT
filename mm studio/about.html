@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — MM STUDIO EDITING SHOP</title>
+  <meta name="description" content="MM STUDIO EDITING SHOP — Passion for photography, wedding editing, cinematic reels, and premium color grading." />
+
+  <meta property="og:title" content="MM STUDIO EDITING SHOP — About" />
+  <meta property="og:type" content="website" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700&family=Bebas+Neue&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="loading" aria-live="polite">
+    <div class="loader-card">
+      <div class="loader-logo">MM</div>
+      <div class="loader-bar"><span></span></div>
+      <div class="loader-text">Cinematic loading…</div>
+    </div>
+  </div>
+
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div id="liquid" aria-hidden="true"></div>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="light-streak" aria-hidden="true"></div>
+
+  <div id="cursor" aria-hidden="true"></div>
+  <div id="cursorDot" aria-hidden="true"></div>
+  <div id="scrollProgress" aria-hidden="true"><div></div></div>
+
+  <header class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="./">
+        <span class="brand-glow">MM</span>
+        <span class="brand-name">STUDIO EDITING SHOP</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a class="active" href="about.html">About</a>
+        <a href="services.html">Services</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="testimonials.html">Testimonials</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="contact.html">Contact</a>
+        <a class="nav-cta" href="booking.html">Book Now</a>
+      </nav>
+      <button class="nav-burger" id="navBurger" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle dark/light">
+        <span class="icon">◐</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="page-hero-overlay"></div>
+      <div class="container">
+        <div class="breadcrumb">About</div>
+        <h1 class="page-title">Luxury passion. Cinematic results.</h1>
+        <p class="page-sub">এমএম স্টুডিও এডিটিং শপ — ক্লিক-ক্লিক শব্দে, সময় থমকে রয়।</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="two-col">
+          <div class="reveal" data-reveal="about-text">
+            <h2 class="title">We craft stories with emotion</h2>
+            <p class="muted">
+              MM STUDIO EDITING SHOP is built for weddings, cinematic reels, color grading, and premium retouching.
+              Our workflow blends creative photography with professional editing—so every frame feels unforgettable.
+            </p>
+            <div class="pill-row">
+              <span class="pill">Wedding editing</span>
+              <span class="pill">Cinematic reels</span>
+              <span class="pill">Color grading</span>
+              <span class="pill">AI editing techniques</span>
+            </div>
+          </div>
+
+          <div class="reveal" data-reveal="about-gallery">
+            <div class="gallery-grid">
+              <figure class="gitem"><img src="media/474072273_475356905627147_8543051475008246111_n.jpg" alt="Studio" /></figure>
+              <figure class="gitem"><img src="media/474385327_475357042293800_3724238376009723942_n.jpg" alt="Wedding" /></figure>
+              <figure class="gitem"><img src="media/474510373_475356735627164_3786399344833670254_n.jpg" alt="Portrait" /></figure>
+              <figure class="gitem"><img src="media/474524734_475356852293819_8713522650006563671_n.jpg" alt="Reels" /></figure>
+              <figure class="gitem wide"><img src="media/474554613_475356998960471_4490993892579718764_n.jpg" alt="Cinematic" /></figure>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-gap"></div>
+
+        <div class="timeline reveal" data-reveal="timeline">
+          <h2 class="title">Our timeline</h2>
+          <div class="timeline-items">
+            <div class="titem"><div class="t-dot"></div><div class="t-body"><div class="t-title">Passion for photography</div><div class="t-text">Captured moments with a cinematic eye.</div></div></div>
+            <div class="titem"><div class="t-dot"></div><div class="t-body"><div class="t-title">Wedding editing mastery</div><div class="t-text">Smooth storytelling, premium transitions, audio polish.</div></div></div>
+            <div class="titem"><div class="t-dot"></div><div class="t-body"><div class="t-title">Color grading &amp; reels</div><div class="t-text">Neon highlights, deep blacks, emotional color harmony.</div></div></div>
+            <div class="titem"><div class="t-dot"></div><div class="t-body"><div class="t-title">AI-assisted techniques</div><div class="t-text">Precision retouching, smarter enhancement pipelines.</div></div></div>
+          </div>
+        </div>
+
+        <div class="counters">
+          <div class="counter-card reveal" data-reveal="c1"><div class="counter-num" data-count="250">0</div><div class="counter-label">Happy Clients</div></div>
+          <div class="counter-card reveal" data-reveal="c2"><div class="counter-num" data-count="1200">0</div><div class="counter-label">Projects Completed</div></div>
+          <div class="counter-card reveal" data-reveal="c3"><div class="counter-num" data-count="8">0</div><div class="counter-label">Years Experience</div></div>
+          <div class="counter-card reveal" data-reveal="c4"><div class="counter-num" data-count="500">0</div><div class="counter-label">Positive Reviews</div></div>
+        </div>
+
+        <div class="section-gap"></div>
+
+        <div class="team-head">
+          <h2 class="title">Creative team</h2>
+          <p class="muted">Hover cards for a luxury 3D feel.</p>
+        </div>
+
+        <div class="team-grid">
+          <article class="team-card" data-tilt>
+            <div class="team-img" style="background-image:url('media/474566745_475356955627142_6532642176960561306_n.jpg')"></div>
+            <div class="team-name">Cinematic Editor</div>
+            <div class="team-role">Transitions • Motion blur • Color polish</div>
+          </article>
+          <article class="team-card" data-tilt>
+            <div class="team-img" style="background-image:url('media/474593855_475356972293807_4145846584236027901_n.jpg')"></div>
+            <div class="team-name">Wedding Photographer</div>
+            <div class="team-role">Lighting • Composition • Story framing</div>
+          </article>
+          <article class="team-card" data-tilt>
+            <div class="team-img" style="background-image:url('media/474692874_475357012293803_4584341454600835053_n.jpg')"></div>
+            <div class="team-name">Retouch &amp; Grading</div>
+            <div class="team-role">Lightroom • AI enhance • Premium tones</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-wave" aria-hidden="true"></div>
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <div class="footer-logo">MM <span>EDITING</span></div>
+          <div class="footer-sub">এমএম স্টুডিও এডিটিং শপ</div>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <div class="footer-h">Quick links</div>
+            <a href="about.html">About</a>
+            <a href="services.html">Services</a>
+            <a href="portfolio.html">Portfolio</a>
+            <a href="pricing.html">Pricing</a>
+          </div>
+          <div>
+            <div class="footer-h">Contact</div>
+            <div class="footer-text">Negua, Egra, West Bengal 721448</div>
+            <div class="footer-text">08972085155</div>
+            <div class="footer-text">mmstudioeditingshoop@gmail.com</div>
+          </div>
+          <div>
+            <div class="footer-h">Social</div>
+            <a href="#">Facebook</a>
+            <a href="#">Instagram</a>
+            <a href="contact.html#whatsapp">WhatsApp</a>
+          </div>
+        </div>
+      </div>
+      <div class="container footer-bottom">© 2026 MM STUDIO EDITING SHOP — All Rights Reserved</div>
+    </footer>
+  </main>
+
+  <div class="fab-stack">
+    <a class="fab" href="contact.html" aria-label="Contact"><span>✉</span></a>
+    <a class="fab" href="booking.html" aria-label="Booking"><span>⏱</span></a>
+    <button class="fab fab-chat" id="chatBtn" aria-label="Open live chat">💬</button>
+  </div>
+
+  <aside class="chatbot" id="chatbot" aria-hidden="true">
+    <div class="chatbar">
+      <div class="chat-title">MM AI Assistant</div>
+      <button class="chat-close" id="chatClose" aria-label="Close">×</button>
+    </div>
+    <div class="chat-body" id="chatBody">
+      <div class="bubble bot">Hi! Need help choosing a package?</div>
+      <div class="bubble bot">(This is a UI demo—connect your backend later.)</div>
+    </div>
+    <div class="chat-input">
+      <input id="chatInput" placeholder="Type your message…" maxlength="160" />
+      <button id="chatSend">Send</button>
+    </div>
+  </aside>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="scripts.js"></script>
+</body>
+</html>
+

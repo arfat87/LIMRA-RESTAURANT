@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Booking — MM STUDIO EDITING SHOP</title>
+  <meta name="description" content="Book your service with MM STUDIO EDITING SHOP. Choose date, service, budget and time slot. Success animation included." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700&family=Bebas+Neue&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="loading" aria-live="polite">
+    <div class="loader-card">
+      <div class="loader-logo">MM</div>
+      <div class="loader-bar"><span></span></div>
+      <div class="loader-text">Cinematic loading…</div>
+    </div>
+  </div>
+
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div id="liquid" aria-hidden="true"></div>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="light-streak" aria-hidden="true"></div>
+
+  <div id="cursor" aria-hidden="true"></div>
+  <div id="cursorDot" aria-hidden="true"></div>
+  <div id="scrollProgress" aria-hidden="true"><div></div></div>
+
+  <header class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="./">
+        <span class="brand-glow">MM</span>
+        <span class="brand-name">STUDIO EDITING SHOP</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="about.html">About</a>
+        <a href="services.html">Services</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="testimonials.html">Testimonials</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="contact.html">Contact</a>
+        <a class="nav-cta" href="booking.html">Book Now</a>
+      </nav>
+      <button class="nav-burger" id="navBurger" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle dark/light"><span class="icon">◐</span></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="page-hero-overlay"></div>
+      <div class="container">
+        <div class="breadcrumb">Booking</div>
+        <h1 class="page-title">Create your cinematic date</h1>
+        <p class="page-sub">Choose service, budget and time slot. Smooth success animation on submit.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="booking-grid">
+          <div class="form-card reveal" data-reveal="bform">
+            <h2 class="title">Booking form</h2>
+            <form id="bookingForm">
+              <div class="row">
+                <label class="field">
+                  <span class="label">Date</span>
+                  <input type="date" name="date" required />
+                </label>
+                <label class="field">
+                  <span class="label">Service</span>
+                  <select name="service" required>
+                    <option value="" selected disabled>Select service</option>
+                    <option>Wedding Photography</option>
+                    <option>Cinematic Video Editing</option>
+                    <option>Reel Editing</option>
+                    <option>YouTube Video Editing</option>
+                    <option>Lightroom Photo Editing</option>
+                    <option>Album Design</option>
+                    <option>Pre-Wedding Shoot</option>
+                    <option>Drone Photography</option>
+                    <option>Social Media Content Editing</option>
+                    <option>Professional Retouching</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="row">
+                <label class="field">
+                  <span class="label">Budget</span>
+                  <select name="budget" required>
+                    <option value="" selected disabled>Select budget</option>
+                    <option>₹ 2,000 - ₹ 5,000</option>
+                    <option>₹ 5,000 - ₹ 10,000</option>
+                    <option>₹ 10,000 - ₹ 25,000</option>
+                    <option>₹ 25,000+</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span class="label">Time Slot</span>
+                  <select name="timeslot" required>
+                    <option value="" selected disabled>Select time</option>
+                    <option>10:00 AM - 1:00 PM</option>
+                    <option>1:00 PM - 4:00 PM</option>
+                    <option>4:00 PM - 7:00 PM</option>
+                    <option>7:00 PM - 10:00 PM</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="row">
+                <label class="field">
+                  <span class="label">Your Name</span>
+                  <input name="name" required placeholder=" " />
+                </label>
+                <label class="field">
+                  <span class="label">Phone</span>
+                  <input name="phone" required placeholder=" " />
+                </label>
+              </div>
+
+              <label class="field">
+                <span class="label">Requirement (optional)</span>
+                <textarea name="note" rows="4" placeholder="Tell us about your shoot/edit…"></textarea>
+              </label>
+
+              <button class="btn primary" type="submit"><span>Confirm Booking</span><i></i></button>
+              <div class="form-note" id="bookingNote" role="status" aria-live="polite"></div>
+            </form>
+          </div>
+
+          <div class="side-card reveal" data-reveal="bside">
+            <h2 class="title">Why choose MM STUDIO</h2>
+            <div class="side-list">
+              <div class="side-item">✓ Luxury cinematic color grading</div>
+              <div class="side-item">✓ Motion blur + smooth transitions</div>
+              <div class="side-item">✓ Fast delivery & premium finishing</div>
+              <div class="side-item">✓ Wedding editing specialists</div>
+            </div>
+
+            <div class="side-badges">
+              <div class="badge">5.0 Rating</div>
+              <div class="badge">Open 24 Hours</div>
+              <div class="badge">Egra • West Bengal</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Success overlay -->
+        <div class="success" id="bookingSuccess" aria-hidden="true">
+          <div class="success-card">
+            <div class="success-icon">✓</div>
+            <div class="success-title">Booking confirmed</div>
+            <div class="success-sub">We will contact you shortly to finalize details.</div>
+            <a class="btn ghost" href="contact.html"><span>Go to Contact</span><i></i></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-wave" aria-hidden="true"></div>
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <div class="footer-logo">MM <span>EDITING</span></div>
+          <div class="footer-sub">এমএম স্টুডিও এডিটিং শপ</div>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <div class="footer-h">Quick links</div>
+            <a href="about.html">About</a>
+            <a href="services.html">Services</a>
+            <a href="portfolio.html">Portfolio</a>
+            <a href="pricing.html">Pricing</a>
+          </div>
+          <div>
+            <div class="footer-h">Contact</div>
+            <div class="footer-text">Negua, Egra, West Bengal 721448</div>
+            <div class="footer-text">08972085155</div>
+            <div class="footer-text">mmstudioeditingshoop@gmail.com</div>
+          </div>
+          <div>
+            <div class="footer-h">Social</div>
+            <a href="#">Facebook</a>
+            <a href="#">Instagram</a>
+            <a href="contact.html#whatsapp">WhatsApp</a>
+          </div>
+        </div>
+      </div>
+      <div class="container footer-bottom">© 2026 MM STUDIO EDITING SHOP — All Rights Reserved</div>
+    </footer>
+  </main>
+
+  <div class="fab-stack">
+    <a class="fab" href="contact.html" aria-label="Contact"><span>✉</span></a>
+    <a class="fab" href="booking.html" aria-label="Booking"><span>⏱</span></a>
+    <button class="fab fab-chat" id="chatBtn" aria-label="Open live chat">💬</button>
+  </div>
+
+  <aside class="chatbot" id="chatbot" aria-hidden="true">
+    <div class="chatbar">
+      <div class="chat-title">MM AI Assistant</div>
+      <button class="chat-close" id="chatClose" aria-label="Close">×</button>
+    </div>
+    <div class="chat-body" id="chatBody">
+      <div class="bubble bot">Book now—let’s make it cinematic.</div>
+      <div class="bubble bot">(UI demo—connect backend later.)</div>
+    </div>
+    <div class="chat-input">
+      <input id="chatInput" placeholder="Type your message…" maxlength="160" />
+      <button id="chatSend">Send</button>
+    </div>
+  </aside>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="scripts.js"></script>
+
+  <script>
+    const form = document.getElementById('bookingForm');
+    const note = document.getElementById('bookingNote');
+    const success = document.getElementById('bookingSuccess');
+
+    form?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (note) note.textContent = 'Confirming…';
+
+      const data = new FormData(form);
+      const payload = Object.fromEntries(data.entries());
+      // UI only demo. You can send payload to backend later.
+      setTimeout(() => {
+        if (note) note.textContent = '';
+        success.setAttribute('aria-hidden', 'false');
+        success.classList.add('show');
+        gsap.fromTo(success.querySelector('.success-card'), { y: 16, opacity: 0, scale: .98 }, { y: 0, opacity: 1, scale: 1, duration: .45, ease: 'power2.out' });
+      }, 650);
+    });
+  </script>
+</body>
+</html>
+

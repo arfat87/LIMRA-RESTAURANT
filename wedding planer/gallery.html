@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Gallery Portfolio | Khokan Studio Wedding Planner</title>
+    <meta name="description" content="Browse our luxury wedding planning portfolio. See photographs of our venue settings, stage decorations, catering displays, and sangeet setups.">
+    
+    <!-- Style Sheets -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- ==========================================================================
+       TOP CONTACT INFORMATION BAR
+       ========================================================================== -->
+    <div class="topbar">
+        <div class="container">
+            <div class="topbar-contacts">
+                <div class="topbar-contact-item">
+                    <i class="fa-solid fa-phone"></i>
+                    <span>(+91) 98765 43210</span>
+                </div>
+                <div class="topbar-contact-item">
+                    <i class="fa-solid fa-envelope"></i>
+                    <span>hello@khokanstudio.com</span>
+                </div>
+                <div class="topbar-contact-item">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <span>Kolkata, West Bengal</span>
+                </div>
+            </div>
+            <div class="topbar-socials">
+                <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                <a href="#" aria-label="Pinterest"><i class="fa-brands fa-pinterest-p"></i></a>
+                <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================================
+       STICKY NAVIGATION HEADER
+       ========================================================================== -->
+    <header class="header">
+        <div class="container">
+            <!-- Text Logo -->
+            <a href="index.html" class="logo" aria-label="Khokan Studio Home">
+                <span class="logo-text">KHOKAN <span>STUDIO</span></span>
+                <span class="logo-tagline">Weddings &amp; Events</span>
+            </a>
+            
+            <!-- Navigation Links -->
+            <nav class="navbar" role="navigation">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a href="index.html" class="nav-link">Home</a></li>
+                    <li class="nav-item"><a href="about.html" class="nav-link">About Us</a></li>
+                    <li class="nav-item nav-item-dropdown">
+                        <a href="services.html" class="nav-link">Services <i class="fa-solid fa-chevron-down" style="font-size: 0.6rem; margin-left: 2px;"></i></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="services.html#venue" class="dropdown-link">Venue Booking</a></li>
+                            <li><a href="services.html#decor" class="dropdown-link">Decoration &amp; Florist</a></li>
+                            <li><a href="services.html#catering" class="dropdown-link">Catering &amp; Fooding</a></li>
+                            <li><a href="services.html#sangeet" class="dropdown-link">Sangeet Ceremony</a></li>
+                            <li><a href="services.html#varmala" class="dropdown-link">Themed Varmala</a></li>
+                            <li><a href="services.html#photo" class="dropdown-link">Photography &amp; Videography</a></li>
+                            <li><a href="services.html#logistics" class="dropdown-link">Hospitality &amp; Logistics</a></li>
+                            <li><a href="services.html#corporate" class="dropdown-link">Corporate &amp; Social Events</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item active"><a href="gallery.html" class="nav-link">Gallery</a></li>
+                    <li class="nav-item"><a href="blog.html" class="nav-link">Blog</a></li>
+                    <li class="nav-item"><a href="contact.html" class="nav-link">Contact Us</a></li>
+                </ul>
+            </nav>
+            
+            <!-- Hamburger menu button -->
+            <button class="hamburger" aria-label="Toggle Mobile Menu" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ==========================================================================
+       INNER PAGE HERO
+       ========================================================================== -->
+    <section class="inner-hero" style="background-image: url('assets/images/hero2.png');" aria-label="Page Header">
+        <div class="container">
+            <h1 class="inner-hero-title">Portfolio Gallery</h1>
+            <div class="breadcrumbs">
+                <a href="index.html">Home</a>
+                <span>&gt;</span>
+                <span class="active">Gallery</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       PORTFOLIO GALLERY GRID
+       ========================================================================== -->
+    <section class="section section-bg-white">
+        <div class="container">
+            <!-- Filter buttons -->
+            <div class="gallery-filters fade-in-up-scroll">
+                <button class="gallery-filter-btn active" data-filter="all">All Projects</button>
+                <button class="gallery-filter-btn" data-filter="venue">Venues</button>
+                <button class="gallery-filter-btn" data-filter="decor">Decorations</button>
+                <button class="gallery-filter-btn" data-filter="catering">Catering</button>
+                <button class="gallery-filter-btn" data-filter="sangeet">Sangeet</button>
+            </div>
+            
+            <!-- Gallery Grid -->
+            <div class="gallery-grid fade-in-up-scroll" style="transition-delay: 0.15s;">
+                <!-- Item 1: Decor -->
+                <div class="gallery-item" data-category="decor">
+                    <img src="assets/images/hero1.png" alt="Pastel pink wedding stage decoration" class="gallery-img" loading="lazy">
+                    <div class="gallery-overlay">
+                        <h3 class="gallery-item-title">Rose Gold Stage</h3>
+                        <span class="gallery-item-category">Decoration</span>
+                    </div>
+                </div>
+                
+                <!-- Item 2: Venue -->
+                <div class="gallery-item" data-category="venue">
+                    <img src="assets/images/hero3.png" alt="Open air poolside mandap layout" class="gallery-img" loading="lazy">
+                    <div class="gallery-overlay">
+                        <h3 class="gallery-item-title">Lakeside Garden</h3>
+                        <span class="gallery-item-category">Venue Booking</span>
+                    </div>
+                </div>
+                
+                <!-- Item 3: Catering -->
+                <div class="gallery-item" data-category="catering">
+                    <img src="assets/images/catering.png" alt="Gourmet fine dining presentation" class="gallery-img" loading="lazy">
+                    <div class="gallery-overlay">
+                        <h3 class="gallery-item-title">Royal Buffet Setup</h3>
+                        <span class="gallery-item-category">Catering</span>
+                    </div>
+                </div>
+                
+                <!-- Item 4: Sangeet -->
+                <div class="gallery-item" data-category="sangeet">
+                    <img src="assets/images/hero3.png" alt="Grand Sangeet audio visual setup" class="gallery-img" loading="lazy">
+                    <div class="gallery-overlay">
+                        <h3 class="gallery-item-title">LED Sangeet Stage</h3>
+                        <span class="gallery-item-category">Sangeet</span>
+                    </div>
+                </div>
+                
+                <!-- Item 5: Decor -->
+                <div class="gallery-item" data-category="decor">
+                    <img src="assets/images/hero2.png" alt="Couple sitting on floral stage backdrop" class="gallery-img" loading="lazy">
+                    <div class="gallery-overlay">
+                        <h3 class="gallery-item-title">Traditional Mandap</h3>
+                        <span class="gallery-item-category">Decoration</span>
+                    </div>
+                </div>
+                
+                <!-- Item 6: Venue -->
+                <div class="gallery-item" data-category="venue">
+                    <img src="assets/images/hero1.png" alt="Indoor grand royal banquet hall" class="gallery-img" loading="lazy">
+                    <div class="gallery-overlay">
+                        <h3 class="gallery-item-title">Heritage Palace Hall</h3>
+                        <span class="gallery-item-category">Venue Booking</span>
+                    </div>
+                </div>
+                
+                <!-- Item 7: Catering -->
+                <div class="gallery-item" data-category="catering">
+                    <img src="assets/images/catering.png" alt="Dessert bar styling at luxury wedding" class="gallery-img" loading="lazy">
+                    <div class="gallery-overlay">
+                        <h3 class="gallery-item-title">Artisan Dessert Bar</h3>
+                        <span class="gallery-item-category">Catering</span>
+                    </div>
+                </div>
+                
+                <!-- Item 8: Sangeet -->
+                <div class="gallery-item" data-category="sangeet">
+                    <img src="assets/images/hero2.png" alt="Couple entrance dance under pyros" class="gallery-img" loading="lazy">
+                    <div class="gallery-overlay">
+                        <h3 class="gallery-item-title">Grand Entrance Dance</h3>
+                        <span class="gallery-item-category">Sangeet</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================================================
+       LIGHTBOX POPUP MODAL
+       ========================================================================== -->
+    <div class="lightbox-modal" id="lightboxModal" role="dialog" aria-modal="true" aria-label="Image Lightbox">
+        <span class="lightbox-close" aria-label="Close Lightbox">&times;</span>
+        <img class="lightbox-content" id="lightboxImg" alt="Enlarged portfolio work picture">
+    </div>
+
+    <!-- ==========================================================================
+       FOOTER SECTION
+       ========================================================================== -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <!-- Widget 1: About -->
+                <div>
+                    <h3 class="footer-widget-title">Khokan Studio</h3>
+                    <p class="footer-about-text">
+                        We are luxury wedding organizers dedicated to transforming celebrations into elegant, life-long experiences with radiant design and professional management.
+                    </p>
+                    <div class="topbar-socials" style="justify-content: flex-start; gap: 15px;">
+                        <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                        <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                        <a href="#" aria-label="Pinterest"><i class="fa-brands fa-pinterest-p"></i></a>
+                        <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+                    </div>
+                </div>
+                
+                <!-- Widget 2: Navigation Links -->
+                <div>
+                    <h3 class="footer-widget-title">Quick Links</h3>
+                    <ul class="footer-links-list">
+                        <li><a href="index.html" class="footer-link">Home</a></li>
+                        <li><a href="about.html" class="footer-link">About Us</a></li>
+                        <li><a href="services.html" class="footer-link">Our Services</a></li>
+                        <li><a href="gallery.html" class="footer-link">Photo Gallery</a></li>
+                        <li><a href="blog.html" class="footer-link">Blog &amp; Tips</a></li>
+                        <li><a href="contact.html" class="footer-link">Contact Us</a></li>
+                    </ul>
+                </div>
+                
+                <!-- Widget 3: Contact Info -->
+                <div>
+                    <h3 class="footer-widget-title">Contact Us</h3>
+                    <ul class="footer-contact-list">
+                        <li class="footer-contact-item">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>12, Park Street, Near Chowringhee Road, Kolkata, West Bengal, 700016</span>
+                        </li>
+                        <li class="footer-contact-item">
+                            <i class="fa-solid fa-phone"></i>
+                            <span>(+91) 98765 43210<br>(+91) 90000 12345</span>
+                        </li>
+                        <li class="footer-contact-item">
+                            <i class="fa-solid fa-envelope"></i>
+                            <span>info@khokanstudio.com<br>support@khokanstudio.com</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Widget 4: Newsletter -->
+                <div>
+                    <h3 class="footer-widget-title">Newsletter</h3>
+                    <p class="footer-about-text" style="margin-bottom: 15px;">
+                        Subscribe to get latest wedding ideas, trend updates, and seasonal planner offers.
+                    </p>
+                    <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Subscribed successfully!'); this.reset();">
+                        <label for="newsletterEmail" class="sr-only">Email Address</label>
+                        <input type="email" id="newsletterEmail" class="newsletter-input" placeholder="Your Email Address *" required>
+                        <button type="submit" class="btn newsletter-btn">Subscribe</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Bottom Copyright Bar -->
+            <div class="footer-bottom">
+                <p>&copy; 2026 Khokan Studio. All Rights Reserved. Designed with elegance.</p>
+                <div style="display: flex; gap: 20px;">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms &amp; Conditions</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==========================================================================
+       FLOATING ACTIONS (WHATSAPP & SCROLL TOP)
+       ========================================================================== -->
+    <div class="floating-actions">
+        <!-- Floating WhatsApp Widget -->
+        <a href="https://wa.me/919876543210?text=Hi%20Khokan%20Studio,%20I%20would%20like%20to%20enquire%20about%20your%20wedding%20planning%20packages!" 
+           class="floating-btn floating-whatsapp" 
+           target="_blank" 
+           rel="noopener" 
+           aria-label="Chat on WhatsApp">
+            <i class="fa-brands fa-whatsapp"></i>
+        </a>
+        
+        <!-- Back To Top Button -->
+        <a href="#" class="floating-btn floating-top" id="backToTop" aria-label="Scroll back to top">
+            <i class="fa-solid fa-chevron-up"></i>
+        </a>
+    </div>
+
+    <!-- Master Script -->
+    <script src="assets/js/script.js"></script>
+</body>
+</html>

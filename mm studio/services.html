@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Services — MM STUDIO EDITING SHOP</title>
+  <meta name="description" content="MM STUDIO EDITING SHOP services: wedding photography, cinematic video editing, reel editing, YouTube video editing, Lightroom editing, album design, pre-wedding shoots, drone photography, retouching and social media content editing." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700&family=Bebas+Neue&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+
+  <meta property="og:title" content="MM STUDIO EDITING SHOP — Services" />
+  <meta property="og:type" content="website" />
+  <meta property="og:description" content="Premium photography & cinematic video editing services in Egra, West Bengal." />
+</head>
+<body>
+  <div id="loading" aria-live="polite">
+    <div class="loader-card">
+      <div class="loader-logo">MM</div>
+      <div class="loader-bar"><span></span></div>
+      <div class="loader-text">Cinematic loading…</div>
+    </div>
+  </div>
+
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div id="liquid" aria-hidden="true"></div>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="light-streak" aria-hidden="true"></div>
+
+  <div id="cursor" aria-hidden="true"></div>
+  <div id="cursorDot" aria-hidden="true"></div>
+  <div id="scrollProgress" aria-hidden="true"><div></div></div>
+
+  <header class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="./">
+        <span class="brand-glow">MM</span>
+        <span class="brand-name">STUDIO EDITING SHOP</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="about.html">About</a>
+        <a class="active" href="services.html">Services</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="testimonials.html">Testimonials</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="contact.html">Contact</a>
+        <a class="nav-cta" href="booking.html">Book Now</a>
+      </nav>
+      <button class="nav-burger" id="navBurger" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle dark/light">
+        <span class="icon">◐</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="page-hero-overlay"></div>
+      <div class="container">
+        <div class="breadcrumb">Services</div>
+        <h1 class="page-title">Luxury service packages</h1>
+        <p class="page-sub">Wedding photography, cinematic editing, premium retouching—designed for emotional storytelling.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="title">What we do</h2>
+          <p class="muted">Hover the cards for a 3D cinematic glow. Click to open details.</p>
+        </div>
+
+        <div class="cards services-grid" id="servicesGrid">
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-wedding" data-reveal="sw1">
+            <div class="icon">✦</div>
+            <h3 id="service-wedding">Wedding Photography</h3>
+            <p>Premium lighting, perfect framing, cinematic color tones.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-cinematic" data-reveal="sw2">
+            <div class="icon">⟡</div>
+            <h3>Cinematic Video Editing</h3>
+            <p>Transitions, motion blur, grading, and emotional pacing.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-reel" data-reveal="sw3">
+            <div class="icon">⌁</div>
+            <h3>Reel Editing</h3>
+            <p>Fast cuts, trend-ready visuals, and scroll-stopping energy.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-youtube" data-reveal="sw4">
+            <div class="icon">◎</div>
+            <h3>YouTube Video Editing</h3>
+            <p>Sound polish, pacing, subtitles, and clean cinematic look.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-lightroom" data-reveal="sw5">
+            <div class="icon">◈</div>
+            <h3>Lightroom Photo Editing</h3>
+            <p>Retouching, correction, skin tones, and premium color grading.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-album" data-reveal="sw6">
+            <div class="icon">▦</div>
+            <h3>Album Design</h3>
+            <p>Elegant layouts, wedding albums, and print-ready exports.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-prewedding" data-reveal="sw7">
+            <div class="icon">⬡</div>
+            <h3>Pre-Wedding Shoot</h3>
+            <p>Romantic frames, cinematic reels, and color-consistent edits.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-drone" data-reveal="sw8">
+            <div class="icon">⌁</div>
+            <h3>Drone Photography</h3>
+            <p>Aerial cinematic shots for events, venues, and grand moments.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-social" data-reveal="sw9">
+            <div class="icon">✺</div>
+            <h3>Social Media Content Editing</h3>
+            <p>Thumbnails, captions templates, and platform-optimized visuals.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+
+          <article class="service-card reveal" tabindex="0" role="button" data-modal="modal-retouch" data-reveal="sw10">
+            <div class="icon">◍</div>
+            <h3>Professional Retouching</h3>
+            <p>Beauty retouch, clean skin tones, and high-end finishing.</p>
+            <button class="mini-btn" type="button">Details</button>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Service Modals -->
+    <div class="modal" id="serviceModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close-modal></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-top">
+          <div class="modal-badge">MM STUDIO</div>
+          <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+        </div>
+        <h3 class="modal-title" id="modalTitle">Service</h3>
+        <p class="modal-sub" id="modalSub">Details</p>
+        <ul class="modal-list" id="modalList"></ul>
+        <div class="modal-actions">
+          <a class="btn primary" href="booking.html"><span>Book This Service</span><i></i></a>
+          <a class="btn ghost" href="portfolio.html"><span>See Work</span><i></i></a>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <div class="footer-wave" aria-hidden="true"></div>
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <div class="footer-logo">MM <span>EDITING</span></div>
+          <div class="footer-sub">এমএম স্টুডিও এডিটিং শপ</div>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <div class="footer-h">Quick links</div>
+            <a href="about.html">About</a>
+            <a href="services.html">Services</a>
+            <a href="portfolio.html">Portfolio</a>
+            <a href="pricing.html">Pricing</a>
+          </div>
+          <div>
+            <div class="footer-h">Contact</div>
+            <div class="footer-text">Negua, Egra, West Bengal 721448</div>
+            <div class="footer-text">08972085155</div>
+            <div class="footer-text">mmstudioeditingshoop@gmail.com</div>
+          </div>
+          <div>
+            <div class="footer-h">Social</div>
+            <a href="#">Facebook</a>
+            <a href="#">Instagram</a>
+            <a href="contact.html#whatsapp">WhatsApp</a>
+          </div>
+        </div>
+      </div>
+      <div class="container footer-bottom">© 2026 MM STUDIO EDITING SHOP — All Rights Reserved</div>
+    </footer>
+  </main>
+
+  <div class="fab-stack">
+    <a class="fab" href="contact.html" aria-label="Contact"><span>✉</span></a>
+    <a class="fab" href="booking.html" aria-label="Booking"><span>⏱</span></a>
+    <button class="fab fab-chat" id="chatBtn" aria-label="Open live chat">💬</button>
+  </div>
+
+  <aside class="chatbot" id="chatbot" aria-hidden="true">
+    <div class="chatbar">
+      <div class="chat-title">MM AI Assistant</div>
+      <button class="chat-close" id="chatClose" aria-label="Close">×</button>
+    </div>
+    <div class="chat-body" id="chatBody">
+      <div class="bubble bot">Hi! Need help choosing a package?</div>
+      <div class="bubble bot">(This is a UI demo—connect your backend later.)</div>
+    </div>
+    <div class="chat-input">
+      <input id="chatInput" placeholder="Type your message…" maxlength="160" />
+      <button id="chatSend">Send</button>
+    </div>
+  </aside>
+
+  <!-- modal data (hidden) -->
+  <template id="modal-wedding">
+    <h4>Wedding Photography</h4>
+    <p>Elegant frames with cinematic lighting, color consistency, and story-led composition.</p>
+    <li>Pre-event planning & timeline guidance</li>
+    <li>Golden hour & night cinematic tones</li>
+    <li>Delivery in premium online gallery</li>
+  </template>
+  <template id="modal-cinematic">
+    <h4>Cinematic Video Editing</h4>
+    <p>Luxury editing: transitions, motion blur, audio polish, and emotional pacing.</p>
+    <li>Color grading + film grain style</li>
+    <li>Beat-synced cuts & motion effects</li>
+    <li>4K export options</li>
+  </template>
+  <template id="modal-reel">
+    <h4>Reel Editing</h4>
+    <p>Scroll-stopping reels with trend styling and smooth pacing.</p>
+    <li>Hook design (first 2 seconds)</li>
+    <li>Subtitles & caption overlays</li>
+    <li>Platform optimized exports</li>
+  </template>
+  <template id="modal-youtube">
+    <h4>YouTube Video Editing</h4>
+    <p>Professional editing with clean structure and cinematic presentation.</p>
+    <li>Audio cleanup + leveling</li>
+    <li>Intro/outro styling</li>
+    <li>Subtitles & thumbnail-ready title cards</li>
+  </template>
+  <template id="modal-lightroom">
+    <h4>Lightroom Photo Editing</h4>
+    <p>Premium retouching with natural skin tones and deep color harmony.</p>
+    <li>Exposure & white balance correction</li>
+    <li>Skin tone refinement</li>
+    <li>Consistent color presets across sets</li>
+  </template>
+  <template id="modal-album">
+    <h4>Album Design</h4>
+    <p>Luxury album layout with beautiful storytelling and print-ready formatting.</p>
+    <li>Modern wedding album themes</li>
+    <li>Typography & layout polishing</li>
+    <li>Print export + premium ordering support</li>
+  </template>
+  <template id="modal-prewedding">
+    <h4>Pre-Wedding Shoot</h4>
+    <p>Romantic cinematic storytelling with color-consistent editing.</p>
+    <li>Creative concept suggestions</li>
+    <li>Reel + photo package options</li>
+    <li>Color grading & premium retouching</li>
+  </template>
+  <template id="modal-drone">
+    <h4>Drone Photography</h4>
+    <p>Aerial cinematic frames that elevate venues, events, and celebrations.</p>
+    <li>Venue cinematic flyovers</li>
+    <li>Event highlights shots</li>
+    <li>Color graded aerial edits</li>
+  </template>
+  <template id="modal-social">
+    <h4>Social Media Content Editing</h4>
+    <p>Platform optimized visuals: thumbnails, captions, and consistent branding.</p>
+    <li>Thumbnail design support</li>
+    <li>Reel/short edits with overlays</li>
+    <li>Content styling + exports</li>
+  </template>
+  <template id="modal-retouch">
+    <h4>Professional Retouching</h4>
+    <p>Beauty-grade retouching with clean natural results and premium finish.</p>
+    <li>Skin smoothing (natural)</li>
+    <li>Background enhancement</li>
+    <li>High-end final color tones</li>
+  </template>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="scripts.js"></script>
+  <script>
+    // Service modal logic (no extra deps)
+    const modal = document.getElementById('serviceModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalSub = document.getElementById('modalSub');
+    const modalList = document.getElementById('modalList');
+
+    const openModal = (id) => {
+      const tpl = document.getElementById(id);
+      if (!tpl || !modal) return;
+      const frag = tpl.content ? tpl.content : tpl;
+      // When using <template>, tpl.content holds nodes.
+      const nodes = tpl.content ? Array.from(tpl.content.childNodes) : [];
+      const h = frag.querySelector?.('h4') || tpl.querySelector?.('h4');
+      const p = frag.querySelector?.('p') || tpl.querySelector?.('p');
+
+      modalTitle.textContent = (h && h.textContent) ? h.textContent : (tpl.getAttribute('data-title') || 'Service');
+      modalSub.textContent = (p && p.textContent) ? p.textContent : '';
+      modalList.innerHTML = '';
+
+      const lis = frag.querySelectorAll?.('li');
+      if (lis && lis.length) {
+        lis.forEach((li) => {
+          const liEl = document.createElement('li');
+          liEl.textContent = li.textContent;
+          modalList.appendChild(liEl);
+        });
+      }
+
+      modal.setAttribute('aria-hidden', 'false');
+      modal.classList.add('open');
+      if (window.gsap) {
+        gsap.fromTo(modal.querySelector('.modal-card'), { y: 18, opacity: 0, scale: 0.98 }, { y: 0, opacity: 1, scale: 1, duration: 0.35, ease: 'power2.out' });
+      }
+    };
+
+    const closeModal = () => {
+      if (!modal) return;
+      modal.setAttribute('aria-hidden', 'true');
+      modal.classList.remove('open');
+    };
+
+    document.querySelectorAll('[data-modal]').forEach((card) => {
+      card.addEventListener('click', () => openModal(card.getAttribute('data-modal')));
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openModal(card.getAttribute('data-modal'));
+        }
+      });
+    });
+
+    modal?.querySelectorAll('[data-close-modal]').forEach((x) => {
+      x.addEventListener('click', closeModal);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
+</body>
+</html>
+

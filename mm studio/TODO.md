@@ -1,0 +1,16 @@
+- [ ] Create project structure (index.html, pages, assets, styles, scripts)
+- [ ] Add base luxury theme (dark luxury, glassmorphism, typography)
+- [ ] Implement global loading screen + smooth scroll
+- [ ] Implement particle + liquid background canvas layer
+- [ ] Build sticky glass navbar + smooth page transitions
+- [ ] Home page: cinematic hero (video BG), text reveal, mouse-follow glow, CTA, scroll indicator
+- [ ] About page: gallery, timeline, counters
+- [ ] Services page: animated tilt/glow cards + modal
+- [ ] Portfolio page: filter UI + masonry + before/after slider + lightbox
+- [ ] Testimonials page/section: auto sliding reviews + rating UI
+- [ ] Pricing page: animated cards + “Most Popular” badge
+- [ ] Contact page: map embed + neon form + WhatsApp + social + live chat button
+- [ ] Booking page: booking UI (date picker, service, budget, time slot) + success animation
+- [ ] Extra premium features: dark/light mode toggle, custom cursor, scroll progress, AI chatbot UI stub
+- [ ] SEO meta tags + OpenGraph + schema markup
+- [ ] Test responsiveness across breakpoints + run quick lint/build (if any)

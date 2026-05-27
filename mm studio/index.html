@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MM STUDIO EDITING SHOP — Capturing Moments, Creating Stories</title>
+  <meta name="description" content="MM STUDIO EDITING SHOP — Professional Photography & Cinematic Video Editing. Wedding editing, reels editing, retouching, and album design in Egra, West Bengal." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="MM STUDIO EDITING SHOP" />
+  <meta property="og:description" content="Professional Photography & Cinematic Video Editing" />
+  <meta property="og:type" content="website" />
+
+  <!-- SEO keywords (lightweight) -->
+  <meta name="keywords" content="Photography studio in Egra, Video editor in West Bengal, Wedding photographer near me, Professional photo editing services, Cinematic video editing studio" />
+
+  <!-- Basic schema markup -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": "MM STUDIO EDITING SHOP",
+    "image": "media/474072273_475356905627147_8543051475008246111_n.jpg",
+    "priceRange": "$$",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Egra Ramnagar Road, Kasbagola to Negua, West Bengal 721448",
+      "addressLocality": "Egra",
+      "addressRegion": "West Bengal",
+      "postalCode": "721448",
+      "addressCountry": "IN"
+    },
+    "telephone": "08972085155",
+    "email": "mmstudioeditingshoop@gmail.com",
+    "openingHours": "Mo-Su 00:00-23:59",
+    "url": "./",
+    "sameAs": [
+      "https://www.facebook.com/",
+      "https://www.instagram.com/"
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700&family=Bebas+Neue&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading" aria-live="polite">
+    <div class="loader-card">
+      <div class="loader-logo">MM</div>
+      <div class="loader-bar"><span></span></div>
+      <div class="loader-text">Cinematic loading…</div>
+    </div>
+  </div>
+
+  <!-- Liquid background layers -->
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <div id="liquid" aria-hidden="true"></div>
+  <div id="vignette" aria-hidden="true"></div>
+  <div id="light-streak" aria-hidden="true"></div>
+
+
+  <!-- Scroll progress -->
+  <div id="scrollProgress" aria-hidden="true"><div></div></div>
+
+  <!-- Sticky Glass Navbar -->
+  <header class="navbar" id="navbar">
+    <div class="nav-inner">
+      <a class="brand" href="./">
+        <span class="brand-glow">MM</span>
+        <span class="brand-name">STUDIO EDITING SHOP</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Primary">
+        <a href="about.html">About</a>
+        <a href="services.html">Services</a>
+        <a href="portfolio.html">Portfolio</a>
+        <a href="testimonials.html">Testimonials</a>
+        <a href="pricing.html">Pricing</a>
+        <a href="contact.html">Contact</a>
+        <a class="nav-cta" href="booking.html">Book Now</a>
+      </nav>
+
+      <button class="nav-burger" id="navBurger" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle dark/light">
+        <span class="icon">◐</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="home">
+      <div class="hero-media">
+        <video class="hero-video" autoplay muted loop playsinline
+          poster="media/474072273_475356905627147_8543051475008246111_n.jpg">
+          <source src="media/hero.mp4" type="video/mp4" />
+        </video>
+        <div class="hero-overlay"></div>
+      </div>
+
+      <div class="container hero-content">
+        <div class="hero-grid">
+          <div class="hero-text">
+            <div class="kicker">
+              <span class="kicker-dot"></span>
+              <span>Capturing Moments, Creating Stories</span>
+            </div>
+            <h1 class="reveal" data-reveal="title">Professional Photography &amp; Cinematic Video Editing</h1>
+            <p class="sub reveal" data-reveal="sub">We turn your memories into timeless visual stories.</p>
+
+            <div class="hero-actions reveal" data-reveal="cta">
+              <a class="btn primary" href="booking.html"><span>Book Now</span><i></i></a>
+              <a class="btn ghost" href="portfolio.html"><span>View Portfolio</span><i></i></a>
+            </div>
+
+            <div class="social reveal" data-reveal="social">
+              <a class="social-icon" href="#" aria-label="Facebook">f</a>
+              <a class="social-icon" href="#" aria-label="Instagram">⌁</a>
+              <a class="social-icon" href="contact.html#whatsapp" aria-label="WhatsApp">☎</a>
+            </div>
+
+            <div class="scroll-indicator reveal" data-reveal="scroll">
+              <span>Scroll</span>
+              <div class="mouse">
+                <div class="wheel"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-cards reveal" data-reveal="cards">
+            <div class="glass-card" data-tilt>
+              <div class="card-top">Cinematic Color Grading</div>
+              <div class="card-mid">Luxury look for weddings &amp; reels</div>
+              <div class="card-bot">AI-assisted retouching</div>
+            </div>
+            <div class="glass-card" data-tilt>
+              <div class="card-top">Wedding Editing</div>
+              <div class="card-mid">Smooth storytelling + pro transitions</div>
+              <div class="card-bot">Audio polish &amp; motion blur</div>
+            </div>
+            <div class="glass-card" data-tilt>
+              <div class="card-top">Album Design</div>
+              <div class="card-mid">Elegant frames + modern layouts</div>
+              <div class="card-bot">Print-ready export</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mouse-glow" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <!-- QUICK BRANDS STRIP -->
+    <section class="strip">
+      <div class="container strip-inner">
+        <div class="strip-item">
+          <div class="strip-num" data-count="5.0">5.0</div>
+          <div class="strip-label">Rating ★★★★★</div>
+        </div>
+        <div class="strip-item">
+          <div class="strip-num">24/7</div>
+          <div class="strip-label">Open 24 Hours</div>
+        </div>
+        <div class="strip-item">
+          <div class="strip-num">Negua</div>
+          <div class="strip-label">Egra, West Bengal</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURED SERVICES -->
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="title">Luxury Editing Services</h2>
+          <p class="muted">Premium workflow, cinematic output, and emotional storytelling.</p>
+        </div>
+
+        <div class="cards">
+          <article class="service-card reveal" data-reveal="s1">
+            <div class="icon">✦</div>
+            <h3>Wedding Photography</h3>
+            <p>Golden moments with cinematic grading.</p>
+            <a class="link" href="services.html#service-wedding">Learn more →</a>
+          </article>
+          <article class="service-card reveal" data-reveal="s2">
+            <div class="icon">⟡</div>
+            <h3>Cinematic Video Editing</h3>
+            <p>Motion blur, transitions, color polish.</p>
+            <a class="link" href="services.html#service-cinematic">Learn more →</a>
+          </article>
+          <article class="service-card reveal" data-reveal="s3">
+            <div class="icon">⌁</div>
+            <h3>Lightroom Photo Editing</h3>
+            <p>Retouching and premium color correction.</p>
+            <a class="link" href="services.html#service-lightroom">Learn more →</a>
+          </article>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="footer-wave" aria-hidden="true"></div>
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <div class="footer-logo">MM <span>EDITING</span></div>
+          <div class="footer-sub">এমএম স্টুডিও এডিটিং শপ</div>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <div class="footer-h">Quick links</div>
+            <a href="about.html">About</a>
+            <a href="services.html">Services</a>
+            <a href="portfolio.html">Portfolio</a>
+            <a href="pricing.html">Pricing</a>
+          </div>
+          <div>
+            <div class="footer-h">Contact</div>
+            <div class="footer-text">Negua, Egra, West Bengal 721448</div>
+            <div class="footer-text">08972085155</div>
+            <div class="footer-text">mmstudioeditingshoop@gmail.com</div>
+          </div>
+          <div>
+            <div class="footer-h">Social</div>
+            <a href="#">Facebook</a>
+            <a href="#">Instagram</a>
+            <a href="contact.html#whatsapp">WhatsApp</a>
+          </div>
+        </div>
+      </div>
+      <div class="container footer-bottom">© 2026 MM STUDIO EDITING SHOP — All Rights Reserved</div>
+    </footer>
+  </main>
+
+  <!-- Floating action buttons -->
+  <div class="fab-stack">
+    <a class="fab" href="contact.html" aria-label="Contact">
+      <span>✉</span>
+    </a>
+    <a class="fab" href="booking.html" aria-label="Booking">
+      <span>⏱</span>
+    </a>
+    <button class="fab fab-chat" id="chatBtn" aria-label="Open live chat">💬</button>
+  </div>
+
+  <!-- AI Chatbot UI -->
+  <aside class="chatbot" id="chatbot" aria-hidden="true">
+    <div class="chatbar">
+      <div class="chat-title">MM AI Assistant</div>
+      <button class="chat-close" id="chatClose" aria-label="Close">×</button>
+    </div>
+    <div class="chat-body" id="chatBody">
+      <div class="bubble bot">Hi! Need help choosing a package?</div>
+      <div class="bubble bot">(This is a UI demo—connect your backend later.)</div>
+    </div>
+    <div class="chat-input">
+      <input id="chatInput" placeholder="Type your message…" maxlength="160" />
+      <button id="chatSend">Send</button>
+    </div>
+  </aside>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="scripts.js"></script>
+</body>
+</html>
+
