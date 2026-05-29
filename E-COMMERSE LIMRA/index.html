@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LIMRA Restaurant — Menara Bibi | Egra, West Bengal</title>
+  <meta name="description" content="LIMRA Restaurant (Menara Bibi) — A premium dining experience in Egra, West Bengal. Authentic Indian, Tandoori, Biryani & Chinese cuisine. Rated 4.8★. Order online or book a table." />
+  <meta name="keywords" content="LIMRA restaurant, Menara Bibi, Egra restaurant, Purba Medinipur food, biryani Egra, tandoori chicken West Bengal" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="bg-brand-dark text-brand-cream font-body antialiased">
+
+  <!-- ═══════════════════════════════════════════════════
+       HEADER
+  ══════════════════════════════════════════════════════ -->
+  <header id="site-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16 md:h-20">
+
+        <!-- Logo -->
+        <a href="#home" class="flex items-center gap-2 group">
+          <div class="w-9 h-9 rounded-full border-2 border-brand-gold flex items-center justify-center">
+            <span class="text-brand-gold font-display font-bold text-sm">L</span>
+          </div>
+          <span class="font-display font-bold text-xl md:text-2xl gold-text tracking-wide">LIMRA</span>
+        </a>
+
+        <!-- Desktop Nav -->
+        <nav class="hidden lg:flex items-center gap-6 xl:gap-8">
+          <a href="#home" class="nav-link text-sm text-brand-cream/80 hover:text-brand-gold transition-colors active">Home</a>
+          <a href="#menu" class="nav-link text-sm text-brand-cream/80 hover:text-brand-gold transition-colors">Menu</a>
+          <a href="#order" class="nav-link text-sm text-brand-cream/80 hover:text-brand-gold transition-colors">Order</a>
+          <a href="#booking" class="nav-link text-sm text-brand-cream/80 hover:text-brand-gold transition-colors">Booking</a>
+          <a href="#gallery" class="nav-link text-sm text-brand-cream/80 hover:text-brand-gold transition-colors">Gallery</a>
+          <a href="#about" class="nav-link text-sm text-brand-cream/80 hover:text-brand-gold transition-colors">About</a>
+          <a href="#visit" class="nav-link text-sm text-brand-cream/80 hover:text-brand-gold transition-colors">Visit Us</a>
+        </nav>
+
+        <!-- Right Actions -->
+        <div class="flex items-center gap-3">
+          <!-- Cart Button -->
+          <button id="cart-toggle-btn" class="relative p-2 text-brand-cream/80 hover:text-brand-gold transition-colors" aria-label="Open cart">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <span id="cart-badge" class="absolute -top-1 -right-1 bg-brand-gold text-brand-dark text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+          </button>
+
+          <!-- Book Table CTA -->
+          <a href="#booking" class="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-brand-gold text-brand-dark text-sm font-semibold rounded-full hover:bg-brand-gold-light transition-all duration-200 hover:scale-105">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Book Table
+          </a>
+
+          <!-- Hamburger -->
+          <button id="hamburger-btn" class="lg:hidden p-2 text-brand-cream" aria-label="Menu">
+            <div id="ham-bar1" class="w-6 h-0.5 bg-current mb-1.5 transition-all duration-300"></div>
+            <div id="ham-bar2" class="w-6 h-0.5 bg-current mb-1.5 transition-all duration-300"></div>
+            <div id="ham-bar3" class="w-6 h-0.5 bg-current transition-all duration-300"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Nav Drawer -->
+    <div id="mobile-nav" class="hidden lg:hidden bg-brand-card border-t border-brand-border">
+      <nav class="flex flex-col px-4 py-4 gap-3">
+        <a href="#home" class="mobile-nav-link py-2 text-brand-cream/80 hover:text-brand-gold transition-colors border-b border-brand-border/30">Home</a>
+        <a href="#menu" class="mobile-nav-link py-2 text-brand-cream/80 hover:text-brand-gold transition-colors border-b border-brand-border/30">Menu</a>
+        <a href="#order" class="mobile-nav-link py-2 text-brand-cream/80 hover:text-brand-gold transition-colors border-b border-brand-border/30">Order Online</a>
+        <a href="#booking" class="mobile-nav-link py-2 text-brand-cream/80 hover:text-brand-gold transition-colors border-b border-brand-border/30">Booking</a>
+        <a href="#gallery" class="mobile-nav-link py-2 text-brand-cream/80 hover:text-brand-gold transition-colors border-b border-brand-border/30">Gallery</a>
+        <a href="#about" class="mobile-nav-link py-2 text-brand-cream/80 hover:text-brand-gold transition-colors border-b border-brand-border/30">About</a>
+        <a href="#visit" class="mobile-nav-link py-2 text-brand-cream/80 hover:text-brand-gold transition-colors">Visit Us</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════
+       CART DRAWER
+  ══════════════════════════════════════════════════════ -->
+  <div id="cart-overlay" class="overlay fixed inset-0 bg-black/60 z-40 hidden opacity-0"></div>
+  <aside id="cart-drawer" class="cart-drawer closed fixed top-0 right-0 h-full w-full max-w-sm bg-brand-card z-50 flex flex-col shadow-2xl border-l border-brand-border">
+    <!-- Cart Header -->
+    <div class="flex items-center justify-between p-5 border-b border-brand-border">
+      <div class="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <h2 class="font-display text-lg font-semibold text-brand-gold">Your Order</h2>
+      </div>
+      <button id="cart-close-btn" class="p-1.5 text-brand-muted hover:text-brand-cream transition-colors" aria-label="Close cart">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Cart Items -->
+    <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3">
+      <!-- Empty state -->
+      <div id="cart-empty" class="flex flex-col items-center justify-center h-full gap-3 text-brand-muted">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <p class="text-sm">Your cart is empty</p>
+        <a href="#menu" id="cart-browse-btn" class="text-brand-gold text-sm hover:underline">Browse Menu →</a>
+      </div>
+    </div>
+
+    <!-- Cart Footer -->
+    <div id="cart-footer" class="hidden border-t border-brand-border p-4 space-y-3">
+      <div class="flex justify-between items-center text-sm text-brand-muted">
+        <span>Subtotal (<span id="cart-count-text">0</span> items)</span>
+        <span>₹<span id="cart-subtotal">0</span></span>
+      </div>
+      <div class="flex justify-between items-center font-semibold text-brand-cream">
+        <span>Total</span>
+        <span class="text-brand-gold text-lg">₹<span id="cart-total">0</span></span>
+      </div>
+      <button id="order-whatsapp-btn" class="w-full flex items-center justify-center gap-2 bg-[#25d366] hover:bg-[#20c05a] text-white font-semibold py-3 rounded-xl transition-all duration-200 hover:scale-[1.02]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Order via WhatsApp
+      </button>
+      <button id="cart-clear-btn" class="w-full text-center text-sm text-brand-muted hover:text-brand-maroon transition-colors py-1">
+        Clear Cart
+      </button>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════
+       HERO SECTION
+  ══════════════════════════════════════════════════════ -->
+  <section id="home" class="relative min-h-screen flex flex-col">
+    <!-- Background -->
+    <div class="absolute inset-0 z-0">
+      <img src="/images/hero_bg.png" alt="LIMRA Restaurant interior" class="w-full h-full object-cover" />
+      <div class="hero-overlay absolute inset-0"></div>
+    </div>
+
+    <!-- Content -->
+    <div class="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 pt-20 pb-10">
+      <!-- Pre-title -->
+      <p class="text-brand-gold tracking-[0.3em] text-xs md:text-sm uppercase mb-4 animate-fade-up" style="animation-delay:0.2s">Welcome to</p>
+
+      <!-- Restaurant Name -->
+      <h1 class="font-display font-bold text-6xl sm:text-7xl md:text-8xl lg:text-9xl gold-text mb-4 animate-fade-up" style="animation-delay:0.3s">
+        LIMRA
+      </h1>
+      <p class="font-display italic text-brand-cream/70 text-lg md:text-2xl mb-8 animate-fade-up" style="animation-delay:0.4s">
+        "Once you try it, you will love it."
+      </p>
+
+      <!-- CTAs -->
+      <div class="flex flex-col sm:flex-row gap-4 mb-16 animate-fade-up" style="animation-delay:0.5s">
+        <a href="#menu" class="px-8 py-3.5 bg-brand-gold text-brand-dark font-semibold rounded-full hover:bg-brand-gold-light transition-all duration-200 hover:scale-105 shadow-lg shadow-brand-gold/20">
+          Explore Menu
+        </a>
+        <a href="#booking" class="px-8 py-3.5 border-2 border-brand-gold text-brand-gold font-semibold rounded-full hover:bg-brand-gold/10 transition-all duration-200">
+          Book a Table
+        </a>
+      </div>
+
+      <!-- Scroll indicator -->
+      <div class="animate-bounce-slow opacity-60">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-brand-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Stat Bar -->
+    <div class="relative z-10 bg-black/50 backdrop-blur-sm border-t border-brand-border">
+      <div class="max-w-4xl mx-auto px-4 py-4 flex flex-wrap items-center justify-center gap-4 md:gap-10 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="text-yellow-400 text-lg">⭐</span>
+          <span class="text-brand-cream font-semibold">4.8</span>
+          <span class="text-brand-muted">Rating</span>
+        </div>
+        <div class="w-px h-4 bg-brand-border hidden md:block"></div>
+        <div class="flex items-center gap-2">
+          <span class="text-brand-gold">📍</span>
+          <span class="text-brand-cream">Egra, West Bengal</span>
+        </div>
+        <div class="w-px h-4 bg-brand-border hidden md:block"></div>
+        <div class="flex items-center gap-2">
+          <span class="text-brand-gold">⏰</span>
+          <span class="text-brand-cream">Open 10am – 11pm Daily</span>
+        </div>
+        <div class="w-px h-4 bg-brand-border hidden md:block"></div>
+        <div class="flex items-center gap-2">
+          <span class="text-brand-gold">💰</span>
+          <span class="text-brand-cream">₹1 – ₹200 per person</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       ABOUT SECTION
+  ══════════════════════════════════════════════════════ -->
+  <section id="about" class="py-20 md:py-28 px-4">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-16 reveal">
+        <p class="text-brand-gold tracking-widest text-xs uppercase mb-3">Our Story</p>
+        <h2 class="font-display text-4xl md:text-5xl font-bold text-brand-cream mb-4">About <span class="gold-text">LIMRA</span></h2>
+        <div class="section-divider mb-4"></div>
+        <p class="text-brand-muted max-w-xl mx-auto text-sm">Also known as Menara Bibi, a beloved culinary destination in the heart of Egra</p>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+        <!-- Left: Story + Reviews -->
+        <div class="reveal-left space-y-8">
+          <div class="space-y-4 text-brand-cream/80 leading-relaxed">
+            <p class="text-lg">
+              Nestled in the vibrant town of Egra, <strong class="text-brand-gold">LIMRA Restaurant</strong> — fondly known as <strong class="text-brand-gold">Menara Bibi</strong> — is more than just a place to eat. It's an experience crafted with love, tradition, and the finest ingredients from the heart of West Bengal.
+            </p>
+            <p>
+              From sizzling tandoori platters to aromatic biryanis, our kitchen brings together the rich heritage of Indian cuisine with modern presentation. Every dish tells a story, every bite carries warmth — because here, food is family.
+            </p>
+            <p>
+              With <strong class="text-brand-gold">4.8 stars</strong> on Google and the trust of our community, we're proud to be Egra's go-to destination for celebrations, family meals, and everyday moments worth savoring.
+            </p>
+          </div>
+
+          <!-- Services -->
+          <div class="flex flex-wrap gap-3">
+            <span class="px-3 py-1.5 bg-brand-card border border-brand-border rounded-full text-sm text-brand-gold flex items-center gap-1.5">
+              <span>🍽️</span> Dine-in
+            </span>
+            <span class="px-3 py-1.5 bg-brand-card border border-brand-border rounded-full text-sm text-brand-gold flex items-center gap-1.5">
+              <span>🚗</span> Drive-through
+            </span>
+            <span class="px-3 py-1.5 bg-brand-card border border-brand-border rounded-full text-sm text-brand-gold flex items-center gap-1.5">
+              <span>📦</span> No-contact Delivery
+            </span>
+          </div>
+
+          <!-- Reviews -->
+          <div class="space-y-4">
+            <h3 class="font-display text-xl font-semibold text-brand-cream">What Our Guests Say</h3>
+            <div class="space-y-3">
+              <div class="review-card bg-brand-card border border-brand-border rounded-2xl p-4">
+                <p class="text-brand-cream/80 text-sm italic mb-2">"The place is very beautiful and the service is even more beautiful ❤️"</p>
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-brand-gold/20 flex items-center justify-center text-brand-gold text-xs font-bold">A</div>
+                  <div>
+                    <p class="text-xs text-brand-gold font-semibold">Aryan Das</p>
+                    <div class="flex text-yellow-400 text-xs">★★★★★</div>
+                  </div>
+                </div>
+              </div>
+              <div class="review-card bg-brand-card border border-brand-border rounded-2xl p-4">
+                <p class="text-brand-cream/80 text-sm italic mb-2">"Nice place, food quality awesome"</p>
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-brand-gold/20 flex items-center justify-center text-brand-gold text-xs font-bold">R</div>
+                  <div>
+                    <p class="text-xs text-brand-gold font-semibold">Rohit Sen</p>
+                    <div class="flex text-yellow-400 text-xs">★★★★★</div>
+                  </div>
+                </div>
+              </div>
+              <div class="review-card bg-brand-card border border-brand-border rounded-2xl p-4">
+                <p class="text-brand-cream/80 text-sm italic mb-2">"Food is too good and my family is happy 😊"</p>
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-full bg-brand-gold/20 flex items-center justify-center text-brand-gold text-xs font-bold">P</div>
+                  <div>
+                    <p class="text-xs text-brand-gold font-semibold">Priya Mondal</p>
+                    <div class="flex text-yellow-400 text-xs">★★★★★</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Instagram -->
+          <a href="https://www.instagram.com/limra_restaurant_" target="_blank" rel="noopener" class="inline-flex items-center gap-3 px-5 py-3 rounded-full border border-brand-border hover:border-pink-400 hover:bg-pink-400/10 transition-all duration-200 group">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-pink-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+            <span class="text-brand-cream/80 group-hover:text-pink-400 transition-colors text-sm font-medium">@limra_restaurant_</span>
+          </a>
+        </div>
+
+        <!-- Right: Image + Info Cards -->
+        <div class="reveal-right space-y-6">
+          <div class="relative rounded-2xl overflow-hidden border border-brand-border group">
+            <img src="/images/restaurant_exterior.png" alt="LIMRA Restaurant Exterior" class="w-full h-72 object-cover group-hover:scale-105 transition-transform duration-500" />
+            <div class="absolute inset-0 bg-gradient-to-t from-brand-dark/80 to-transparent"></div>
+            <div class="absolute bottom-4 left-4">
+              <p class="font-display text-brand-gold font-semibold text-lg">Menara Bibi</p>
+              <p class="text-brand-cream/70 text-sm">Nimtala, Alangiri, Egra</p>
+            </div>
+          </div>
+
+          <!-- Info Cards -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-brand-card border border-brand-border rounded-2xl p-4 space-y-1">
+              <div class="text-brand-gold text-2xl mb-1">📍</div>
+              <p class="text-brand-cream font-semibold text-sm">Address</p>
+              <p class="text-brand-muted text-xs leading-relaxed">Nimtala, Alangiri, Egra Solpatta Rd, Purba Medinipur 721420</p>
+            </div>
+            <div class="bg-brand-card border border-brand-border rounded-2xl p-4 space-y-1">
+              <div class="text-brand-gold text-2xl mb-1">📞</div>
+              <p class="text-brand-cream font-semibold text-sm">Phone</p>
+              <a href="tel:+919739083418" class="text-brand-gold text-xs hover:underline">097390 83418</a>
+            </div>
+            <div class="bg-brand-card border border-brand-border rounded-2xl p-4 space-y-1">
+              <div class="text-brand-gold text-2xl mb-1">⏰</div>
+              <p class="text-brand-cream font-semibold text-sm">Hours</p>
+              <p class="text-brand-muted text-xs">10:00 AM – 11:00 PM</p>
+              <p class="text-brand-gold text-xs">All Days Open</p>
+            </div>
+            <div class="bg-brand-card border border-brand-border rounded-2xl p-4 space-y-1">
+              <div class="text-brand-gold text-2xl mb-1">⭐</div>
+              <p class="text-brand-cream font-semibold text-sm">Rating</p>
+              <p class="text-brand-gold text-xs font-bold text-xl">4.8/5</p>
+              <p class="text-brand-muted text-xs">Google Reviews</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       MENU SECTION
+  ══════════════════════════════════════════════════════ -->
+  <section id="menu" class="py-20 md:py-28 px-4 bg-brand-card2">
+    <div class="max-w-7xl mx-auto">
+      <!-- Header -->
+      <div class="text-center mb-12 reveal">
+        <p class="text-brand-gold tracking-widest text-xs uppercase mb-3">Explore</p>
+        <h2 class="font-display text-4xl md:text-5xl font-bold text-brand-cream mb-4">Our <span class="gold-text">Menu</span></h2>
+        <div class="section-divider mb-4"></div>
+        <p class="text-brand-muted text-sm">Authentic flavors crafted with passion</p>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="category-scroll overflow-x-auto pb-3 mb-8">
+        <div class="flex gap-2 min-w-max mx-auto justify-start md:justify-center px-2">
+          <button class="tab-btn active px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 bg-brand-gold text-brand-dark" data-category="all">All</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="soup">🍲 Soup</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="starters">🍗 Starters</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="kababs">🔥 Kababs</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="tandoori">🍗 Tandoori</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="nonveg-gravy">🍛 Non-Veg Gravy</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="veg-gravy">🥘 Veg / Dal</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="paneer">🧀 Paneer</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="chinese">🍜 Chinese</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="biryani">🍚 Biryani</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="rice">🍳 Rice</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="noodles">🍝 Noodles</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="bread">🫓 Bread</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="beverages">☕ Beverages</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium border border-brand-border hover:border-brand-gold transition-all duration-200 text-brand-muted hover:text-brand-cream" data-category="others">🧊 Others</button>
+        </div>
+      </div>
+
+      <!-- Menu Grid -->
+      <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 reveal">
+        <!-- Items injected by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       ORDER SECTION
+  ══════════════════════════════════════════════════════ -->
+  <section id="order" class="py-20 md:py-28 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12 reveal">
+        <p class="text-brand-gold tracking-widest text-xs uppercase mb-3">Quick & Easy</p>
+        <h2 class="font-display text-4xl md:text-5xl font-bold text-brand-cream mb-4">Order <span class="gold-text">Online</span></h2>
+        <div class="section-divider mb-4"></div>
+        <p class="text-brand-muted text-sm max-w-md mx-auto">Add items to your cart and place your order directly via WhatsApp. We'll confirm within minutes!</p>
+      </div>
+
+      <!-- Order Info Banner -->
+      <div class="reveal flex flex-wrap justify-center gap-4 mb-10">
+        <div class="flex items-center gap-2 bg-brand-card border border-brand-border rounded-full px-4 py-2 text-sm">
+          <span class="text-[#25d366]">●</span>
+          <span class="text-brand-cream/80">WhatsApp Order</span>
+        </div>
+        <div class="flex items-center gap-2 bg-brand-card border border-brand-border rounded-full px-4 py-2 text-sm">
+          <span class="text-brand-gold">●</span>
+          <span class="text-brand-cream/80">Dine-in Available</span>
+        </div>
+        <div class="flex items-center gap-2 bg-brand-card border border-brand-border rounded-full px-4 py-2 text-sm">
+          <span class="text-blue-400">●</span>
+          <span class="text-brand-cream/80">Delivery Available</span>
+        </div>
+      </div>
+
+      <!-- Order Grid (same as menu, re-uses data) -->
+      <div id="order-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 reveal">
+        <!-- Injected by JS -->
+      </div>
+
+      <!-- View Cart CTA -->
+      <div class="text-center mt-10 reveal">
+        <button id="view-cart-btn" class="inline-flex items-center gap-3 px-8 py-4 bg-brand-gold text-brand-dark font-bold rounded-full hover:bg-brand-gold-light transition-all duration-200 hover:scale-105 shadow-lg shadow-brand-gold/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          View Cart &amp; Order
+          <span id="view-cart-badge" class="bg-brand-dark text-brand-gold text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">0</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       BOOKING SECTION
+  ══════════════════════════════════════════════════════ -->
+  <section id="booking" class="py-20 md:py-28 px-4 bg-brand-card2">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-12 reveal">
+        <p class="text-brand-gold tracking-widest text-xs uppercase mb-3">Reserve Your Spot</p>
+        <h2 class="font-display text-4xl md:text-5xl font-bold text-brand-cream mb-4">Make a <span class="gold-text">Booking</span></h2>
+        <div class="section-divider mb-4"></div>
+        <p class="text-brand-muted text-sm">Choose your booking type below</p>
+      </div>
+
+      <!-- Booking Tabs -->
+      <div class="flex justify-center gap-3 mb-8 reveal">
+        <button class="booking-tab active px-5 py-2.5 rounded-full font-semibold text-sm border border-brand-border transition-all duration-200 bg-brand-gold text-brand-dark" data-tab="table">🪑 Table</button>
+        <button class="booking-tab px-5 py-2.5 rounded-full font-semibold text-sm border border-brand-border transition-all duration-200 text-brand-muted hover:text-brand-cream" data-tab="party">🎉 Party</button>
+        <button class="booking-tab px-5 py-2.5 rounded-full font-semibold text-sm border border-brand-border transition-all duration-200 text-brand-muted hover:text-brand-cream" data-tab="wedding">💍 Wedding</button>
+      </div>
+
+      <!-- TABLE BOOKING -->
+      <div id="tab-table" class="booking-panel reveal">
+        <div class="bg-brand-card border border-brand-border rounded-3xl p-6 md:p-8">
+          <h3 class="font-display text-2xl font-semibold text-brand-cream mb-6">Table Reservation</h3>
+
+          <!-- Visual Table Layout -->
+          <div class="mb-8">
+            <div class="grid grid-cols-2 gap-6">
+              <!-- Outdoor Tables -->
+              <div>
+                <p class="text-brand-muted text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
+                  Outdoor Tables (8)
+                </p>
+                <div class="grid grid-cols-4 gap-2">
+                  <div class="seat outdoor-seat w-12 h-12 rounded-xl bg-green-900/40 border-2 border-green-600/50 flex items-center justify-center text-green-400 text-xs font-bold hover:bg-green-800/60 hover:border-green-400" data-seat="O1">O1</div>
+                  <div class="seat outdoor-seat w-12 h-12 rounded-xl bg-green-900/40 border-2 border-green-600/50 flex items-center justify-center text-green-400 text-xs font-bold hover:bg-green-800/60 hover:border-green-400" data-seat="O2">O2</div>
+                  <div class="seat outdoor-seat w-12 h-12 rounded-xl bg-green-900/40 border-2 border-green-600/50 flex items-center justify-center text-green-400 text-xs font-bold hover:bg-green-800/60 hover:border-green-400" data-seat="O3">O3</div>
+                  <div class="seat outdoor-seat w-12 h-12 rounded-xl bg-green-900/40 border-2 border-green-600/50 flex items-center justify-center text-green-400 text-xs font-bold hover:bg-green-800/60 hover:border-green-400" data-seat="O4">O4</div>
+                  <div class="seat outdoor-seat w-12 h-12 rounded-xl bg-green-900/40 border-2 border-green-600/50 flex items-center justify-center text-green-400 text-xs font-bold hover:bg-green-800/60 hover:border-green-400" data-seat="O5">O5</div>
+                  <div class="seat outdoor-seat w-12 h-12 rounded-xl bg-green-900/40 border-2 border-green-600/50 flex items-center justify-center text-green-400 text-xs font-bold hover:bg-green-800/60 hover:border-green-400" data-seat="O6">O6</div>
+                  <div class="seat outdoor-seat w-12 h-12 rounded-xl bg-green-900/40 border-2 border-green-600/50 flex items-center justify-center text-green-400 text-xs font-bold hover:bg-green-800/60 hover:border-green-400" data-seat="O7">O7</div>
+                  <div class="seat outdoor-seat w-12 h-12 rounded-xl bg-green-900/40 border-2 border-green-600/50 flex items-center justify-center text-green-400 text-xs font-bold hover:bg-green-800/60 hover:border-green-400" data-seat="O8">O8</div>
+                </div>
+              </div>
+              <!-- Indoor Tables -->
+              <div>
+                <p class="text-brand-muted text-xs uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+                  Indoor Tables (8) — Premium
+                </p>
+                <div class="grid grid-cols-4 gap-2">
+                  <div class="seat indoor-seat w-12 h-12 rounded-xl bg-amber-900/40 border-2 border-amber-600/50 flex items-center justify-center text-amber-400 text-xs font-bold hover:bg-amber-800/60 hover:border-amber-400" data-seat="I1">I1</div>
+                  <div class="seat indoor-seat w-12 h-12 rounded-xl bg-amber-900/40 border-2 border-amber-600/50 flex items-center justify-center text-amber-400 text-xs font-bold hover:bg-amber-800/60 hover:border-amber-400" data-seat="I2">I2</div>
+                  <div class="seat indoor-seat w-12 h-12 rounded-xl bg-amber-900/40 border-2 border-amber-600/50 flex items-center justify-center text-amber-400 text-xs font-bold hover:bg-amber-800/60 hover:border-amber-400" data-seat="I3">I3</div>
+                  <div class="seat indoor-seat w-12 h-12 rounded-xl bg-amber-900/40 border-2 border-amber-600/50 flex items-center justify-center text-amber-400 text-xs font-bold hover:bg-amber-800/60 hover:border-amber-400" data-seat="I4">I4</div>
+                  <div class="seat indoor-seat w-12 h-12 rounded-xl bg-amber-900/40 border-2 border-amber-600/50 flex items-center justify-center text-amber-400 text-xs font-bold hover:bg-amber-800/60 hover:border-amber-400" data-seat="I5">I5</div>
+                  <div class="seat indoor-seat w-12 h-12 rounded-xl bg-amber-900/40 border-2 border-amber-600/50 flex items-center justify-center text-amber-400 text-xs font-bold hover:bg-amber-800/60 hover:border-amber-400" data-seat="I6">I6</div>
+                  <div class="seat indoor-seat w-12 h-12 rounded-xl bg-amber-900/40 border-2 border-amber-600/50 flex items-center justify-center text-amber-400 text-xs font-bold hover:bg-amber-800/60 hover:border-amber-400" data-seat="I7">I7</div>
+                  <div class="seat indoor-seat w-12 h-12 rounded-xl bg-amber-900/40 border-2 border-amber-600/50 flex items-center justify-center text-amber-400 text-xs font-bold hover:bg-amber-800/60 hover:border-amber-400" data-seat="I8">I8</div>
+                </div>
+              </div>
+            </div>
+            <p id="seat-selected-msg" class="text-brand-gold text-sm mt-3 hidden">Selected: <span id="seat-selected-label"></span></p>
+          </div>
+
+          <form id="table-booking-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Full Name *</label>
+              <input type="text" name="name" required placeholder="Your name" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Phone Number *</label>
+              <input type="tel" name="phone" required placeholder="10-digit number" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Date *</label>
+              <input type="date" name="date" required class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Time *</label>
+              <input type="time" name="time" required min="10:00" max="22:30" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Number of Guests *</label>
+              <input type="number" name="guests" required min="1" max="20" placeholder="e.g. 4" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Table Preference</label>
+              <select name="preference" class="form-input w-full px-4 py-3 rounded-xl text-sm">
+                <option value="No preference">No preference</option>
+                <option value="Outdoor">Outdoor (Free reservation)</option>
+                <option value="Indoor">Indoor (₹100–200 reservation fee)</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-brand-muted text-xs mb-1.5">Special Requests</label>
+              <textarea name="notes" rows="2" placeholder="Any special requirements, dietary needs..." class="form-input w-full px-4 py-3 rounded-xl text-sm resize-none"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <button type="submit" class="w-full flex items-center justify-center gap-2 bg-[#25d366] hover:bg-[#20c05a] text-white font-bold py-4 rounded-xl transition-all duration-200 hover:scale-[1.01]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Confirm via WhatsApp
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- PARTY BOOKING -->
+      <div id="tab-party" class="booking-panel hidden reveal">
+        <div class="bg-brand-card border border-brand-border rounded-3xl p-6 md:p-8">
+          <h3 class="font-display text-2xl font-semibold text-brand-cream mb-2">Party &amp; Event Booking</h3>
+          <p class="text-brand-muted text-sm mb-6">Birthdays, get-togethers, corporate events — we make it special. Customized menus available on request.</p>
+          <form id="party-booking-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Full Name *</label>
+              <input type="text" name="name" required placeholder="Your name" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Phone *</label>
+              <input type="tel" name="phone" required placeholder="10-digit number" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Event Type *</label>
+              <select name="event" required class="form-input w-full px-4 py-3 rounded-xl text-sm">
+                <option value="">Select event type</option>
+                <option>Birthday Party</option>
+                <option>Anniversary</option>
+                <option>Get-Together</option>
+                <option>Corporate Event</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Event Date *</label>
+              <input type="date" name="date" required class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Approx. Guests *</label>
+              <input type="number" name="guests" required min="5" placeholder="e.g. 25" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Budget Range</label>
+              <select name="budget" class="form-input w-full px-4 py-3 rounded-xl text-sm">
+                <option>Under ₹5,000</option>
+                <option>₹5,000 – ₹15,000</option>
+                <option>₹15,000 – ₹30,000</option>
+                <option>Above ₹30,000</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-brand-muted text-xs mb-1.5">Message / Requirements</label>
+              <textarea name="message" rows="3" placeholder="Describe your event requirements, theme, special food requests..." class="form-input w-full px-4 py-3 rounded-xl text-sm resize-none"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <button type="submit" class="w-full flex items-center justify-center gap-2 bg-[#25d366] hover:bg-[#20c05a] text-white font-bold py-4 rounded-xl transition-all duration-200 hover:scale-[1.01]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                Book Party via WhatsApp
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- WEDDING BOOKING -->
+      <div id="tab-wedding" class="booking-panel hidden reveal">
+        <div class="bg-brand-card border border-brand-border rounded-3xl p-6 md:p-8">
+          <h3 class="font-display text-2xl font-semibold text-brand-cream mb-2">Wedding &amp; Reception Booking</h3>
+          <p class="text-brand-muted text-sm mb-6">Special wedding packages available for receptions, engagements &amp; pre-wedding events. Contact us for custom pricing.</p>
+          <form id="wedding-booking-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Full Name *</label>
+              <input type="text" name="name" required placeholder="Your name" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Phone *</label>
+              <input type="tel" name="phone" required placeholder="10-digit number" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Event Date *</label>
+              <input type="date" name="date" required class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Number of Guests *</label>
+              <input type="number" name="guests" required min="20" placeholder="e.g. 100" class="form-input w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Catering Preference</label>
+              <select name="catering" class="form-input w-full px-4 py-3 rounded-xl text-sm">
+                <option>Veg Only</option>
+                <option>Non-Veg Only</option>
+                <option>Both Veg &amp; Non-Veg</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-brand-muted text-xs mb-1.5">Venue Needed?</label>
+              <select name="venue" class="form-input w-full px-4 py-3 rounded-xl text-sm">
+                <option>Yes — Need Venue</option>
+                <option>No — Have Own Venue</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-brand-muted text-xs mb-1.5">Message / Special Requests</label>
+              <textarea name="message" rows="3" placeholder="Tell us about your wedding event — theme, decorations, special requirements..." class="form-input w-full px-4 py-3 rounded-xl text-sm resize-none"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <button type="submit" class="w-full flex items-center justify-center gap-2 bg-brand-gold hover:bg-brand-gold-light text-brand-dark font-bold py-4 rounded-xl transition-all duration-200 hover:scale-[1.01]">
+                💍 Enquire About Wedding Package
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       GALLERY SECTION
+  ══════════════════════════════════════════════════════ -->
+  <section id="gallery" class="py-20 md:py-28 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12 reveal">
+        <p class="text-brand-gold tracking-widest text-xs uppercase mb-3">Visual Feast</p>
+        <h2 class="font-display text-4xl md:text-5xl font-bold text-brand-cream mb-4">Food <span class="gold-text">Gallery</span></h2>
+        <div class="section-divider mb-4"></div>
+      </div>
+
+      <!-- Gallery Filter -->
+      <div class="flex flex-wrap justify-center gap-2 mb-8 reveal">
+        <button class="gallery-filter active px-4 py-2 rounded-full text-sm font-medium border border-brand-border bg-brand-gold text-brand-dark transition-all duration-200" data-filter="all">All</button>
+        <button class="gallery-filter px-4 py-2 rounded-full text-sm font-medium border border-brand-border text-brand-muted hover:text-brand-cream transition-all duration-200" data-filter="biryani">Biryani</button>
+        <button class="gallery-filter px-4 py-2 rounded-full text-sm font-medium border border-brand-border text-brand-muted hover:text-brand-cream transition-all duration-200" data-filter="tandoori">Tandoori</button>
+        <button class="gallery-filter px-4 py-2 rounded-full text-sm font-medium border border-brand-border text-brand-muted hover:text-brand-cream transition-all duration-200" data-filter="kababs">Kababs</button>
+        <button class="gallery-filter px-4 py-2 rounded-full text-sm font-medium border border-brand-border text-brand-muted hover:text-brand-cream transition-all duration-200" data-filter="chinese">Chinese</button>
+        <button class="gallery-filter px-4 py-2 rounded-full text-sm font-medium border border-brand-border text-brand-muted hover:text-brand-cream transition-all duration-200" data-filter="breads">Breads</button>
+        <button class="gallery-filter px-4 py-2 rounded-full text-sm font-medium border border-brand-border text-brand-muted hover:text-brand-cream transition-all duration-200" data-filter="starters">Starters</button>
+      </div>
+
+      <!-- Gallery Grid -->
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 reveal">
+        <div class="gallery-item cursor-pointer rounded-2xl overflow-hidden border border-brand-border col-span-2" data-category="biryani" data-src="/images/food_biryani.png" data-label="Chicken Biryani">
+          <div class="relative h-64">
+            <img src="/images/food_biryani.png" alt="Chicken Biryani" class="w-full h-full object-cover" />
+            <div class="gallery-overlay absolute inset-0 bg-black/50 flex items-end p-4">
+              <div>
+                <p class="text-brand-gold font-semibold font-display text-lg">Chicken Biryani</p>
+                <p class="text-brand-cream/70 text-sm">Aromatic · Flavorful</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-item cursor-pointer rounded-2xl overflow-hidden border border-brand-border" data-category="tandoori" data-src="/images/food_tandoori.png" data-label="Tandoori Chicken">
+          <div class="relative h-64">
+            <img src="/images/food_tandoori.png" alt="Tandoori Chicken" class="w-full h-full object-cover" />
+            <div class="gallery-overlay absolute inset-0 bg-black/50 flex items-end p-4">
+              <div>
+                <p class="text-brand-gold font-semibold font-display">Tandoori Chicken</p>
+                <p class="text-brand-cream/70 text-sm">Smoky · Chargrilled</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-item cursor-pointer rounded-2xl overflow-hidden border border-brand-border" data-category="starters" data-src="/images/food_starters.png" data-label="Starters Platter">
+          <div class="relative h-64">
+            <img src="/images/food_starters.png" alt="Starters Platter" class="w-full h-full object-cover" />
+            <div class="gallery-overlay absolute inset-0 bg-black/50 flex items-end p-4">
+              <div>
+                <p class="text-brand-gold font-semibold font-display">Starters Platter</p>
+                <p class="text-brand-cream/70 text-sm">Crispy · Delicious</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-item cursor-pointer rounded-2xl overflow-hidden border border-brand-border" data-category="kababs" data-src="/images/food_kababs.png" data-label="Assorted Kababs">
+          <div class="relative h-64">
+            <img src="/images/food_kababs.png" alt="Kababs" class="w-full h-full object-cover" />
+            <div class="gallery-overlay absolute inset-0 bg-black/50 flex items-end p-4">
+              <div>
+                <p class="text-brand-gold font-semibold font-display">Assorted Kababs</p>
+                <p class="text-brand-cream/70 text-sm">Grilled · Juicy</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-item cursor-pointer rounded-2xl overflow-hidden border border-brand-border col-span-2" data-category="chinese" data-src="/images/food_chinese.png" data-label="Chinese Specialties">
+          <div class="relative h-64">
+            <img src="/images/food_chinese.png" alt="Chinese Food" class="w-full h-full object-cover" />
+            <div class="gallery-overlay absolute inset-0 bg-black/50 flex items-end p-4">
+              <div>
+                <p class="text-brand-gold font-semibold font-display text-lg">Chinese Specialties</p>
+                <p class="text-brand-cream/70 text-sm">Manchurian · Schezwan</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="gallery-item cursor-pointer rounded-2xl overflow-hidden border border-brand-border col-span-2" data-category="breads" data-src="/images/food_naan.png" data-label="Freshly Baked Breads">
+          <div class="relative h-64">
+            <img src="/images/food_naan.png" alt="Naan Breads" class="w-full h-full object-cover" />
+            <div class="gallery-overlay absolute inset-0 bg-black/50 flex items-end p-4">
+              <div>
+                <p class="text-brand-gold font-semibold font-display text-lg">Freshly Baked Breads</p>
+                <p class="text-brand-cream/70 text-sm">Naan · Roti · Kulcha</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox fixed inset-0 bg-black/95 z-60 hidden opacity-0 flex items-center justify-center p-4">
+    <button id="lb-close" class="absolute top-4 right-4 text-white/70 hover:text-white p-2 z-10" aria-label="Close">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+    <button id="lb-prev" class="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2" aria-label="Previous">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <button id="lb-next" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-2" aria-label="Next">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <div class="max-w-4xl max-h-full">
+      <img id="lb-img" src="" alt="" class="max-w-full max-h-[80vh] rounded-xl object-contain" />
+      <p id="lb-label" class="text-center text-brand-gold font-display text-lg mt-3"></p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       VISIT US SECTION
+  ══════════════════════════════════════════════════════ -->
+  <section id="visit" class="py-20 md:py-28 px-4 bg-brand-card2">
+    <div class="max-w-7xl mx-auto">
+      <div class="text-center mb-12 reveal">
+        <p class="text-brand-gold tracking-widest text-xs uppercase mb-3">Come See Us</p>
+        <h2 class="font-display text-4xl md:text-5xl font-bold text-brand-cream mb-4">Visit <span class="gold-text">Us</span></h2>
+        <div class="section-divider mb-4"></div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-10 items-start">
+        <!-- Info Cards -->
+        <div class="reveal-left space-y-4">
+          <div class="bg-brand-card border border-brand-border rounded-2xl p-5 flex gap-4">
+            <div class="w-12 h-12 rounded-xl bg-brand-gold/10 flex items-center justify-center text-2xl flex-shrink-0">📍</div>
+            <div>
+              <p class="text-brand-cream font-semibold mb-1">Address</p>
+              <p class="text-brand-muted text-sm leading-relaxed">Nimtala, Alangiri, Egra Solpatta Road,<br/>Egra, Purba Medinipur 721420<br/>West Bengal, India</p>
+              <a href="https://maps.google.com/?q=Nimtala,Alangiri,Egra,Purba+Medinipur,West+Bengal" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-brand-gold text-xs mt-2 hover:underline">
+                Get Directions →
+              </a>
+            </div>
+          </div>
+          <div class="bg-brand-card border border-brand-border rounded-2xl p-5 flex gap-4">
+            <div class="w-12 h-12 rounded-xl bg-brand-gold/10 flex items-center justify-center text-2xl flex-shrink-0">📞</div>
+            <div>
+              <p class="text-brand-cream font-semibold mb-1">Phone</p>
+              <a href="tel:+919739083418" class="text-brand-gold hover:underline">097390 83418</a>
+            </div>
+          </div>
+          <div class="bg-brand-card border border-brand-border rounded-2xl p-5 flex gap-4">
+            <div class="w-12 h-12 rounded-xl bg-brand-gold/10 flex items-center justify-center text-2xl flex-shrink-0">✉️</div>
+            <div>
+              <p class="text-brand-cream font-semibold mb-1">Email</p>
+              <a href="mailto:limrarestaurant99@gmail.com" class="text-brand-gold text-sm hover:underline">limrarestaurant99@gmail.com</a>
+            </div>
+          </div>
+          <div class="bg-brand-card border border-brand-border rounded-2xl p-5 flex gap-4">
+            <div class="w-12 h-12 rounded-xl bg-brand-gold/10 flex items-center justify-center text-2xl flex-shrink-0">⏰</div>
+            <div>
+              <p class="text-brand-cream font-semibold mb-1">Opening Hours</p>
+              <p class="text-brand-muted text-sm">Monday – Sunday</p>
+              <p class="text-brand-gold font-semibold">10:00 AM – 11:00 PM</p>
+            </div>
+          </div>
+          <!-- Socials -->
+          <div class="flex gap-3">
+            <a href="https://www.instagram.com/limra_restaurant_" target="_blank" rel="noopener" class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-brand-border hover:border-pink-400 hover:bg-pink-400/10 transition-all duration-200 text-sm text-brand-muted hover:text-pink-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+              Instagram
+            </a>
+            <a href="https://wa.me/919739083418" target="_blank" rel="noopener" class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-brand-border hover:border-green-400 hover:bg-green-400/10 transition-all duration-200 text-sm text-brand-muted hover:text-green-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              WhatsApp
+            </a>
+          </div>
+
+          <a href="https://maps.google.com/?q=Nimtala,Alangiri,Egra,Purba+Medinipur,West+Bengal" target="_blank" rel="noopener" class="flex items-center justify-center gap-2 w-full py-3.5 bg-brand-gold text-brand-dark font-bold rounded-xl hover:bg-brand-gold-light transition-all duration-200 hover:scale-[1.01]">
+            📍 Get Directions on Google Maps
+          </a>
+        </div>
+
+        <!-- Map -->
+        <div class="reveal-right">
+          <div class="rounded-2xl overflow-hidden border border-brand-border h-[450px]">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3697.0!2d87.53!3d21.91!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3a0322%3A0x0!2sNimtala%2C+Alangiri%2C+Egra%2C+Purba+Medinipur%2C+West+Bengal+721420!5e0!3m2!1sen!2sin!4v1"
+              width="100%"
+              height="100%"
+              style="border:0;"
+              allowfullscreen=""
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              title="LIMRA Restaurant Location">
+            </iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       FOOTER
+  ══════════════════════════════════════════════════════ -->
+  <footer class="bg-black/60 border-t border-brand-border py-10 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <!-- Brand -->
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-8 h-8 rounded-full border-2 border-brand-gold flex items-center justify-center">
+              <span class="text-brand-gold font-display font-bold text-sm">L</span>
+            </div>
+            <span class="font-display font-bold text-xl gold-text">LIMRA</span>
+          </div>
+          <p class="font-display italic text-brand-muted text-sm mb-3">"Once you try it, you will love it."</p>
+          <p class="text-brand-muted text-xs">Also known as Menara Bibi, Egra, West Bengal</p>
+        </div>
+        <!-- Quick Links -->
+        <div>
+          <p class="text-brand-gold font-semibold text-sm mb-4 uppercase tracking-widest">Quick Links</p>
+          <div class="grid grid-cols-2 gap-2">
+            <a href="#home" class="text-brand-muted text-sm hover:text-brand-gold transition-colors">Home</a>
+            <a href="#menu" class="text-brand-muted text-sm hover:text-brand-gold transition-colors">Menu</a>
+            <a href="#order" class="text-brand-muted text-sm hover:text-brand-gold transition-colors">Order Online</a>
+            <a href="#booking" class="text-brand-muted text-sm hover:text-brand-gold transition-colors">Booking</a>
+            <a href="#gallery" class="text-brand-muted text-sm hover:text-brand-gold transition-colors">Gallery</a>
+            <a href="#visit" class="text-brand-muted text-sm hover:text-brand-gold transition-colors">Visit Us</a>
+          </div>
+        </div>
+        <!-- Contact -->
+        <div>
+          <p class="text-brand-gold font-semibold text-sm mb-4 uppercase tracking-widest">Contact</p>
+          <div class="space-y-2 text-sm text-brand-muted">
+            <p>📞 <a href="tel:+919739083418" class="hover:text-brand-gold transition-colors">097390 83418</a></p>
+            <p>✉️ <a href="mailto:limrarestaurant99@gmail.com" class="hover:text-brand-gold transition-colors text-xs">limrarestaurant99@gmail.com</a></p>
+            <p>📍 Egra, Purba Medinipur 721420</p>
+            <p>⏰ 10:00 AM – 11:00 PM Daily</p>
+          </div>
+        </div>
+      </div>
+      <div class="border-t border-brand-border pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-brand-muted">
+        <p>© 2025 LIMRA Restaurant. All rights reserved.</p>
+        <p>Crafted with ❤️ for the people of Egra</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════
+       FLOATING ELEMENTS
+  ══════════════════════════════════════════════════════ -->
+
+  <!-- WhatsApp FAB -->
+  <a href="https://wa.me/919739083418" target="_blank" rel="noopener" id="whatsapp-fab" class="whatsapp-fab fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25d366] rounded-full flex items-center justify-center shadow-xl hover:scale-110 transition-transform duration-200" aria-label="Chat on WhatsApp">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white relative z-10" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+  </a>
+
+  <!-- Back to Top -->
+  <button id="back-to-top" class="fixed bottom-24 right-6 z-50 w-10 h-10 bg-brand-card border border-brand-border rounded-full flex items-center justify-center text-brand-gold hover:bg-brand-gold hover:text-brand-dark transition-all duration-200 opacity-0 pointer-events-none" aria-label="Back to top">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+  </button>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
