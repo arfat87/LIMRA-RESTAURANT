@@ -1,124 +1,50 @@
 import './style.css';
-
-// ═══════════════════════════════════════
-// MENU DATA
-// ═══════════════════════════════════════
-const menuItems = [
-  // SOUP
-  { id: 1, name: 'Chicken Manchow Soup', price: 60, category: 'soup', emoji: '🍲' },
-  { id: 2, name: 'Hot & Sour Chicken Soup', price: 60, category: 'soup', emoji: '🍲' },
-  { id: 3, name: 'Hot & Sour Veg Soup', price: 45, category: 'soup', emoji: '🍲' },
-  { id: 4, name: 'Veg Manchow Soup', price: 50, category: 'soup', emoji: '🍲' },
-  // STARTERS
-  { id: 5, name: 'Chicken 65', price: 100, category: 'starters', emoji: '🍗' },
-  { id: 6, name: 'Chicken Lollypop (5pc)', price: 150, category: 'starters', emoji: '🍗' },
-  { id: 7, name: 'Crispy Veg', price: 100, category: 'starters', emoji: '🥦' },
-  { id: 8, name: 'Crispy Chicken', price: 150, category: 'starters', emoji: '🍗' },
-  { id: 9, name: 'Dragon Chicken', price: 150, category: 'starters', emoji: '🔥' },
-  { id: 10, name: 'Gobi 65', price: 60, category: 'starters', emoji: '🥦' },
-  { id: 11, name: 'Green Salad', price: 40, category: 'starters', emoji: '🥗' },
-  { id: 12, name: 'Masala Papad', price: 30, category: 'starters', emoji: '🫓' },
-  { id: 13, name: 'Paneer 65', price: 90, category: 'starters', emoji: '🧀' },
-  // KABABS
-  { id: 14, name: 'Chicken Tikka', price: 120, mrp: 140, discount: 15, category: 'kababs', emoji: '🔥' },
-  { id: 15, name: 'Haryali Tikka (6pc)', price: 140, mrp: 150, discount: 7, category: 'kababs', emoji: '🔥' },
-  { id: 16, name: 'Kalmi Kabab', price: 140, mrp: 150, discount: 7, category: 'kababs', emoji: '🔥' },
-  { id: 17, name: 'Malai Tikka (6pc)', price: 150, mrp: 160, discount: 7, category: 'kababs', emoji: '🔥' },
-  { id: 18, name: 'Sikhari Kabab', price: 140, mrp: 150, discount: 7, category: 'kababs', emoji: '🔥' },
-  { id: 19, name: 'Tangdi Kabab (3pc)', price: 160, mrp: 180, discount: 12, category: 'kababs', emoji: '🔥' },
-  // TANDOORI
-  { id: 20, name: 'Tandoori Chicken Full', price: 380, category: 'tandoori', emoji: '🍗' },
-  { id: 21, name: 'Tandoori Chicken Half', price: 200, category: 'tandoori', emoji: '🍗' },
-  { id: 22, name: 'Quarter Tandoori', price: 100, mrp: 120, discount: 17, category: 'tandoori', emoji: '🍗' },
-  { id: 23, name: 'Afgani Chicken Full', price: 400, mrp: 420, discount: 5, category: 'tandoori', emoji: '🍗' },
-  { id: 24, name: 'Afgani Chicken Half', price: 200, mrp: 220, discount: 10, category: 'tandoori', emoji: '🍗' },
-  // NON-VEG GRAVY
-  { id: 25, name: 'Butter Chicken Masala', price: 160, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 26, name: 'Chicken Curry', price: 120, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 27, name: 'Chicken Do-Pyaza', price: 140, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 28, name: 'Chicken Hydrabadi', price: 180, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 29, name: 'Chicken Kosa', price: 120, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 30, name: 'Chicken Masala', price: 120, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 31, name: 'Chicken Tikka Masala', price: 150, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 32, name: 'Egg Curry', price: 70, category: 'nonveg-gravy', emoji: '🥚' },
-  { id: 33, name: 'Garlic Chicken', price: 130, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 34, name: 'Handi Chicken', price: 140, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 35, name: 'Kadai Chicken', price: 140, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 36, name: 'Moghlai Chicken', price: 190, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 37, name: 'Paper Chicken', price: 140, category: 'nonveg-gravy', emoji: '🍛' },
-  { id: 38, name: 'Salt & Pepper Chicken', price: 140, category: 'nonveg-gravy', emoji: '🍛' },
-  // VEG GRAVY / DAL
-  { id: 39, name: 'Chana Masala', price: 90, category: 'veg-gravy', emoji: '🥘' },
-  { id: 40, name: 'Dal Egg Tadka', price: 90, category: 'veg-gravy', emoji: '🥘' },
-  { id: 41, name: 'Dal Tadka', price: 80, category: 'veg-gravy', emoji: '🥘' },
-  { id: 42, name: 'Dal Butter Fry', price: 80, category: 'veg-gravy', emoji: '🥘' },
-  { id: 43, name: 'Dal Fry', price: 70, category: 'veg-gravy', emoji: '🥘' },
-  { id: 44, name: 'Kadai Veg', price: 130, category: 'veg-gravy', emoji: '🥘' },
-  { id: 45, name: 'Mix Veg Masala', price: 120, category: 'veg-gravy', emoji: '🥘' },
-  // PANEER
-  { id: 46, name: 'Kadai Paneer', price: 130, category: 'paneer', emoji: '🧀' },
-  { id: 47, name: 'Muttor Paneer', price: 130, category: 'paneer', emoji: '🧀' },
-  { id: 48, name: 'Paneer Butter Masala', price: 140, category: 'paneer', emoji: '🧀' },
-  { id: 49, name: 'Paneer Chilly', price: 120, category: 'paneer', emoji: '🧀' },
-  // CHINESE
-  { id: 50, name: 'Chicken Manchurian', price: 120, category: 'chinese', emoji: '🍜' },
-  { id: 51, name: 'Chilly Chicken', price: 110, category: 'chinese', emoji: '🍜' },
-  // BIRYANI
-  { id: 52, name: 'Chicken Biryani', price: 120, category: 'biryani', emoji: '🍚' },
-  { id: 53, name: 'Egg Biryani', price: 100, category: 'biryani', emoji: '🍚' },
-  { id: 54, name: 'Aloo Biryani', price: 90, category: 'biryani', emoji: '🍚' },
-  // RICE
-  { id: 55, name: 'Chicken Fried Rice', price: 100, category: 'rice', emoji: '🍳' },
-  { id: 56, name: 'Chicken Schezwan Rice', price: 110, category: 'rice', emoji: '🍳' },
-  { id: 57, name: 'Egg Fried Rice', price: 90, category: 'rice', emoji: '🍳' },
-  { id: 58, name: 'Egg Schezwan Rice', price: 100, category: 'rice', emoji: '🍳' },
-  { id: 59, name: 'Mix Fried Rice', price: 140, category: 'rice', emoji: '🍳' },
-  { id: 60, name: 'Veg Fried Rice', price: 80, category: 'rice', emoji: '🍳' },
-  { id: 61, name: 'Veg Schezwan Rice', price: 90, category: 'rice', emoji: '🍳' },
-  { id: 62, name: 'Ghee Rice', price: 110, category: 'rice', emoji: '🍳' },
-  { id: 63, name: 'Jeera Rice', price: 90, category: 'rice', emoji: '🍳' },
-  { id: 64, name: 'Khuska Rice', price: 80, category: 'rice', emoji: '🍳' },
-  // NOODLES
-  { id: 65, name: 'Chicken Noodles', price: 100, category: 'noodles', emoji: '🍝' },
-  { id: 66, name: 'Chicken Schezwan Noodles', price: 110, category: 'noodles', emoji: '🍝' },
-  { id: 67, name: 'Egg Noodles', price: 90, category: 'noodles', emoji: '🍝' },
-  { id: 68, name: 'Egg Schezwan Noodles', price: 100, category: 'noodles', emoji: '🍝' },
-  { id: 69, name: 'Mix Noodles', price: 140, category: 'noodles', emoji: '🍝' },
-  { id: 70, name: 'Veg Noodles', price: 80, category: 'noodles', emoji: '🍝' },
-  { id: 71, name: 'Veg Schezwan Noodles', price: 90, category: 'noodles', emoji: '🍝' },
-  // BREAD
-  { id: 72, name: 'Tandoori Roti', price: 15, category: 'bread', emoji: '🫓' },
-  { id: 73, name: 'Butter Naan', price: 25, category: 'bread', emoji: '🫓' },
-  { id: 74, name: 'Butter Roti', price: 20, mrp: 25, discount: 20, category: 'bread', emoji: '🫓' },
-  { id: 75, name: 'Cheese Garlic Naan', price: 60, mrp: 70, discount: 15, category: 'bread', emoji: '🫓' },
-  { id: 76, name: 'Cheese Naan', price: 50, mrp: 60, discount: 17, category: 'bread', emoji: '🫓' },
-  { id: 77, name: 'Garlic Naan', price: 40, mrp: 50, discount: 20, category: 'bread', emoji: '🫓' },
-  { id: 78, name: 'Kulcha', price: 25, mrp: 30, discount: 17, category: 'bread', emoji: '🫓' },
-  { id: 79, name: 'Masala Kulcha', price: 40, mrp: 50, discount: 20, category: 'bread', emoji: '🫓' },
-  { id: 80, name: 'Parotha', price: 25, category: 'bread', emoji: '🫓' },
-  { id: 81, name: 'Aloo Parotha', price: 30, category: 'bread', emoji: '🫓' },
-  { id: 82, name: 'Tandoori Parota', price: 20, mrp: 25, discount: 20, category: 'bread', emoji: '🫓' },
-  // BEVERAGES
-  { id: 83, name: 'Black Tea', price: 20, category: 'beverages', emoji: '☕' },
-  { id: 84, name: 'Ginger Tea', price: 20, category: 'beverages', emoji: '☕' },
-  { id: 85, name: 'Lemon Tea', price: 20, category: 'beverages', emoji: '☕' },
-  { id: 86, name: 'Milk Tea', price: 20, category: 'beverages', emoji: '☕' },
-  // OTHERS
-  { id: 87, name: 'Ice Cream', price: 40, category: 'others', emoji: '🧊' },
-  { id: 88, name: 'Water (Bottle)', price: 20, category: 'others', emoji: '💧' },
-];
+import { saveOrder, saveBooking, getCustomerBookings } from './lib/insforge.js';
+import { menuItems, categoryImages, categoryLabels, categoryEmojis, categoryTabOrder } from './data/menu.js';
 
 // ═══════════════════════════════════════
 // CART STATE
 // ═══════════════════════════════════════
-let cart = JSON.parse(localStorage.getItem('limra-cart') || '[]');
+function loadCartFromStorage() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('limra-cart') || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw.map(item => ({
+      id: Number(item.id),
+      name: String(item.name || ''),
+      price: Number(item.price) || 0,
+      qty: Math.max(1, Number(item.qty) || 1),
+    })).filter(item => item.id && item.name);
+  } catch {
+    return [];
+  }
+}
+
+let cart = loadCartFromStorage();
+
+// ═══════════════════════════════════════
+// DELIVERY STATE
+// ═══════════════════════════════════════
+const DELIVERY_RATE = 10; // ₹ per km
+let isDelivery = true;    // true = delivery, false = self pickup
+let deliveryKm = 0;       // km entered by customer
+
+function getDeliveryCharge() {
+  if (!isDelivery) return 0;
+  const km = Math.max(0, parseFloat(deliveryKm) || 0);
+  return Math.round(km * DELIVERY_RATE);
+}
 
 function saveCart() {
   localStorage.setItem('limra-cart', JSON.stringify(cart));
 }
 
-function getCartTotal() {
+function getCartSubtotal() {
   return cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+}
+
+function getCartTotal() {
+  return getCartSubtotal() + getDeliveryCharge();
 }
 
 function getCartCount() {
@@ -165,7 +91,9 @@ function clearCart() {
 
 function updateCartUI() {
   const count = getCartCount();
-  const total = getCartTotal();
+  const subtotal = getCartSubtotal();
+  const delivery = getDeliveryCharge();
+  const total = subtotal + delivery;
 
   // Badges
   document.getElementById('cart-badge').textContent = count;
@@ -175,10 +103,21 @@ function updateCartUI() {
 
   // Footer
   document.getElementById('cart-count-text').textContent = count;
-  document.getElementById('cart-subtotal').textContent = total;
+  document.getElementById('cart-subtotal').textContent = subtotal;
   document.getElementById('cart-total').textContent = total;
   document.getElementById('cart-footer').classList.toggle('hidden', count === 0);
   document.getElementById('cart-empty').classList.toggle('hidden', count > 0);
+
+  // Delivery charge row
+  const chargeRow = document.getElementById('delivery-charge-row');
+  const chargeEl = document.getElementById('cart-delivery-charge');
+  const kmLabel = document.getElementById('delivery-km-label');
+  if (chargeRow && chargeEl && kmLabel) {
+    const km = Math.max(0, parseFloat(deliveryKm) || 0);
+    kmLabel.textContent = km % 1 === 0 ? km : km.toFixed(1);
+    chargeEl.textContent = delivery;
+    chargeRow.style.display = isDelivery ? '' : 'none';
+  }
 
   // Items
   renderCartItems();
@@ -205,20 +144,21 @@ function renderCartItems() {
 
   cart.forEach(item => {
     const row = document.createElement('div');
-    row.className = 'cart-row bg-brand-dark/50 rounded-xl p-3 flex items-center gap-3';
+    row.className = 'cart-row rounded-xl p-3 flex items-center gap-3';
+    row.style.cssText = 'background:var(--color-off-white); border:1px solid var(--color-border)';
     row.innerHTML = `
       <div class="flex-1 min-w-0">
-        <p class="text-brand-cream text-sm font-medium truncate">${item.name}</p>
-        <p class="text-brand-gold text-xs">₹${item.price} each</p>
+        <p class="text-sm font-medium truncate" style="color:var(--color-text-primary)">${item.name}</p>
+        <p class="text-xs" style="color:var(--color-text-muted)">₹${item.price} each</p>
       </div>
       <div class="flex items-center gap-2">
-        <button class="qty-btn w-7 h-7 rounded-lg bg-brand-card border border-brand-border text-brand-cream text-sm hover:bg-brand-gold/20 transition-colors flex items-center justify-center" data-id="${item.id}" data-delta="-1">−</button>
-        <span class="text-brand-cream font-semibold text-sm w-5 text-center">${item.qty}</span>
-        <button class="qty-btn w-7 h-7 rounded-lg bg-brand-card border border-brand-border text-brand-cream text-sm hover:bg-brand-gold/20 transition-colors flex items-center justify-center" data-id="${item.id}" data-delta="1">+</button>
+        <button class="qty-btn" data-id="${item.id}" data-delta="-1">−</button>
+        <span class="text-sm font-semibold w-5 text-center" style="color:var(--color-text-primary)">${item.qty}</span>
+        <button class="qty-btn" data-id="${item.id}" data-delta="1">+</button>
       </div>
       <div class="text-right min-w-[3rem]">
-        <p class="text-brand-gold text-sm font-semibold">₹${item.price * item.qty}</p>
-        <button class="text-brand-muted hover:text-brand-maroon text-xs transition-colors remove-btn" data-id="${item.id}">remove</button>
+        <p class="text-sm font-semibold" style="color:var(--color-accent)">₹${item.price * item.qty}</p>
+        <button class="remove-btn text-xs transition-colors" style="color:var(--color-text-muted)" data-id="${item.id}">remove</button>
       </div>
     `;
     container.appendChild(row);
@@ -248,46 +188,61 @@ function animateBadge() {
 // Build WhatsApp order message
 function buildOrderMessage() {
   if (cart.length === 0) return '';
+  const address = document.getElementById('order-address')?.value?.trim() || '';
+  const km = parseFloat(document.getElementById('order-distance')?.value) || 0;
+  const delivery = getDeliveryCharge();
+  const subtotal = getCartSubtotal();
+
   let msg = '🍽️ *Order from LIMRA Restaurant*\n\n';
   cart.forEach(item => {
     msg += `• ${item.name} x${item.qty} = ₹${item.price * item.qty}\n`;
   });
-  msg += `\n*Total: ₹${getCartTotal()}*\n\n`;
-  msg += 'Please confirm my order. Thank you! 🙏';
+  msg += `\n*Subtotal: ₹${subtotal}*`;
+  if (isDelivery) {
+    msg += `\n🛵 *Delivery (${km} km × ₹10): ₹${delivery}*`;
+    msg += `\n*Grand Total: ₹${subtotal + delivery}*`;
+    if (address) msg += `\n\n📍 *Deliver to:* ${address}`;
+  } else {
+    msg += `\n*Total: ₹${subtotal}* (Self Pickup — Free)`;
+  }
+  msg += '\n\nPlease confirm my order. Thank you! 🙏';
   return encodeURIComponent(msg);
 }
 
 // ═══════════════════════════════════════
 // RENDER MENU CARDS
 // ═══════════════════════════════════════
-function createMenuCard(item, isOrderSection = false) {
-  const card = document.createElement('div');
-  card.className = `menu-card bg-brand-card border border-brand-border rounded-2xl p-4 flex flex-col gap-3 menu-item`;
+function createMenuCard(item) {
+  const imgSrc = item.image || categoryImages[item.category] || '/images/food_biryani.png';
+  const card = document.createElement('article');
+  card.className = 'menu-card flex flex-col';
   card.dataset.category = item.category;
+  card.setAttribute('role', 'listitem');
 
   const discountBadge = item.discount
-    ? `<span class="absolute top-2 right-2 bg-brand-maroon text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${item.discount}% OFF</span>`
+    ? `<span class="discount-badge">${item.discount}% OFF</span>`
     : '';
   const mrpLine = item.mrp
-    ? `<span class="text-brand-muted text-xs line-through ml-1">₹${item.mrp}</span>`
+    ? `<span style="color:var(--color-text-muted); font-size:.7rem; text-decoration:line-through; margin-left:.25rem">₹${item.mrp}</span>`
     : '';
 
   card.innerHTML = `
-    <div class="relative">
-      <div class="w-12 h-12 rounded-xl bg-brand-gold/10 flex items-center justify-center text-2xl mb-2">${item.emoji}</div>
+    <div class="relative overflow-hidden" style="border-radius:12px 12px 0 0">
+      <img src="${imgSrc}" alt="${item.name} — LIMRA Restaurant Egra menu" class="card-img" loading="lazy" width="400" height="300" />
       ${discountBadge}
     </div>
-    <div class="flex-1">
-      <h3 class="text-brand-cream font-medium text-sm leading-snug">${item.name}</h3>
-    </div>
-    <div class="flex items-center justify-between mt-auto">
-      <div class="flex items-baseline gap-1">
-        <span class="text-brand-gold font-bold text-base">₹${item.price}</span>
-        ${mrpLine}
+    <div class="flex flex-col gap-2 p-3 flex-1">
+      <div class="flex items-start gap-2">
+        <span class="text-lg leading-none mt-0.5">${item.emoji}</span>
+        <h3 class="text-sm font-semibold leading-snug flex-1" style="color:var(--color-text-primary)">${item.name}</h3>
       </div>
-      <button class="add-btn px-3 py-1.5 rounded-xl bg-brand-gold/10 border border-brand-border text-brand-gold text-xs font-semibold hover:bg-brand-gold hover:text-brand-dark transition-all duration-200" data-id="${item.id}">
-        + Add to Cart
-      </button>
+      <div class="flex items-center justify-between mt-auto">
+        <div class="flex items-baseline">
+          <span class="font-bold text-base" style="color:var(--color-accent)">₹${item.price}</span>
+          ${mrpLine}
+        </div>
+        <button class="add-btn" data-id="${item.id}">+ Add</button>
+      </div>
     </div>
   `;
 
@@ -301,28 +256,67 @@ function createMenuCard(item, isOrderSection = false) {
 
 function renderMenuGrid(containerId, category = 'all') {
   const grid = document.getElementById(containerId);
+  if (!grid) return;
+
   grid.innerHTML = '';
-  const filtered = category === 'all' ? menuItems : menuItems.filter(m => m.category === category);
-  filtered.forEach(item => {
-    grid.appendChild(createMenuCard(item));
+  grid.classList.add('visible');
+  grid.setAttribute('aria-busy', 'true');
+
+  const filtered = category === 'all'
+    ? menuItems
+    : menuItems.filter(m => m.category === category);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<p class="col-span-full text-center py-12 text-sm" style="color:var(--color-text-muted)">No dishes in this category.</p>';
+    grid.setAttribute('aria-busy', 'false');
+    return;
+  }
+
+  filtered.forEach((item, index) => {
+    const card = createMenuCard(item);
+    card.classList.add('reveal');
+    card.style.transitionDelay = `${Math.min(index * 35, 350)}ms`;
+    grid.appendChild(card);
   });
+
+  grid.setAttribute('aria-busy', 'false');
+  observeRevealElements(grid);
   updateCartUI();
 }
 
 // ═══════════════════════════════════════
 // MENU & ORDER FILTER TABS
 // ═══════════════════════════════════════
+function syncTabActiveState(activeCategory) {
+  document.querySelectorAll('.tab-btn').forEach(t => {
+    const isActive = t.dataset.category === activeCategory;
+    t.classList.toggle('active', isActive);
+    t.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+function buildCategoryTabButtons() {
+  const tabsHtml = [
+    '<button type="button" class="tab-btn active" data-category="all">All</button>',
+    ...categoryTabOrder.map(cat => {
+      const emoji = categoryEmojis[cat] || '';
+      const label = categoryLabels[cat] || cat;
+      return `<button type="button" class="tab-btn" data-category="${cat}">${emoji} ${label}</button>`;
+    }),
+  ].join('');
+
+  document.querySelectorAll('[data-tab-bar]').forEach(bar => {
+    bar.innerHTML = tabsHtml;
+  });
+}
+
 function initMenuTabs() {
-  const tabs = document.querySelectorAll('.tab-btn');
-  tabs.forEach(tab => {
+  buildCategoryTabButtons();
+  document.querySelectorAll('.tab-btn').forEach(tab => {
+    tab.setAttribute('aria-pressed', tab.classList.contains('active') ? 'true' : 'false');
     tab.addEventListener('click', () => {
-      tabs.forEach(t => {
-        t.classList.remove('active', 'bg-brand-gold', 'text-brand-dark');
-        t.classList.add('text-brand-muted');
-      });
-      tab.classList.add('active', 'bg-brand-gold', 'text-brand-dark');
-      tab.classList.remove('text-brand-muted');
       const cat = tab.dataset.category;
+      syncTabActiveState(cat);
       renderMenuGrid('menu-grid', cat);
       renderMenuGrid('order-grid', cat);
     });
@@ -374,7 +368,7 @@ function initBookingTabs() {
 }
 
 // ═══════════════════════════════════════
-// BOOKING FORMS → WHATSAPP
+// BOOKING FORMS → DATABASE (admin dashboard)
 // ═══════════════════════════════════════
 const WA_NUMBER = '919739083418';
 
@@ -383,36 +377,155 @@ function submitToWhatsApp(message) {
   window.open(url, '_blank');
 }
 
+function buildBookingPayload(type, data, extra = {}) {
+  return {
+    type,
+    customer_name: String(data.name || '').trim(),
+    customer_phone: String(data.phone || '').trim(),
+    booking_date: data.date || null,
+    booking_time: data.time || null,
+    guests: data.guests ? parseInt(data.guests, 10) : null,
+    preference: data.preference || null,
+    seat_label: extra.seat || null,
+    event_type: data.event || null,
+    budget: data.budget || null,
+    catering: data.catering || null,
+    venue: data.venue || null,
+    message: data.message || null,
+    notes: data.notes || null,
+    status: 'pending',
+  };
+}
+
+function setBookingStatus(form, message, isError = false) {
+  const el = form.querySelector('.booking-status-msg');
+  if (!el) return;
+  el.textContent = message;
+  el.classList.remove('hidden');
+  el.style.color = isError ? 'var(--color-red-badge)' : 'var(--color-accent)';
+  el.style.background = isError ? '#fdecea' : 'var(--color-accent-bg)';
+}
+
+function clearBookingStatus(form) {
+  const el = form.querySelector('.booking-status-msg');
+  if (el) el.classList.add('hidden');
+}
+
+async function handleBookingSubmit(form, type, getExtra = () => ({})) {
+  clearBookingStatus(form);
+
+  const data = Object.fromEntries(new FormData(form));
+  if (!data.name?.trim() || !data.phone?.trim()) {
+    setBookingStatus(form, 'Please enter your name and phone number.', true);
+    return;
+  }
+
+  const btn = form.querySelector('.booking-submit-btn') || form.querySelector('button[type="submit"]');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  try {
+    const result = await saveBooking(buildBookingPayload(type, data, getExtra()));
+    const ref = result?.booking_number ? `Booking #${result.booking_number}` : 'Booking';
+    setBookingStatus(form, `✓ ${ref} received! We will confirm by phone soon.`);
+
+    form.reset();
+    if (type === 'table') {
+      document.getElementById('seat-selected-msg')?.classList.add('hidden');
+      const label = document.getElementById('seat-selected-label');
+      if (label) label.textContent = '';
+    }
+
+    setTimeout(() => clearBookingStatus(form), 8000);
+  } catch (err) {
+    console.error('Booking error:', err);
+    const detail = err?.message || 'Please try again or call 097390 83418.';
+    setBookingStatus(form, `Booking failed: ${detail}`, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+const BOOKING_TYPE_LABELS = {
+  table: '🪑 Table',
+  party: '🎉 Party',
+  wedding: '💍 Wedding',
+};
+
+const BOOKING_STATUS_LABELS = {
+  pending: 'Pending confirmation',
+  confirmed: 'Confirmed',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+function initCustomerBookingLookup() {
+  const form = document.getElementById('check-booking-form');
+  const resultEl = document.getElementById('customer-bookings-result');
+  if (!form || !resultEl) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const phone = new FormData(form).get('phone')?.toString().trim();
+    if (!phone) return;
+
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+    resultEl.classList.remove('hidden');
+    resultEl.innerHTML = '<p class="text-sm" style="color:var(--color-text-muted)">Loading...</p>';
+
+    try {
+      const list = await getCustomerBookings(phone);
+      if (!list.length) {
+        resultEl.innerHTML = '<p class="text-sm p-3 rounded-xl" style="background:var(--color-surface); color:var(--color-text-muted)">No bookings found for this number. Submit a new booking above.</p>';
+        return;
+      }
+
+      resultEl.innerHTML = list.map(b => `
+        <div class="p-4 rounded-xl border" style="background:var(--color-white); border-color:var(--color-border)">
+          <div class="flex flex-wrap justify-between gap-2 mb-2">
+            <span class="font-semibold text-sm">Booking #${b.booking_number}</span>
+            <span class="text-xs font-bold px-2 py-1 rounded-full" style="background:var(--color-accent-bg); color:var(--color-accent)">${BOOKING_STATUS_LABELS[b.status] || b.status}</span>
+          </div>
+          <p class="text-sm" style="color:var(--color-text-secondary)">${BOOKING_TYPE_LABELS[b.type] || b.type} · ${b.customer_name}</p>
+          <p class="text-xs mt-1" style="color:var(--color-text-muted)">
+            ${b.booking_date ? `Date: ${b.booking_date}` : ''}${b.booking_time ? ` · ${b.booking_time}` : ''}${b.guests ? ` · ${b.guests} guests` : ''}${b.seat_label ? ` · Seat ${b.seat_label}` : ''}
+          </p>
+        </div>
+      `).join('');
+    } catch (err) {
+      console.error(err);
+      resultEl.innerHTML = `<p class="text-sm" style="color:var(--color-red-badge)">${err.message || 'Could not load bookings.'}</p>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Check bookings';
+    }
+  });
+}
+
 function initBookingForms() {
-  // Table booking
   const tableForm = document.getElementById('table-booking-form');
   tableForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(tableForm));
-    const seat = document.getElementById('seat-selected-label')?.textContent || 'Not selected';
-    const msg = `🪑 *Table Booking — LIMRA Restaurant*\n\n` +
-      `Name: ${data.name}\nPhone: ${data.phone}\nDate: ${data.date}\nTime: ${data.time}\nGuests: ${data.guests}\nPreference: ${data.preference}\nSeat Selected: ${seat}\nNotes: ${data.notes || 'None'}\n\nPlease confirm my table booking. Thank you!`;
-    submitToWhatsApp(msg);
+    const seat = document.getElementById('seat-selected-label')?.textContent || '';
+    handleBookingSubmit(tableForm, 'table', () => ({
+      seat: seat && seat !== 'Not selected' ? seat : null,
+    }));
   });
 
-  // Party booking
   const partyForm = document.getElementById('party-booking-form');
   partyForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(partyForm));
-    const msg = `🎉 *Party Booking — LIMRA Restaurant*\n\n` +
-      `Name: ${data.name}\nPhone: ${data.phone}\nEvent: ${data.event}\nDate: ${data.date}\nGuests: ${data.guests}\nBudget: ${data.budget}\nMessage: ${data.message || 'None'}\n\nPlease confirm my party booking. Thank you!`;
-    submitToWhatsApp(msg);
+    handleBookingSubmit(partyForm, 'party');
   });
 
-  // Wedding booking
   const weddingForm = document.getElementById('wedding-booking-form');
   weddingForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const data = Object.fromEntries(new FormData(weddingForm));
-    const msg = `💍 *Wedding Booking Enquiry — LIMRA Restaurant*\n\n` +
-      `Name: ${data.name}\nPhone: ${data.phone}\nEvent Date: ${data.date}\nGuests: ${data.guests}\nCatering: ${data.catering}\nVenue: ${data.venue}\nMessage: ${data.message || 'None'}\n\nPlease share your wedding packages. Thank you!`;
-    submitToWhatsApp(msg);
+    handleBookingSubmit(weddingForm, 'wedding');
   });
 }
 
@@ -454,17 +567,13 @@ function initSeatSelection() {
 // GALLERY FILTER + LIGHTBOX
 // ═══════════════════════════════════════
 function initGallery() {
-  const filters = document.querySelectorAll('.gallery-filter');
+  const filters = document.querySelectorAll('.gal-filter');
   const items = document.querySelectorAll('.gallery-item');
 
   filters.forEach(filter => {
     filter.addEventListener('click', () => {
-      filters.forEach(f => {
-        f.classList.remove('active', 'bg-brand-gold', 'text-brand-dark');
-        f.classList.add('text-brand-muted');
-      });
-      filter.classList.add('active', 'bg-brand-gold', 'text-brand-dark');
-      filter.classList.remove('text-brand-muted');
+      filters.forEach(f => f.classList.remove('active'));
+      filter.classList.add('active');
 
       const cat = filter.dataset.filter;
       items.forEach(item => {
@@ -540,19 +649,38 @@ function initGallery() {
 // ═══════════════════════════════════════
 // SCROLL ANIMATIONS
 // ═══════════════════════════════════════
+let revealObserver = null;
+
 function initScrollAnimations() {
-  const observer = new IntersectionObserver((entries) => {
+  revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
+        revealObserver.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
 
-  document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => {
-    observer.observe(el);
+  observeRevealElements(document);
+}
+
+function observeRevealElements(root) {
+  if (!revealObserver || !root) return;
+  root.querySelectorAll('.reveal, .reveal-l, .reveal-r').forEach(el => {
+    if (el.classList.contains('menu-product-grid')) return;
+    if (el.dataset.revealObserved) return;
+    el.dataset.revealObserved = '1';
+    if (isElementInViewport(el)) {
+      el.classList.add('visible');
+      return;
+    }
+    revealObserver.observe(el);
   });
+}
+
+function isElementInViewport(el) {
+  const rect = el.getBoundingClientRect();
+  return rect.top < window.innerHeight && rect.bottom > 0;
 }
 
 // ═══════════════════════════════════════
@@ -609,29 +737,26 @@ function initMobileNav() {
   btn.addEventListener('click', () => {
     open = !open;
     nav.classList.toggle('hidden', !open);
-    // Animate bars
-    const b1 = document.getElementById('ham-bar1');
-    const b2 = document.getElementById('ham-bar2');
-    const b3 = document.getElementById('ham-bar3');
+    const b1 = document.getElementById('hb1');
+    const b2 = document.getElementById('hb2');
+    const b3 = document.getElementById('hb3');
     if (open) {
-      b1.style.transform = 'rotate(45deg) translate(5px, 6px)';
+      b1.style.transform = 'rotate(45deg) translate(4px, 5px)';
       b2.style.opacity = '0';
-      b3.style.transform = 'rotate(-45deg) translate(5px, -6px)';
+      b3.style.transform = 'rotate(-45deg) translate(4px, -5px)';
     } else {
-      b1.style.transform = '';
-      b2.style.opacity = '1';
-      b3.style.transform = '';
+      b1.style.transform = ''; b2.style.opacity = '1'; b3.style.transform = '';
     }
   });
 
-  // Close on mobile nav link click
   document.querySelectorAll('.mobile-nav-link').forEach(link => {
     link.addEventListener('click', () => {
       open = false;
       nav.classList.add('hidden');
-      document.getElementById('ham-bar1').style.transform = '';
-      document.getElementById('ham-bar2').style.opacity = '1';
-      document.getElementById('ham-bar3').style.transform = '';
+      const b1 = document.getElementById('hb1');
+      const b2 = document.getElementById('hb2');
+      const b3 = document.getElementById('hb3');
+      b1.style.transform = ''; b2.style.opacity = '1'; b3.style.transform = '';
     });
   });
 }
@@ -666,9 +791,10 @@ function initBackToTop() {
 // INIT
 // ═══════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  // Render menus
-  renderMenuGrid('menu-grid');
-  renderMenuGrid('order-grid');
+  initScrollAnimations();
+
+  renderMenuGrid('menu-grid', 'all');
+  renderMenuGrid('order-grid', 'all');
   updateCartUI();
 
   // Cart drawer
@@ -679,10 +805,108 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('view-cart-btn').addEventListener('click', openCart);
   document.getElementById('cart-browse-btn')?.addEventListener('click', closeCart);
 
-  // WhatsApp order
+  // ── Delivery type toggle ────────────────
+  function initDelivery() {
+    const btnDeliver = document.getElementById('delivery-type-deliver');
+    const btnPickup  = document.getElementById('delivery-type-pickup');
+    const addrBlock  = document.getElementById('delivery-address-block');
+    const distInput  = document.getElementById('order-distance');
+    if (!btnDeliver || !btnPickup) return;
+
+    function setMode(delivery) {
+      isDelivery = delivery;
+      if (delivery) {
+        btnDeliver.style.cssText = 'border-color:var(--color-accent); background:var(--color-accent); color:#fff';
+        btnPickup.style.cssText  = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
+        addrBlock.style.display  = '';
+      } else {
+        btnDeliver.style.cssText = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
+        btnPickup.style.cssText  = 'border-color:var(--color-accent); background:var(--color-accent); color:#fff';
+        addrBlock.style.display  = 'none';
+        deliveryKm = 0;
+      }
+      updateCartUI();
+    }
+
+    btnDeliver.addEventListener('click', () => setMode(true));
+    btnPickup.addEventListener('click',  () => setMode(false));
+
+    // Live update when km changes
+    distInput?.addEventListener('input', () => {
+      deliveryKm = parseFloat(distInput.value) || 0;
+      updateCartUI();
+    });
+  }
+  initDelivery();
+
+  // Place order (saved to admin dashboard)
+  document.getElementById('place-order-btn').addEventListener('click', async () => {
+    if (cart.length === 0) { alert('Your cart is empty! Add some items first.'); return; }
+    const name    = document.getElementById('order-customer-name').value.trim();
+    const phone   = document.getElementById('order-customer-phone').value.trim();
+    const address = document.getElementById('order-address')?.value?.trim() || '';
+    const notes   = document.getElementById('order-notes').value.trim();
+    const km      = parseFloat(document.getElementById('order-distance')?.value) || 0;
+    const charge  = getDeliveryCharge();
+
+    if (!name || !phone) {
+      alert('Please enter your name and phone number.');
+      return;
+    }
+    if (isDelivery && !address) {
+      alert('Please enter your delivery address.');
+      return;
+    }
+
+    const deliveryNote = isDelivery
+      ? `[DELIVERY] Address: ${address} | Distance: ${km} km | Delivery charge: ₹${charge}`
+      : '[SELF PICKUP]';
+    const combinedNotes = [deliveryNote, notes].filter(Boolean).join(' | ');
+
+    const btn = document.getElementById('place-order-btn');
+    const statusEl = document.getElementById('order-status-msg');
+    btn.disabled = true;
+    btn.textContent = 'Placing order...';
+
+    try {
+      const order = await saveOrder({
+        customerName: name,
+        customerPhone: phone,
+        items: cart,
+        notes: combinedNotes,
+      });
+      const orderLabel = order?.order_number ? `Order #${order.order_number}` : 'Your order';
+      statusEl.textContent = `${orderLabel} placed! We will confirm soon.`;
+      statusEl.style.color = 'var(--color-accent)';
+      statusEl.classList.remove('hidden');
+      clearCart();
+      document.getElementById('order-customer-name').value = '';
+      document.getElementById('order-customer-phone').value = '';
+      if (document.getElementById('order-address')) document.getElementById('order-address').value = '';
+      if (document.getElementById('order-distance')) document.getElementById('order-distance').value = '';
+      document.getElementById('order-notes').value = '';
+      deliveryKm = 0;
+      setTimeout(() => statusEl.classList.add('hidden'), 5000);
+    } catch (err) {
+      console.error('Order error:', err);
+      const detail = err?.message || 'Please try again or use WhatsApp.';
+      statusEl.textContent = `Order failed: ${detail}`;
+      statusEl.style.color = 'var(--color-red-badge)';
+      statusEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Place Order`;
+    }
+  });
+
+  // Optional WhatsApp copy
   document.getElementById('order-whatsapp-btn').addEventListener('click', () => {
     if (cart.length === 0) { alert('Your cart is empty! Add some items first.'); return; }
-    const url = `https://wa.me/${WA_NUMBER}?text=${buildOrderMessage()}`;
+    const name  = document.getElementById('order-customer-name').value.trim();
+    const phone = document.getElementById('order-customer-phone').value.trim();
+    let msg = decodeURIComponent(buildOrderMessage());
+    if (name) msg = `Name: ${name}\nPhone: ${phone}\n\n` + msg;
+    const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   });
 
@@ -690,9 +914,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initMenuTabs();
   initBookingTabs();
   initBookingForms();
+  initCustomerBookingLookup();
   initSeatSelection();
   initGallery();
-  initScrollAnimations();
   initHeader();
   initMobileNav();
   initSmoothScroll();
@@ -703,4 +927,30 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('input[type="date"]').forEach(input => {
     input.min = today;
   });
+});
+// ═══════════════════════════════════════
+// MENU BOARD PHOTO LIGHTBOX
+// ═══════════════════════════════════════
+window.openMenuPhoto = function(src) {
+  const lb = document.getElementById('menu-lightbox');
+  const img = document.getElementById('menu-lightbox-img');
+  if (!lb || !img) return;
+  img.src = src;
+  lb.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+};
+
+window.closeMenuPhoto = function() {
+  const lb = document.getElementById('menu-lightbox');
+  if (!lb) return;
+  lb.classList.add('hidden');
+  document.body.style.overflow = '';
+};
+
+window.closeMenuLightbox = function(e) {
+  if (e.target === document.getElementById('menu-lightbox')) window.closeMenuPhoto();
+};
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') window.closeMenuPhoto();
 });
