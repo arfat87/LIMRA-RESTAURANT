@@ -28,6 +28,8 @@ let cart = loadCartFromStorage();
 const DELIVERY_RATE = 10; // ₹ per km
 let isDelivery = true;    // true = delivery, false = self pickup
 let deliveryKm = 0;       // km entered by customer
+let deliveryMap = null;
+let deliveryMarker = null;
 
 function getDeliveryCharge() {
   if (!isDelivery) return 0;
@@ -189,7 +191,6 @@ function animateBadge() {
 function buildOrderMessage() {
   if (cart.length === 0) return '';
   const address = document.getElementById('order-address')?.value?.trim() || '';
-  const km = parseFloat(document.getElementById('order-distance')?.value) || 0;
   const delivery = getDeliveryCharge();
   const subtotal = getCartSubtotal();
 
@@ -199,7 +200,7 @@ function buildOrderMessage() {
   });
   msg += `\n*Subtotal: ₹${subtotal}*`;
   if (isDelivery) {
-    msg += `\n🛵 *Delivery (${km} km × ₹10): ₹${delivery}*`;
+    msg += `\n🛵 *Delivery Charge: ₹${delivery}*`;
     msg += `\n*Grand Total: ₹${subtotal + delivery}*`;
     if (address) msg += `\n\n📍 *Deliver to:* ${address}`;
   } else {
@@ -888,12 +889,194 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('view-cart-btn').addEventListener('click', openCart);
   document.getElementById('cart-browse-btn')?.addEventListener('click', closeCart);
 
+  // ── Leaflet Delivery Map & Distance Logic (Modal-based) ────────────────
+  function haversineDistance(lat1, lon1, lat2, lon2) {
+    const toRad = x => (x * Math.PI) / 180;
+    const R = 6371; // km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  function openMapModal() {
+    const modal = document.getElementById('delivery-map-modal');
+    const content = document.getElementById('delivery-map-modal-content');
+    if (!modal || !content) return;
+    modal.classList.remove('opacity-0', 'pointer-events-none');
+    content.classList.remove('scale-95');
+    content.classList.add('scale-100');
+    initDeliveryMap();
+  }
+
+  function closeMapModal() {
+    const modal = document.getElementById('delivery-map-modal');
+    const content = document.getElementById('delivery-map-modal-content');
+    if (!modal || !content) return;
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    content.classList.remove('scale-100');
+    content.classList.add('scale-95');
+  }
+
+  function initDeliveryMap() {
+    if (!isDelivery) return;
+    const mapContainer = document.getElementById('delivery-map');
+    if (!mapContainer) return;
+
+    if (typeof L === 'undefined') {
+      setTimeout(initDeliveryMap, 300);
+      return;
+    }
+
+    const limraCoords = [21.8603074, 87.4793798];
+
+    if (!deliveryMap) {
+      deliveryMap = L.map('delivery-map').setView(limraCoords, 14);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(deliveryMap);
+
+      const restaurantIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      });
+
+      L.marker(limraCoords, { icon: restaurantIcon }).addTo(deliveryMap)
+        .bindPopup('<b>LIMRA Restaurant</b><br>Egra, Purba Medinipur')
+        .openPopup();
+
+      deliveryMap.on('click', async (e) => {
+        await updatePinnedLocation(e.latlng);
+      });
+    }
+
+    setTimeout(() => {
+      if (deliveryMap) deliveryMap.invalidateSize();
+    }, 150);
+  }
+
+  async function updatePinnedLocation(latlng) {
+    const limraCoords = [21.8603074, 87.4793798];
+    const clientIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+
+    if (!deliveryMarker) {
+      deliveryMarker = L.marker(latlng, { icon: clientIcon, draggable: true }).addTo(deliveryMap);
+      deliveryMarker.on('dragend', async () => {
+        await updatePinnedLocation(deliveryMarker.getLatLng());
+      });
+    } else {
+      deliveryMarker.setLatLng(latlng);
+    }
+
+    const dist = haversineDistance(limraCoords[0], limraCoords[1], latlng.lat, latlng.lng);
+    deliveryKm = Math.min(50, Math.max(0.1, dist));
+
+    const distInput = document.getElementById('order-distance');
+    if (distInput) {
+      distInput.value = deliveryKm.toFixed(1);
+    }
+
+    const statusEl = document.getElementById('distance-calc-status');
+    if (statusEl) {
+      statusEl.innerHTML = `📍 Pinned: Delivery location pinned successfully!`;
+      statusEl.style.color = '#00b074';
+    }
+
+    updateCartUI();
+
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`);
+      const data = await res.json();
+      if (data && data.display_name) {
+        const addrText = document.getElementById('order-address');
+        if (addrText) {
+          addrText.value = data.display_name;
+        }
+      }
+    } catch (e) {
+      console.warn('Reverse geocode failed:', e);
+    }
+  }
+
+  async function locateAddress() {
+    const addressVal = document.getElementById('order-address')?.value?.trim();
+    if (!addressVal) {
+      alert('Please enter your address in the textarea first, then click Locate.');
+      return;
+    }
+
+    const btn = document.getElementById('locate-address-btn');
+    if (!btn) return;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '⌛ ...';
+
+    try {
+      const query = `${addressVal}, Egra, Purba Medinipur, West Bengal, India`;
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      if (data && data.length > 0) {
+         const latlng = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+         openMapModal();
+         setTimeout(() => {
+           if (deliveryMap) {
+             deliveryMap.setView([latlng.lat, latlng.lng], 15);
+             updatePinnedLocation(latlng);
+           }
+         }, 200);
+      } else {
+         const resFallback = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addressVal)}`);
+         const dataFallback = await resFallback.json();
+         if (dataFallback && dataFallback.length > 0) {
+           const latlng = { lat: parseFloat(dataFallback[0].lat), lng: parseFloat(dataFallback[0].lon) };
+           openMapModal();
+           setTimeout(() => {
+             if (deliveryMap) {
+               deliveryMap.setView([latlng.lat, latlng.lng], 15);
+               updatePinnedLocation(latlng);
+             }
+           }, 200);
+         } else {
+           alert('Could not locate address on the map. Please manually click/tap directly on the map to pin your location.');
+         }
+      }
+    } catch (e) {
+      console.warn('Geocode search failed:', e);
+      alert('Locating failed due to network rate-limiting. Please click/tap directly on the map to pin your location.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  }
+
   // ── Delivery type toggle ────────────────
   function initDelivery() {
     const btnDeliver = document.getElementById('delivery-type-deliver');
     const btnPickup  = document.getElementById('delivery-type-pickup');
     const addrBlock  = document.getElementById('delivery-address-block');
-    const distInput  = document.getElementById('order-distance');
+    const locateBtn  = document.getElementById('locate-address-btn');
+    const openMapBtn = document.getElementById('open-map-btn');
+    const closeMapBtn = document.getElementById('close-map-modal-btn');
+    const confirmMapBtn = document.getElementById('confirm-map-location-btn');
+    const mapModal = document.getElementById('delivery-map-modal');
+
     if (!btnDeliver || !btnPickup) return;
 
     function setMode(delivery) {
@@ -914,11 +1097,24 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDeliver.addEventListener('click', () => setMode(true));
     btnPickup.addEventListener('click',  () => setMode(false));
 
-    // Live update when km changes
-    distInput?.addEventListener('input', () => {
-      deliveryKm = parseFloat(distInput.value) || 0;
-      updateCartUI();
-    });
+    if (openMapBtn) {
+      openMapBtn.addEventListener('click', openMapModal);
+    }
+    if (closeMapBtn) {
+      closeMapBtn.addEventListener('click', closeMapModal);
+    }
+    if (confirmMapBtn) {
+      confirmMapBtn.addEventListener('click', closeMapModal);
+    }
+    if (mapModal) {
+      mapModal.addEventListener('click', (e) => {
+        if (e.target === mapModal) closeMapModal();
+      });
+    }
+
+    if (locateBtn) {
+      locateBtn.addEventListener('click', locateAddress);
+    }
   }
   initDelivery();
 
@@ -981,7 +1177,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       orderItemsText += `\n*Subtotal: ₹${subtotal}*`;
       if (isDelivery) {
-        orderItemsText += `\n🛵 *Delivery (${km} km): ₹${charge}*`;
+        orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}*`;
         orderItemsText += `\n*Grand Total: ₹${subtotal + charge}*`;
         if (address) orderItemsText += `\n📍 *Deliver to:* ${address}`;
       } else {
@@ -995,7 +1191,6 @@ document.addEventListener('DOMContentLoaded', () => {
       let emailBody = `Dear Restaurant Management,\n\nI have successfully placed an order on your website.\n\nOrder Details:\n---------------------------------------------\nReference: ${orderLabel}\nName: ${name}\nPhone: ${phone}\nEmail: ${email}\n`;
       if (isDelivery) {
         emailBody += `Delivery Address: ${address}\n`;
-        emailBody += `Distance: ${km} km\n`;
         emailBody += `Delivery Charge: Rs ${charge}\n`;
       } else {
         emailBody += `Delivery Option: Self Pickup (Free)\n`;
