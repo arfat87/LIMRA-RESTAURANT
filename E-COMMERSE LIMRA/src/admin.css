@@ -328,6 +328,42 @@
   background: #ff5b5b;
   border: 2px solid #fff;
 }
+/* Numbered notification count badge */
+.adm-notif-count-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ff5b5b;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  line-height: 1;
+  pointer-events: none;
+}
+/* Per-notification dismiss (✕) button */
+.adm-notif-dismiss {
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  color: var(--adm-muted);
+  background: transparent;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+.adm-notif-dismiss:hover {
+  background: #fdecea;
+  color: #ff5b5b;
+}
 .adm-user {
   display: flex;
   align-items: center;

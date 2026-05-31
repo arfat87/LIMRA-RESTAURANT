@@ -105,14 +105,14 @@
         
         <div style="position: relative;">
           <button class="adm-icon-btn" id="notification-btn" title="Notifications">
-            <span id="notification-dot" class="dot adm-hidden"></span>
+            <span id="notification-dot" class="adm-notif-count-badge adm-hidden">0</span>
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
           </button>
           
           <!-- Dropdown -->
           <div id="notification-dropdown" class="adm-dropdown adm-hidden">
             <div class="adm-dropdown-header">
-              <h4>Notifications</h4>
+              <h4 id="notification-header-title">Notifications</h4>
               <button id="clear-notifications-btn" class="adm-btn adm-btn-outline adm-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; border-radius: 6px;">Clear All</button>
             </div>
             <div id="notification-items" class="adm-dropdown-list">

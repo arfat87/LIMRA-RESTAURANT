@@ -39,6 +39,10 @@ function getDeliveryCharge() {
   return Math.round(km * DELIVERY_RATE);
 }
 
+function getTaxesAmount() {
+  return Math.round(getCartSubtotal() * 0.05); // 5% GST
+}
+
 function saveCart() {
   localStorage.setItem('limra-cart', JSON.stringify(cart));
 }
@@ -48,7 +52,7 @@ function getCartSubtotal() {
 }
 
 function getCartTotal() {
-  return getCartSubtotal() + getDeliveryCharge();
+  return getCartSubtotal() + getDeliveryCharge() + getTaxesAmount();
 }
 
 function getCartCount() {
@@ -97,36 +101,67 @@ function updateCartUI() {
   const count = getCartCount();
   const subtotal = getCartSubtotal();
   const delivery = getDeliveryCharge();
-  const total = subtotal + delivery;
+  const taxes = getTaxesAmount();
+  const total = subtotal + delivery + taxes;
 
   // Badges
-  document.getElementById('cart-badge').textContent = count;
-  document.getElementById('cart-badge').classList.toggle('hidden', count === 0);
+  const badge = document.getElementById('cart-badge');
+  if (badge) {
+    badge.textContent = count;
+    badge.classList.toggle('hidden', count === 0);
+  }
   const viewBadge = document.getElementById('view-cart-badge');
   if (viewBadge) viewBadge.textContent = count;
 
-  // Footer
-  document.getElementById('cart-count-text').textContent = count;
-  document.getElementById('cart-subtotal').textContent = subtotal;
-  document.getElementById('cart-total').textContent = total;
-  document.getElementById('cart-footer').classList.toggle('hidden', count === 0);
-  document.getElementById('cart-empty').classList.toggle('hidden', count > 0);
-
-  // Delivery charge row
-  const chargeRow = document.getElementById('delivery-charge-row');
-  const chargeEl = document.getElementById('cart-delivery-charge');
-  const kmLabel = document.getElementById('delivery-km-label');
-  if (chargeRow && chargeEl && kmLabel) {
-    const km = Math.max(0, parseFloat(deliveryKm) || 0);
-    kmLabel.textContent = km % 1 === 0 ? km : km.toFixed(1);
-    chargeEl.textContent = delivery;
-    chargeRow.style.display = isDelivery ? '' : 'none';
+  // Footer & Empty state
+  const step1Footer = document.getElementById('checkout-step-1-footer');
+  if (step1Footer) {
+    step1Footer.classList.toggle('hidden', count === 0);
+    const countText = document.getElementById('cart-count-text-1');
+    if (countText) countText.textContent = count;
+    const subtotalText = document.getElementById('cart-subtotal-1');
+    if (subtotalText) subtotalText.textContent = subtotal;
+  }
+  
+  const cartEmpty = document.getElementById('cart-empty');
+  if (cartEmpty) {
+    cartEmpty.classList.toggle('hidden', count > 0);
   }
 
-  // Items
+  // Step 3 Breakdown
+  const sub3 = document.getElementById('cart-subtotal-3');
+  if (sub3) sub3.textContent = subtotal;
+  const del3 = document.getElementById('cart-delivery-charge-3');
+  if (del3) del3.textContent = delivery;
+  const tax3 = document.getElementById('cart-taxes-3');
+  if (tax3) tax3.textContent = taxes;
+  const tot3 = document.getElementById('cart-total-3');
+  if (tot3) tot3.textContent = total;
+  
+  const delRow3 = document.getElementById('delivery-charge-row-3');
+  if (delRow3) {
+    delRow3.style.display = isDelivery ? '' : 'none';
+  }
+
+  // Step 5 Confirmation Breakdown
+  const confSub = document.getElementById('confirm-subtotal');
+  if (confSub) confSub.textContent = subtotal;
+  const confDel = document.getElementById('confirm-delivery-charge');
+  if (confDel) confDel.textContent = delivery;
+  const confTax = document.getElementById('confirm-taxes');
+  if (confTax) confTax.textContent = taxes;
+  const confTot = document.getElementById('confirm-total');
+  if (confTot) confTot.textContent = total;
+  
+  const confDelRow = document.getElementById('confirm-delivery-charge-row');
+  if (confDelRow) {
+    confDelRow.style.display = isDelivery ? '' : 'none';
+  }
+
+  // Items list
   renderCartItems();
 
-  // Update all add buttons
+  // Update all add buttons on menu grid
   document.querySelectorAll('.add-btn').forEach(btn => {
     const id = parseInt(btn.dataset.id);
     const inCart = cart.find(c => c.id === id);
@@ -1000,6 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusEl.style.color = '#00b074';
     }
 
+    geocodeResolvedAddress = document.getElementById('order-address')?.value?.trim() || "";
     updateCartUI();
 
     try {
@@ -1009,6 +1045,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const addrText = document.getElementById('order-address');
         if (addrText) {
           addrText.value = data.display_name;
+          geocodeResolvedAddress = data.display_name;
         }
       }
     } catch (e) {
@@ -1073,7 +1110,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnDeliver = document.getElementById('delivery-type-deliver');
     const btnPickup  = document.getElementById('delivery-type-pickup');
     const addrBlock  = document.getElementById('delivery-address-block');
-    const locateBtn  = document.getElementById('locate-address-btn');
     const openMapBtn = document.getElementById('open-map-btn');
     const closeMapBtn = document.getElementById('close-map-modal-btn');
     const confirmMapBtn = document.getElementById('confirm-map-location-btn');
@@ -1081,107 +1117,322 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!btnDeliver || !btnPickup) return;
 
-    function setMode(delivery) {
-      isDelivery = delivery;
-      if (delivery) {
-        btnDeliver.style.cssText = 'border-color:var(--color-accent); background:var(--color-accent); color:#fff';
-        btnPickup.style.cssText  = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
-        addrBlock.style.display  = '';
-      } else {
-        btnDeliver.style.cssText = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
-        btnPickup.style.cssText  = 'border-color:var(--color-accent); background:var(--color-accent); color:#fff';
-        addrBlock.style.display  = 'none';
-        deliveryKm = 0;
-      }
-      updateCartUI();
-    }
+    btnDeliver.addEventListener('click', () => setDeliveryMode(true));
+    btnPickup.addEventListener('click',  () => setDeliveryMode(false));
 
-    btnDeliver.addEventListener('click', () => setMode(true));
-    btnPickup.addEventListener('click',  () => setMode(false));
-
-    if (openMapBtn) {
-      openMapBtn.addEventListener('click', openMapModal);
-    }
-    if (closeMapBtn) {
-      closeMapBtn.addEventListener('click', closeMapModal);
-    }
-    if (confirmMapBtn) {
-      confirmMapBtn.addEventListener('click', closeMapModal);
-    }
+    if (openMapBtn) openMapBtn.addEventListener('click', openMapModal);
+    if (closeMapBtn) closeMapBtn.addEventListener('click', closeMapModal);
+    if (confirmMapBtn) confirmMapBtn.addEventListener('click', closeMapModal);
     if (mapModal) {
       mapModal.addEventListener('click', (e) => {
         if (e.target === mapModal) closeMapModal();
       });
     }
 
+    const locateBtn = document.getElementById('locate-address-btn');
     if (locateBtn) {
       locateBtn.addEventListener('click', locateAddress);
     }
   }
-  initDelivery();
 
-  function initCollapsibleDetails() {
-    const cardHeader = document.getElementById('checkout-details-header');
-    const content = document.getElementById('checkout-details-content');
-    const summary = document.getElementById('checkout-details-summary');
-    const arrowIcon = document.getElementById('details-arrow-icon');
+  function setDeliveryMode(delivery) {
+    const btnDeliver = document.getElementById('delivery-type-deliver');
+    const btnPickup  = document.getElementById('delivery-type-pickup');
+    const addrBlock  = document.getElementById('delivery-address-block');
     
-    const nameInput = document.getElementById('order-customer-name');
-    const phoneInput = document.getElementById('order-customer-phone');
-    const emailInput = document.getElementById('order-customer-email');
-    const summaryText = document.getElementById('summary-text-info');
-    
-    if (!cardHeader || !content || !summary || !arrowIcon) return;
-    
-    let isCollapsed = false;
-    
-    function updateSummary() {
-      const name = nameInput?.value?.trim() || '';
-      const phone = phoneInput?.value?.trim() || '';
-      const email = emailInput?.value?.trim() || '';
-      const mode = isDelivery ? '🛵 Delivery' : '🥡 Self Pickup';
-      
-      if (!name && !phone && !email) {
-        summaryText.textContent = `Tap to fill details (${mode})`;
-      } else {
-        const parts = [
-          name ? `👤 ${name}` : '',
-          phone ? `📞 ${phone}` : '',
-          mode
-        ].filter(Boolean);
-        summaryText.textContent = parts.join(' · ');
-      }
+    isDelivery = delivery;
+    if (delivery) {
+      if (btnDeliver) btnDeliver.style.cssText = 'border-color:var(--color-accent); background:var(--color-accent); color:#fff';
+      if (btnPickup) btnPickup.style.cssText  = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
+      if (addrBlock) addrBlock.style.display  = '';
+    } else {
+      if (btnDeliver) btnDeliver.style.cssText = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
+      if (btnPickup) btnPickup.style.cssText  = 'border-color:var(--color-accent); background:var(--color-accent); color:#fff';
+      if (addrBlock) addrBlock.style.display  = 'none';
+      deliveryKm = 0;
+      const distInput = document.getElementById('order-distance');
+      if (distInput) distInput.value = "0";
     }
-    
-    function toggle(collapse) {
-      isCollapsed = collapse;
-      if (collapse) {
-        content.classList.add('hidden');
-        summary.classList.remove('hidden');
-        arrowIcon.classList.remove('rotate-180');
-      } else {
-        content.classList.remove('hidden');
-        summary.classList.add('hidden');
-        arrowIcon.classList.add('rotate-180');
-      }
-      updateSummary();
-    }
-    
-    cardHeader.addEventListener('click', () => {
-      toggle(!isCollapsed);
-    });
-    
-    [nameInput, phoneInput, emailInput].forEach(input => {
-      input?.addEventListener('input', updateSummary);
-    });
-    
-    document.getElementById('delivery-type-deliver')?.addEventListener('click', updateSummary);
-    document.getElementById('delivery-type-pickup')?.addEventListener('click', updateSummary);
-    
-    updateSummary();
+    updateCartUI();
   }
-  initCollapsibleDetails();
 
+  // ── Stepper Logic & Navigation ────────────────
+  let currentStep = 1;
+  let geocodeResolvedAddress = "";
+
+  function showStep(stepNum) {
+    currentStep = stepNum;
+    for (let i = 1; i <= 5; i++) {
+      const el = document.getElementById(`checkout-step-${i}`);
+      if (el) {
+        if (i === stepNum) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      }
+      
+      const lbl = document.getElementById(`step-lbl-${i}`);
+      if (lbl) {
+        if (i === stepNum) {
+          lbl.className = 'step-lbl active text-accent font-bold';
+        } else if (i < stepNum) {
+          lbl.className = 'step-lbl text-slate-800 font-semibold';
+        } else {
+          lbl.className = 'step-lbl text-slate-400';
+        }
+      }
+    }
+    
+    if (stepNum === 3) {
+      triggerAddressGeocoding();
+    }
+    if (stepNum === 5) {
+      updateConfirmStepDetails();
+    }
+  }
+
+  function validateStep2() {
+    const name = document.getElementById('order-customer-name')?.value?.trim();
+    const phone = document.getElementById('order-customer-phone')?.value?.trim();
+    const email = document.getElementById('order-customer-email')?.value?.trim();
+    const address = document.getElementById('order-address')?.value?.trim();
+
+    if (!name) {
+      alert('Please enter your name.');
+      return false;
+    }
+    if (!phone || phone.length < 10) {
+      alert('Please enter a valid 10-digit phone number.');
+      return false;
+    }
+    if (!email || !email.includes('@')) {
+      alert('Please enter a valid email address.');
+      return false;
+    }
+    if (isDelivery && !address) {
+      alert('Please enter your delivery address.');
+      return false;
+    }
+    return true;
+  }
+
+  async function triggerAddressGeocoding() {
+    const loader = document.getElementById('delivery-calc-loading');
+    const successBox = document.getElementById('delivery-calc-success');
+    const failedBox = document.getElementById('delivery-calc-failed');
+    const resolvedAddressLabel = document.getElementById('delivery-resolved-address');
+    const resolvedKmLabel = document.getElementById('delivery-resolved-km');
+
+    if (!isDelivery) {
+      if (loader) loader.classList.add('hidden');
+      if (successBox) successBox.classList.remove('hidden');
+      if (failedBox) failedBox.classList.add('hidden');
+      if (resolvedAddressLabel) resolvedAddressLabel.textContent = "Self Pickup (Free)";
+      if (resolvedKmLabel) resolvedKmLabel.textContent = "0.0";
+      return;
+    }
+
+    const addressVal = document.getElementById('order-address')?.value?.trim();
+    if (!addressVal) {
+      if (loader) loader.classList.add('hidden');
+      if (successBox) successBox.classList.add('hidden');
+      if (failedBox) failedBox.classList.remove('hidden');
+      return;
+    }
+
+    // If already geocoded via map pin or previous manual entry
+    if (deliveryKm > 0 && geocodeResolvedAddress === addressVal) {
+      if (loader) loader.classList.add('hidden');
+      if (successBox) successBox.classList.remove('hidden');
+      if (failedBox) failedBox.classList.add('hidden');
+      if (resolvedAddressLabel) resolvedAddressLabel.textContent = addressVal;
+      if (resolvedKmLabel) resolvedKmLabel.textContent = deliveryKm.toFixed(1);
+      return;
+    }
+
+    // Otherwise geocode manual text
+    if (loader) loader.classList.remove('hidden');
+    if (successBox) successBox.classList.add('hidden');
+    if (failedBox) failedBox.classList.add('hidden');
+
+    try {
+      const query = `${addressVal}, Egra, Purba Medinipur, West Bengal, India`;
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      let latlng = null;
+      if (data && data.length > 0) {
+        latlng = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      } else {
+        const fallbackRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addressVal)}`);
+        const fallbackData = await fallbackRes.json();
+        if (fallbackData && fallbackData.length > 0) {
+          latlng = { lat: parseFloat(fallbackData[0].lat), lng: parseFloat(fallbackData[0].lon) };
+        }
+      }
+
+      if (latlng) {
+        const limraCoords = [21.8603074, 87.4793798];
+        const dist = haversineDistance(limraCoords[0], limraCoords[1], latlng.lat, latlng.lng);
+        deliveryKm = Math.min(50, Math.max(0.1, dist));
+        
+        const distInput = document.getElementById('order-distance');
+        if (distInput) distInput.value = deliveryKm.toFixed(1);
+        geocodeResolvedAddress = addressVal;
+
+        if (resolvedAddressLabel) resolvedAddressLabel.textContent = addressVal;
+        if (resolvedKmLabel) resolvedKmLabel.textContent = deliveryKm.toFixed(1);
+        if (loader) loader.classList.add('hidden');
+        if (successBox) successBox.classList.remove('hidden');
+
+        if (deliveryMap) {
+          deliveryMap.setView([latlng.lat, latlng.lng], 15);
+          if (!deliveryMarker) {
+            const clientIcon = L.icon({
+              iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+              shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+              iconSize: [25, 41],
+              iconAnchor: [12, 41],
+              popupAnchor: [1, -34],
+              shadowSize: [41, 41]
+            });
+            deliveryMarker = L.marker(latlng, { icon: clientIcon, draggable: true }).addTo(deliveryMap);
+            deliveryMarker.on('dragend', async () => {
+              await updatePinnedLocation(deliveryMarker.getLatLng());
+            });
+          } else {
+            deliveryMarker.setLatLng(latlng);
+          }
+        }
+      } else {
+        throw new Error("Nominatim returned empty results");
+      }
+    } catch (e) {
+      console.warn("Manual address geocoding failed, using local fallback flat-fee:", e);
+      deliveryKm = 3.0; // standard flat distance
+      const distInput = document.getElementById('order-distance');
+      if (distInput) distInput.value = "3.0";
+      geocodeResolvedAddress = addressVal;
+
+      if (resolvedAddressLabel) resolvedAddressLabel.textContent = addressVal + " (Manual)";
+      if (resolvedKmLabel) resolvedKmLabel.textContent = "3.0 (Fallback)";
+      if (loader) loader.classList.add('hidden');
+      if (failedBox) failedBox.classList.remove('hidden');
+    }
+    
+    updateCartUI();
+  }
+
+  function getSelectedPaymentMethod() {
+    const radios = document.getElementsByName('payment_method');
+    for (let r of radios) {
+      if (r.checked) {
+        if (r.value === 'cod') return 'Cash on Delivery (COD)';
+        if (r.value === 'upi') return 'UPI / WhatsApp Pay';
+        if (r.value === 'card') return 'Card on Delivery';
+      }
+    }
+    return 'Cash on Delivery (COD)';
+  }
+
+  function updateConfirmStepDetails() {
+    const name = document.getElementById('order-customer-name')?.value?.trim() || "";
+    const phone = document.getElementById('order-customer-phone')?.value?.trim() || "";
+    const email = document.getElementById('order-customer-email')?.value?.trim() || "";
+    const address = document.getElementById('order-address')?.value?.trim() || "";
+    const payment = getSelectedPaymentMethod();
+
+    const confName = document.getElementById('confirm-name');
+    if (confName) confName.textContent = name;
+    
+    const confPhone = document.getElementById('confirm-phone');
+    if (confPhone) confPhone.textContent = phone;
+    
+    const confEmail = document.getElementById('confirm-email');
+    if (confEmail) confEmail.textContent = email;
+    
+    const confAddress = document.getElementById('confirm-address');
+    if (confAddress) {
+      confAddress.textContent = isDelivery ? address : 'Self Pickup at Restaurant';
+    }
+    
+    const confDelType = document.getElementById('confirm-delivery-type');
+    if (confDelType) {
+      confDelType.textContent = isDelivery ? '🛵 Delivery' : '🥡 Self Pickup';
+    }
+    
+    const confPay = document.getElementById('confirm-payment-mode');
+    if (confPay) confPay.textContent = payment;
+  }
+
+  function initStepperNavigation() {
+    // Step 1 buttons
+    document.getElementById('step-1-next')?.addEventListener('click', () => {
+      if (cart.length === 0) {
+        alert('Your cart is empty! Add some dishes first.');
+        return;
+      }
+      showStep(2);
+    });
+
+    // Step 2 buttons
+    document.getElementById('step-2-back')?.addEventListener('click', () => showStep(1));
+    document.getElementById('step-2-next')?.addEventListener('click', () => {
+      if (validateStep2()) {
+        showStep(3);
+      }
+    });
+
+    // Step 3 buttons
+    document.getElementById('step-3-back')?.addEventListener('click', () => showStep(2));
+    document.getElementById('step-3-next')?.addEventListener('click', () => showStep(4));
+
+    // Step 4 buttons
+    document.getElementById('step-4-back')?.addEventListener('click', () => showStep(3));
+    document.getElementById('step-4-next')?.addEventListener('click', () => showStep(5));
+
+    // Step 5 buttons
+    document.getElementById('step-5-back')?.addEventListener('click', () => showStep(4));
+
+    // Trigger geocoding when address focus is lost
+    document.getElementById('order-address')?.addEventListener('focusout', () => {
+      if (isDelivery) {
+        triggerAddressGeocoding();
+      }
+    });
+  }
+
+  function initSavedAddressLoading() {
+    const savedBtn = document.getElementById('load-saved-details-btn');
+    if (!savedBtn) return;
+    
+    const raw = localStorage.getItem('limra-customer-details');
+    if (raw) {
+      savedBtn.classList.remove('hidden');
+      savedBtn.addEventListener('click', () => {
+        try {
+          const details = JSON.parse(raw);
+          if (details.name) document.getElementById('order-customer-name').value = details.name;
+          if (details.phone) document.getElementById('order-customer-phone').value = details.phone;
+          if (details.email) document.getElementById('order-customer-email').value = details.email;
+          if (details.address) document.getElementById('order-address').value = details.address;
+          if (details.isDelivery !== undefined) {
+            setDeliveryMode(details.isDelivery);
+          }
+          if (details.distance !== undefined) {
+            deliveryKm = details.distance;
+            const distInput = document.getElementById('order-distance');
+            if (distInput) distInput.value = details.distance.toFixed(1);
+          }
+          updateCartUI();
+          alert('Saved details loaded successfully!');
+        } catch (e) {
+          console.warn('Failed to load saved details:', e);
+        }
+      });
+    }
+  }
+
+  initDelivery();
+  initStepperNavigation();
 
   // Place order (saved to admin dashboard)
   document.getElementById('place-order-btn').addEventListener('click', async () => {
@@ -1193,6 +1444,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const notes   = document.getElementById('order-notes').value.trim();
     const km      = parseFloat(document.getElementById('order-distance')?.value) || 0;
     const charge  = getDeliveryCharge();
+    const taxes   = getTaxesAmount();
+    const payment = getSelectedPaymentMethod();
 
     if (!name || !phone) {
       alert('Please enter your name and phone number.');
@@ -1208,10 +1461,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const deliveryNote = isDelivery
-      ? `[DELIVERY] Address: ${address} | Distance: ${km} km | Delivery charge: ₹${charge}`
+      ? `[DELIVERY] Address: ${address} | Distance: ${km.toFixed(1)} km | Delivery charge: ₹${charge}`
       : '[SELF PICKUP]';
     const emailNote = `[EMAIL: ${email}]`;
-    const combinedNotes = [deliveryNote, emailNote, notes].filter(Boolean).join(' | ');
+    const paymentNote = `[PAYMENT: ${payment}]`;
+    const combinedNotes = [deliveryNote, emailNote, paymentNote, notes].filter(Boolean).join(' | ');
 
     const btn = document.getElementById('place-order-btn');
     const statusEl = document.getElementById('order-status-msg');
@@ -1234,6 +1488,18 @@ document.addEventListener('DOMContentLoaded', () => {
       statusEl.style.color = 'var(--color-accent)';
       statusEl.classList.remove('hidden');
 
+      // Save customer details to localStorage for future orders
+      const savedDetails = {
+        name,
+        phone,
+        email,
+        address,
+        isDelivery,
+        distance: km
+      };
+      localStorage.setItem('limra-customer-details', JSON.stringify(savedDetails));
+      initSavedAddressLoading(); // Refresh loading state
+
       // Send Automatic HTML Email Receipt to Customer
       try {
         const orderItemsMap = cartSnapshot.map(item => ({
@@ -1248,7 +1514,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('[Checkout] Background automatic email notification failed:', emailErr);
       }
 
-
       // WhatsApp Confirmation Link
       let waMsg = `Hello! My order is placed successfully at SK Arif (Limra Restaurant).\n\n*Order Details:*\n• Name: ${name}\n• Phone: ${phone}\n• Email: ${email}\n`;
       let orderItemsText = '';
@@ -1258,11 +1523,14 @@ document.addEventListener('DOMContentLoaded', () => {
       orderItemsText += `\n*Subtotal: ₹${subtotal}*`;
       if (isDelivery) {
         orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}*`;
-        orderItemsText += `\n*Grand Total: ₹${subtotal + charge}*`;
+        orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
+        orderItemsText += `\n*Grand Total: ₹${subtotal + charge + taxes}*`;
         if (address) orderItemsText += `\n📍 *Deliver to:* ${address}`;
       } else {
-        orderItemsText += `\n*Total: ₹${subtotal}* (Self Pickup — Free)`;
+        orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
+        orderItemsText += `\n*Total: ₹${subtotal + taxes}* (Self Pickup — Free)`;
       }
+      orderItemsText += `\n💳 *Payment Mode:* ${payment}`;
       waMsg += orderItemsText + `\n\nMy order is successfully booked. Please confirm my order and contact me as soon as possible! Thank you! 🙏`;
       const waUrl = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waMsg)}`;
 
@@ -1275,11 +1543,12 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         emailBody += `Delivery Option: Self Pickup (Free)\n`;
       }
+      emailBody += `Payment Mode: ${payment}\n`;
       emailBody += `\nOrder Summary:\n`;
       cartSnapshot.forEach(item => {
         emailBody += `• ${item.name} x${item.qty} = Rs ${item.price * item.qty}\n`;
       });
-      emailBody += `\nGrand Total: Rs ${isDelivery ? (subtotal + charge) : subtotal}\n---------------------------------------------\n\nMy order is successfully booked. Please contact me as soon as possible to confirm and deliver.\n\nBest regards,\n${name}`;
+      emailBody += `\nSubtotal: Rs ${subtotal}\nTaxes (5% GST Incl.): Rs ${taxes}\nGrand Total: Rs ${isDelivery ? (subtotal + charge + taxes) : (subtotal + taxes)}\n---------------------------------------------\n\nMy order is successfully booked. Please contact me as soon as possible to confirm and deliver.\n\nBest regards,\n${name}`;
       const emailUrl = `mailto:limrarestaurant99@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
       // Show Success Modal
@@ -1298,6 +1567,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (document.getElementById('order-distance')) document.getElementById('order-distance').value = '';
       document.getElementById('order-notes').value = '';
       deliveryKm = 0;
+      showStep(1); // Reset to step 1
       setTimeout(() => statusEl.classList.add('hidden'), 5000);
     } catch (err) {
       console.error('Order error:', err);
@@ -1333,6 +1603,21 @@ document.addEventListener('DOMContentLoaded', () => {
   initMobileNav();
   initSmoothScroll();
   initBackToTop();
+  initSavedAddressLoading();
+
+  // Sync Party Booking Budget Range Slider dynamically
+  const slider = document.getElementById('party-budget-slider');
+  const valSpan = document.getElementById('party-budget-val');
+  const hiddenInput = document.getElementById('party-budget-hidden');
+  if (slider && valSpan && hiddenInput) {
+    const updateBudget = () => {
+      const val = parseInt(slider.value);
+      valSpan.textContent = val.toLocaleString('en-IN');
+      hiddenInput.value = `₹${val.toLocaleString('en-IN')}`;
+    };
+    slider.addEventListener('input', updateBudget);
+    updateBudget();
+  }
 
   // Set min date for booking forms
   const today = new Date().toISOString().split('T')[0];

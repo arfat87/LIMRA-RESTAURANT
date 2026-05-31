@@ -36,22 +36,38 @@ const charts = {};
 // ═══════════════════════════════════════
 // REAL-TIME NOTIFICATION STATE & CHIME
 // ═══════════════════════════════════════
-const knownOrderIds = new Set();
-const knownBookingIds = new Set();
+const knownNotificationIds = new Set();
 let activeNotifications = [];
+
+// Persistent AudioContext — initialized lazily after first user gesture
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (Ctor) _audioCtx = new Ctor();
+  }
+  if (_audioCtx && _audioCtx.state === 'suspended') {
+    _audioCtx.resume().catch(() => {});
+  }
+  return _audioCtx;
+}
+
+// Warm up AudioContext on first user gesture so chime can play
+function warmUpAudio() {
+  try { getAudioCtx(); } catch(e) {}
+}
 
 function playNotificationChime() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getAudioCtx();
+    if (!ctx) return;
     
     const playTone = (freq, startTime, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, startTime);
-      gain.gain.setValueAtTime(0.25, startTime);
+      gain.gain.setValueAtTime(0.3, startTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -60,53 +76,95 @@ function playNotificationChime() {
     };
     
     const now = ctx.currentTime;
-    playTone(783.99, now, 0.4); // G5 Tone
-    playTone(1046.50, now + 0.08, 0.6); // C6 Tone
+    playTone(783.99, now, 0.35);         // G5
+    playTone(1046.50, now + 0.1, 0.5);  // C6
+    playTone(1318.51, now + 0.22, 0.6); // E6
   } catch (e) {
-    console.warn('Could not play synthesized chime:', e);
+    console.warn('Could not play notification chime:', e);
+  }
+}
+
+function updateNotificationBadge(count) {
+  const dot = $('notification-dot');
+  if (!dot) return;
+  if (count === 0) {
+    hide(dot);
+    dot.textContent = '';
+  } else {
+    show(dot);
+    dot.textContent = count > 9 ? '9+' : String(count);
   }
 }
 
 function renderNotifications() {
-  const dot = $('notification-dot');
   const list = $('notification-items');
+  const headerTitle = $('notification-header-title');
   if (!list) return;
+
+  const unreadNotifications = activeNotifications.filter(n => !n.is_read);
+  updateNotificationBadge(unreadNotifications.length);
+
+  const count = unreadNotifications.length;
+  if (headerTitle) {
+    headerTitle.textContent = count > 0 ? `Notifications (${count})` : 'Notifications';
+  }
   
   if (activeNotifications.length === 0) {
-    if (dot) hide(dot);
-    list.innerHTML = '<p class="adm-dropdown-empty">No new notifications</p>';
+    list.innerHTML = '<p class="adm-dropdown-empty">🔕 No notifications yet</p>';
     return;
   }
   
-  if (dot) show(dot);
-  
   list.innerHTML = activeNotifications.map(n => {
-    const icon = n.type === 'order' ? '🍽️' : '📅';
-    const timeStr = n.time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const icon = (n.type === 'order' || n.type === 'order_status') ? '🍽️' : '📅';
+    const timeStr = new Date(n.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const isUnreadCls = n.is_read ? '' : 'unread';
     return `
-      <div class="adm-notification-item" data-item-id="${n.itemId}" data-type="${n.type}" data-notif-id="${n.id}">
+      <div class="adm-notification-item ${isUnreadCls}" data-item-id="${n.item_id}" data-type="${n.type}" data-notif-id="${n.id}">
         <div class="adm-notification-icon">${icon}</div>
         <div class="adm-notification-body">
           <p class="adm-notification-title">${escapeHtml(n.title)}</p>
-          <p class="adm-notification-desc">${escapeHtml(n.desc)}</p>
+          <p class="adm-notification-desc">${escapeHtml(n.description)}</p>
           <p class="adm-notification-time">${timeStr}</p>
         </div>
+        <button class="adm-notif-dismiss" data-dismiss-id="${n.id}" title="Mark as read">✕</button>
       </div>
     `;
   }).join('');
   
+  list.querySelectorAll('.adm-notif-dismiss').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = Number(btn.dataset.dismissId);
+      try {
+        await insforge.database.from('notifications').update({ is_read: true }).eq('id', id);
+        const match = activeNotifications.find(x => x.id === id);
+        if (match) match.is_read = true;
+        renderNotifications();
+        refreshDashboard(false);
+      } catch (err) {
+        console.warn('Failed to dismiss notification:', err);
+      }
+    });
+  });
+
   list.querySelectorAll('.adm-notification-item').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('adm-notif-dismiss')) return;
       const type = el.dataset.type;
-      const itemId = el.dataset.itemId;
-      const notifId = el.dataset.notifId;
+      const itemId = Number(el.dataset.itemId);
+      const notifId = Number(el.dataset.notifId);
       
-      activeNotifications = activeNotifications.filter(x => x.id !== notifId);
-      renderNotifications();
+      try {
+        await insforge.database.from('notifications').update({ is_read: true }).eq('id', notifId);
+        const match = activeNotifications.find(x => x.id === notifId);
+        if (match) match.is_read = true;
+      } catch (err) {
+        console.warn('Failed to mark notification read:', err);
+      }
       
       hide($('notification-dropdown'));
       
-      if (type === 'order') {
+      if (type === 'order' || type === 'order_status') {
         selectedOrderId = itemId;
         switchPanel('orders');
         renderOrderDetail(itemId);
@@ -114,6 +172,8 @@ function renderNotifications() {
         switchPanel('bookings');
         $('bookings-list')?.scrollIntoView({ behavior: 'smooth' });
       }
+      
+      refreshDashboard(false);
     });
   });
 }
@@ -300,84 +360,67 @@ async function checkAdminAccess() {
 }
 
 async function loadData() {
-  const [ordersRes, itemsRes, bookingsRes] = await Promise.all([
+  const [ordersRes, itemsRes, bookingsRes, notifsRes] = await Promise.all([
     insforge.database.from('orders').select('*').order('created_at', { ascending: false }),
     insforge.database.from('order_items').select('*'),
     insforge.database.from('bookings').select('*').order('created_at', { ascending: false }),
+    insforge.database.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
   ]);
+  
   if (ordersRes.error) throw ordersRes.error;
   if (itemsRes.error) throw itemsRes.error;
   if (bookingsRes.error) throw bookingsRes.error;
+  if (notifsRes.error) throw notifsRes.error;
 
   const newOrders = ordersRes.data || [];
   const newBookings = bookingsRes.data || [];
+  const fetchedNotifs = notifsRes.data || [];
 
-  const isFirstLoad = knownOrderIds.size === 0 && knownBookingIds.size === 0;
+  const isFirstLoad = knownNotificationIds.size === 0;
+  let newUnreadDetected = false;
 
-  let newOrdersDetected = [];
-  let newBookingsDetected = [];
-
-  newOrders.forEach(o => {
-    if (!knownOrderIds.has(o.id)) {
-      knownOrderIds.add(o.id);
-      if (!isFirstLoad && o.status === 'pending') {
-        newOrdersDetected.push(o);
-      }
-    }
-  });
-
-  newBookings.forEach(b => {
-    if (!knownBookingIds.has(b.id)) {
-      knownBookingIds.add(b.id);
-      if (!isFirstLoad && b.status === 'pending') {
-        newBookingsDetected.push(b);
-      }
-    }
-  });
-
-  if (newOrdersDetected.length > 0 || newBookingsDetected.length > 0) {
-    playNotificationChime();
-    
-    newOrdersDetected.forEach(o => {
-      activeNotifications.unshift({
-        id: 'order-' + o.id,
-        type: 'order',
-        title: `New Order #${o.order_number}`,
-        desc: `Order for ₹${o.total_amount} by ${o.customer_name}`,
-        itemId: o.id,
-        time: new Date()
-      });
-
-      showDashboardToast(
-        `🍽️ New Order Received!`,
-        `Order #${o.order_number} for ₹${o.total_amount} placed by ${o.customer_name}. Click to view.`,
-        'success',
-        o.id
-      );
-    });
-
-    const typeLabels = { table: '🪑 Table', party: '🎉 Party', wedding: '💍 Wedding' };
-    newBookingsDetected.forEach(b => {
-      const label = typeLabels[b.type] || b.type;
+  // Process notifications in chronological order (oldest first) so they arrive correctly
+  const reversedNotifs = [...fetchedNotifs].reverse();
+  reversedNotifs.forEach(n => {
+    if (!knownNotificationIds.has(n.id)) {
+      knownNotificationIds.add(n.id);
       
-      activeNotifications.unshift({
-        id: 'booking-' + b.id,
-        type: 'booking',
-        title: `New ${b.type.charAt(0).toUpperCase() + b.type.slice(1)} Booking`,
-        desc: `Booking #${b.booking_number} by ${b.customer_name} for ${b.guests || '—'} guests.`,
-        itemId: b.id,
-        time: new Date()
-      });
+      // If it's a new unread notification (and not the very first load of the dashboard)
+      if (!isFirstLoad && !n.is_read) {
+        newUnreadDetected = true;
+        
+        // Show dynamic toast depending on the type
+        if (n.type === 'order') {
+          showDashboardToast(
+            `🍽️ New Order Received!`,
+            n.description,
+            'success',
+            n.item_id
+          );
+        } else if (n.type === 'booking') {
+          showDashboardToast(
+            `📅 New Booking Enquiry!`,
+            n.description,
+            'info'
+          );
+        } else if (n.type === 'order_status') {
+          showDashboardToast(
+            `🍽️ Order Status Updated!`,
+            n.description,
+            'success',
+            n.item_id
+          );
+        }
+      }
+    }
+  });
 
-      showDashboardToast(
-        `📅 New Booking Enquiry!`,
-        `${label} Booking #${b.booking_number} by ${b.customer_name} for ${b.guests || '—'} guests.`,
-        'info'
-      );
-    });
-
-    renderNotifications();
+  if (newUnreadDetected) {
+    playNotificationChime();
   }
+
+  activeNotifications = fetchedNotifs;
+  renderNotifications();
 
   orders = newOrders;
   orderItems = itemsRes.data || [];
@@ -1487,7 +1530,10 @@ function initDashboardUI() {
     btn.addEventListener('click', () => switchPanel(btn.dataset.panel));
   });
 
-  $('refresh-btn').addEventListener('click', () => refreshDashboard(true));
+  $('refresh-btn').addEventListener('click', () => {
+    warmUpAudio();
+    refreshDashboard(true);
+  });
 
   // Notification center click listeners
   const notifBtn = $('notification-btn');
@@ -1497,24 +1543,43 @@ function initDashboardUI() {
   if (notifBtn && notifDropdown) {
     notifBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      notifDropdown.classList.toggle('adm-hidden');
+      const isHidden = notifDropdown.classList.contains('adm-hidden');
+      if (isHidden) {
+        show(notifDropdown);
+        renderNotifications(); // Refresh count when opening
+      } else {
+        hide(notifDropdown);
+      }
     });
     
     document.addEventListener('click', (e) => {
-      if (!notifDropdown.classList.contains('adm-hidden') && !notifDropdown.contains(e.target) && e.target !== notifBtn && !notifBtn.contains(e.target)) {
+      if (!notifDropdown.classList.contains('adm-hidden') &&
+          !notifDropdown.contains(e.target) &&
+          e.target !== notifBtn &&
+          !notifBtn.contains(e.target)) {
         hide(notifDropdown);
       }
     });
   }
   
   if (clearNotifBtn) {
-    clearNotifBtn.addEventListener('click', (e) => {
+    clearNotifBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      activeNotifications = [];
-      renderNotifications();
-      hide(notifDropdown);
+      try {
+        await insforge.database.from('notifications').update({ is_read: true }).eq('is_read', false);
+        activeNotifications.forEach(n => n.is_read = true);
+        renderNotifications();
+        setTimeout(() => hide(notifDropdown), 300);
+        refreshDashboard(false);
+      } catch (err) {
+        console.warn('Failed to clear notifications:', err);
+      }
     });
   }
+
+  // Warm up AudioContext on any user gesture so chime works
+  document.addEventListener('click', warmUpAudio, { once: true });
+  document.addEventListener('keydown', warmUpAudio, { once: true });
 
   $('orders-status-filter')?.addEventListener('change', () => { ordersPage = 1; renderOrdersTable(); });
   $('orders-search')?.addEventListener('input', () => { ordersPage = 1; renderOrdersTable(); });
@@ -1543,8 +1608,12 @@ function initDashboardUI() {
   });
 
   $('sidebar-toggle').addEventListener('click', () => {
-    $('sidebar').classList.toggle('closed');
-    $('sidebar-overlay').classList.toggle('hidden');
+    const isClosed = $('sidebar').classList.toggle('closed');
+    if (isClosed) {
+      hide($('sidebar-overlay'));
+    } else {
+      show($('sidebar-overlay'));
+    }
   });
   $('sidebar-overlay').addEventListener('click', () => {
     $('sidebar').classList.add('closed');
@@ -1558,7 +1627,8 @@ function initDashboardUI() {
     }
   });
 
-  setInterval(() => refreshDashboard(false), 15000);
+  // Auto-refresh every 10 seconds for near real-time notifications
+  setInterval(() => refreshDashboard(false), 10000);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
