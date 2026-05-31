@@ -151,7 +151,7 @@ function renderNotifications() {
     el.addEventListener('click', async (e) => {
       if (e.target.classList.contains('adm-notif-dismiss')) return;
       const type = el.dataset.type;
-      const itemId = Number(el.dataset.itemId);
+      const itemId = el.dataset.itemId;
       const notifId = Number(el.dataset.notifId);
       
       try {
@@ -263,12 +263,14 @@ function parseNotesMetadata(notes) {
     address: '',
     distance: '',
     charge: '',
+    payment: '',
+    paymentStatus: '',
     customNote: ''
   };
   
   if (!notes) return result;
   
-  const emailMatch = notes.match(/\[EMAIL:\s*([^\]]+)\]/i);
+  const emailMatch = notes.match(/\[EMAIL:\s*([^\]|]+)\]/i);
   if (emailMatch) {
     result.email = emailMatch[1].trim();
   }
@@ -289,12 +291,23 @@ function parseNotesMetadata(notes) {
     if (chargeMatch) result.charge = chargeMatch[1].trim();
   }
   
+  const paymentMatch = notes.match(/\[PAYMENT:\s*([^\]|]+)\]/i);
+  if (paymentMatch) {
+    result.payment = paymentMatch[1].trim();
+  }
+  const statusMatch = notes.match(/\[PAYMENT_STATUS:\s*([^\]|]+)\]/i);
+  if (statusMatch) {
+    result.paymentStatus = statusMatch[1].trim();
+  }
+  
   let cleanNote = notes
     .replace(/\[EMAIL:[^\]]+\]/gi, '')
     .replace(/\[DELIVERY\] Address:[^|]+/gi, '')
     .replace(/Distance:[^|]+/gi, '')
     .replace(/Delivery charge:[^|]+/gi, '')
     .replace(/\[SELF PICKUP\]/gi, '')
+    .replace(/\[PAYMENT:[^\]]+\]/gi, '')
+    .replace(/\[PAYMENT_STATUS:[^\]]+\]/gi, '')
     .replace(/\|/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -323,6 +336,14 @@ function fmtMoney(n) {
 function statusPill(status) {
   const cls = status === 'pending' ? 'new' : status;
   return `<span class="adm-pill ${cls}">${STATUS_LABEL[status] || status}</span>`;
+}
+
+function paymentStatusPill(status) {
+  const s = String(status).toUpperCase();
+  if (s === 'COMPLETED') {
+    return `<span class="adm-pill confirmed">✓ Paid</span>`;
+  }
+  return `<span class="adm-pill new">⏳ Unpaid</span>`;
 }
 
 function initials(name) {
@@ -973,6 +994,8 @@ function renderOrderDetail(orderId) {
             <div class="adm-info-item"><label>Order Number</label><p>#${order.order_number}</p></div>
             <div class="adm-info-item"><label>Status</label><p>${statusPill(order.status)}</p></div>
             <div class="adm-info-item"><label>Total Amount</label><p style="color:var(--adm-green)">${fmtMoney(order.total_amount)}</p></div>
+            <div class="adm-info-item"><label>Payment Method</label><p class="font-semibold text-slate-800">${parsedMeta.payment ? parsedMeta.payment.toUpperCase() : 'COD'}</p></div>
+            <div class="adm-info-item"><label>Payment Status</label><p>${paymentStatusPill(parsedMeta.paymentStatus || 'PENDING')}</p></div>
             <div class="adm-info-item"><label>Items Count</label><p>${items.length} item(s) · ${items.reduce((s, i) => s + i.quantity, 0)} qty</p></div>
             <div class="adm-info-item"><label>Placed At</label><p>${fmtDate(order.created_at)}</p></div>
             <div class="adm-info-item"><label>Last Updated</label><p>${fmtDate(order.updated_at)}</p></div>

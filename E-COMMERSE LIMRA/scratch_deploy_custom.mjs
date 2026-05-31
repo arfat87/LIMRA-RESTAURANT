@@ -116,12 +116,12 @@ async function main() {
   
   // Find which files need to be uploaded
   const filesToUpload = createResult.files.filter(f => !f.uploadedAt);
-  console.log(`Need to upload ${filesToUpload.length} files (concurrency 8)...`);
+  console.log(`Need to upload ${filesToUpload.length} files (concurrency 3, robust retries enabled)...`);
   
   const localFileMap = new Map(files.map(f => [f.path, f]));
   
   let uploadedCount = 0;
-  await runWithConcurrency(filesToUpload, 8, async (manifestFile) => {
+  await runWithConcurrency(filesToUpload, 3, async (manifestFile) => {
     const localFile = localFileMap.get(manifestFile.path);
     if (!localFile) {
       throw new Error(`Backend requested file not present locally: ${manifestFile.path}`);
@@ -129,18 +129,39 @@ async function main() {
     
     const uploadUrl = `${API_BASE_URL}/api/deployments/${encodeURIComponent(deploymentId)}/files/${encodeURIComponent(manifestFile.fileId)}/content`;
     
-    const putRes = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'x-api-key': API_KEY,
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': String(localFile.size)
-      },
-      body: localFile.buffer
-    });
+    let attempts = 0;
+    let uploadSuccess = false;
+    let lastError = null;
     
-    if (!putRes.ok) {
-      throw new Error(`Failed to upload ${manifestFile.path}: ${putRes.status} ${await putRes.text()}`);
+    while (!uploadSuccess && attempts < 3) {
+      attempts++;
+      try {
+        const putRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'x-api-key': API_KEY,
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': String(localFile.size)
+          },
+          body: localFile.buffer
+        });
+        
+        if (!putRes.ok) {
+          throw new Error(`HTTP ${putRes.status}: ${await putRes.text()}`);
+        }
+        
+        uploadSuccess = true;
+      } catch (err) {
+        lastError = err;
+        console.warn(`[Upload Retry] Attempt ${attempts} failed for ${manifestFile.path}. Error: ${err.message || err}`);
+        if (attempts < 3) {
+          await new Promise(r => setTimeout(r, 1500)); // Wait 1.5s before retry
+        }
+      }
+    }
+    
+    if (!uploadSuccess) {
+      throw new Error(`Failed to upload ${manifestFile.path} after 3 attempts. Last error: ${lastError?.message || lastError}`);
     }
     
     uploadedCount++;

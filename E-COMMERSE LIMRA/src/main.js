@@ -1464,7 +1464,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? `[DELIVERY] Address: ${address} | Distance: ${km.toFixed(1)} km | Delivery charge: ₹${charge}`
       : '[SELF PICKUP]';
     const emailNote = `[EMAIL: ${email}]`;
-    const paymentNote = `[PAYMENT: ${payment}]`;
+    const paymentNote = `[PAYMENT: ${payment}] | [PAYMENT_STATUS: ${payment === 'upi' ? 'COMPLETED' : 'PENDING'}]`;
     const combinedNotes = [deliveryNote, emailNote, paymentNote, notes].filter(Boolean).join(' | ');
 
     const btn = document.getElementById('place-order-btn');
@@ -1476,109 +1476,192 @@ document.addEventListener('DOMContentLoaded', () => {
     const cartSnapshot = JSON.parse(JSON.stringify(cart));
     const subtotal = getCartSubtotal();
 
-    try {
-      const order = await saveOrder({
-        customerName: name,
-        customerPhone: phone,
-        items: cart,
-        notes: combinedNotes,
-      });
-      const orderLabel = order?.order_number ? `Order #${order.order_number}` : 'Your order';
-      statusEl.textContent = `${orderLabel} placed! We will confirm soon.`;
-      statusEl.style.color = 'var(--color-accent)';
-      statusEl.classList.remove('hidden');
-
-      // Save customer details to localStorage for future orders
-      const savedDetails = {
-        name,
-        phone,
-        email,
-        address,
-        isDelivery,
-        distance: km
-      };
-      localStorage.setItem('limra-customer-details', JSON.stringify(savedDetails));
-      initSavedAddressLoading(); // Refresh loading state
-
-      // Send Automatic HTML Email Receipt to Customer
+    const saveAndCompleteOrder = async () => {
       try {
-        const orderItemsMap = cartSnapshot.map(item => ({
-          item_name: item.name,
-          quantity: item.qty,
-          unit_price: item.price,
-          line_total: item.price * item.qty
-        }));
-        const emailHtml = generateOrderPlacedHtml(order, orderItemsMap);
-        await sendEmailNotification(email, `🛒 Order #${order.order_number} Received - LIMRA Restaurant`, emailHtml);
-      } catch (emailErr) {
-        console.warn('[Checkout] Background automatic email notification failed:', emailErr);
+        const order = await saveOrder({
+          customerName: name,
+          customerPhone: phone,
+          items: cartSnapshot,
+          notes: combinedNotes,
+        });
+        const orderLabel = order?.order_number ? `Order #${order.order_number}` : 'Your order';
+        statusEl.textContent = `${orderLabel} placed! We will confirm soon.`;
+        statusEl.style.color = 'var(--color-accent)';
+        statusEl.classList.remove('hidden');
+
+        // Save customer details to localStorage for future orders
+        const savedDetails = {
+          name,
+          phone,
+          email,
+          address,
+          isDelivery,
+          distance: km
+        };
+        localStorage.setItem('limra-customer-details', JSON.stringify(savedDetails));
+        initSavedAddressLoading(); // Refresh loading state
+
+        // Send Automatic HTML Email Receipt to Customer
+        try {
+          const orderItemsMap = cartSnapshot.map(item => ({
+            item_name: item.name,
+            quantity: item.qty,
+            unit_price: item.price,
+            line_total: item.price * item.qty
+          }));
+          const emailHtml = generateOrderPlacedHtml(order, orderItemsMap);
+          await sendEmailNotification(email, `🛒 Order #${order.order_number} Received - LIMRA Restaurant`, emailHtml);
+        } catch (emailErr) {
+          console.warn('[Checkout] Background automatic email notification failed:', emailErr);
+        }
+
+        // WhatsApp Confirmation Link
+        let waMsg = `Hello! My order is placed successfully at SK Arif (Limra Restaurant).\n\n*Order Details:*\n• Name: ${name}\n• Phone: ${phone}\n• Email: ${email}\n`;
+        let orderItemsText = '';
+        cartSnapshot.forEach(item => {
+          orderItemsText += `• ${item.name} x${item.qty} = ₹${item.price * item.qty}\n`;
+        });
+        orderItemsText += `\n*Subtotal: ₹${subtotal}*`;
+        if (isDelivery) {
+          orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}*`;
+          orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
+          orderItemsText += `\n*Grand Total: ₹${subtotal + charge + taxes}*`;
+          if (address) orderItemsText += `\n📍 *Deliver to:* ${address}`;
+        } else {
+          orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
+          orderItemsText += `\n*Total: ₹${subtotal + taxes}* (Self Pickup — Free)`;
+        }
+        orderItemsText += `\n💳 *Payment Mode:* ${payment}`;
+        waMsg += orderItemsText + `\n\nMy order is successfully booked. Please confirm my order and contact me as soon as possible! Thank you! 🙏`;
+        const waUrl = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waMsg)}`;
+
+        // Email (mailto) Link
+        const emailSubject = `Order Confirmed successfully! - SK Arif (${orderLabel})`;
+        let emailBody = `Dear Restaurant Management,\n\nI have successfully placed an order on your website.\n\nOrder Details:\n---------------------------------------------\nReference: ${orderLabel}\nName: ${name}\nPhone: ${phone}\nEmail: ${email}\n`;
+        if (isDelivery) {
+          emailBody += `Delivery Address: ${address}\n`;
+          emailBody += `Delivery Charge: Rs ${charge}\n`;
+        } else {
+          emailBody += `Delivery Option: Self Pickup (Free)\n`;
+        }
+        emailBody += `Payment Mode: ${payment}\n`;
+        emailBody += `\nOrder Summary:\n`;
+        cartSnapshot.forEach(item => {
+          emailBody += `• ${item.name} x${item.qty} = Rs ${item.price * item.qty}\n`;
+        });
+        emailBody += `\nSubtotal: Rs ${subtotal}\nTaxes (5% GST Incl.): Rs ${taxes}\nGrand Total: Rs ${isDelivery ? (subtotal + charge + taxes) : (subtotal + taxes)}\n---------------------------------------------\n\nMy order is successfully booked. Please contact me as soon as possible to confirm and deliver.\n\nBest regards,\n${name}`;
+        const emailUrl = `mailto:limrarestaurant99@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+
+        // Show Success Modal
+        showSuccessModal({
+          title: `${orderLabel} Placed Successfully!`,
+          message: `Your order has been successfully recorded in our system. Please click below to send yourself confirmation on WhatsApp or Email!`,
+          waUrl,
+          emailUrl
+        });
+
+        clearCart();
+        document.getElementById('order-customer-name').value = '';
+        document.getElementById('order-customer-phone').value = '';
+        document.getElementById('order-customer-email').value = '';
+        if (document.getElementById('order-address')) document.getElementById('order-address').value = '';
+        if (document.getElementById('order-distance')) document.getElementById('order-distance').value = '';
+        document.getElementById('order-notes').value = '';
+        deliveryKm = 0;
+        showStep(1); // Reset to step 1
+        setTimeout(() => statusEl.classList.add('hidden'), 5000);
+      } catch (err) {
+        console.error('Order error:', err);
+        const detail = err?.message || 'Please try again or use WhatsApp.';
+        statusEl.textContent = `Order failed: ${detail}`;
+        statusEl.style.color = 'var(--color-red-badge)';
+        statusEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Place Order`;
       }
+    };
 
-      // WhatsApp Confirmation Link
-      let waMsg = `Hello! My order is placed successfully at SK Arif (Limra Restaurant).\n\n*Order Details:*\n• Name: ${name}\n• Phone: ${phone}\n• Email: ${email}\n`;
-      let orderItemsText = '';
-      cartSnapshot.forEach(item => {
-        orderItemsText += `• ${item.name} x${item.qty} = ₹${item.price * item.qty}\n`;
-      });
-      orderItemsText += `\n*Subtotal: ₹${subtotal}*`;
-      if (isDelivery) {
-        orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}*`;
-        orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
-        orderItemsText += `\n*Grand Total: ₹${subtotal + charge + taxes}*`;
-        if (address) orderItemsText += `\n📍 *Deliver to:* ${address}`;
-      } else {
-        orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
-        orderItemsText += `\n*Total: ₹${subtotal + taxes}* (Self Pickup — Free)`;
-      }
-      orderItemsText += `\n💳 *Payment Mode:* ${payment}`;
-      waMsg += orderItemsText + `\n\nMy order is successfully booked. Please confirm my order and contact me as soon as possible! Thank you! 🙏`;
-      const waUrl = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waMsg)}`;
+    if (payment === 'upi') {
+      const modal = document.getElementById('upi-payment-modal');
+      const amountEl = document.getElementById('upi-modal-amount');
+      const qrImg = document.getElementById('upi-qr-image');
+      const qrLoader = document.getElementById('upi-qr-loader');
+      const confirmBtn = document.getElementById('upi-confirm-btn');
+      const cancelBtn = document.getElementById('upi-cancel-btn');
+      const copyBtn = document.getElementById('copy-upi-btn');
+      const statusOverlay = document.getElementById('upi-status-overlay');
+      const overlayLoader = document.getElementById('upi-overlay-loader');
+      const overlaySuccess = document.getElementById('upi-overlay-success');
+      const successTotal = document.getElementById('upi-success-total');
 
-      // Email (mailto) Link
-      const emailSubject = `Order Confirmed successfully! - SK Arif (${orderLabel})`;
-      let emailBody = `Dear Restaurant Management,\n\nI have successfully placed an order on your website.\n\nOrder Details:\n---------------------------------------------\nReference: ${orderLabel}\nName: ${name}\nPhone: ${phone}\nEmail: ${email}\n`;
-      if (isDelivery) {
-        emailBody += `Delivery Address: ${address}\n`;
-        emailBody += `Delivery Charge: Rs ${charge}\n`;
-      } else {
-        emailBody += `Delivery Option: Self Pickup (Free)\n`;
-      }
-      emailBody += `Payment Mode: ${payment}\n`;
-      emailBody += `\nOrder Summary:\n`;
-      cartSnapshot.forEach(item => {
-        emailBody += `• ${item.name} x${item.qty} = Rs ${item.price * item.qty}\n`;
-      });
-      emailBody += `\nSubtotal: Rs ${subtotal}\nTaxes (5% GST Incl.): Rs ${taxes}\nGrand Total: Rs ${isDelivery ? (subtotal + charge + taxes) : (subtotal + taxes)}\n---------------------------------------------\n\nMy order is successfully booked. Please contact me as soon as possible to confirm and deliver.\n\nBest regards,\n${name}`;
-      const emailUrl = `mailto:limrarestaurant99@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+      const grandTotal = isDelivery ? (subtotal + charge + taxes) : (subtotal + taxes);
+      amountEl.textContent = `₹${grandTotal.toFixed(2)}`;
+      successTotal.textContent = grandTotal.toFixed(2);
 
-      // Show Success Modal
-      showSuccessModal({
-        title: `${orderLabel} Placed Successfully!`,
-        message: `Your order has been successfully recorded in our system. Please click below to send yourself confirmation on WhatsApp or Email!`,
-        waUrl,
-        emailUrl
-      });
+      // Generate dynamic standard UPI pay URI with deep linking keys
+      const payeeAddress = '7501299357@ybl';
+      const payeeName = 'LIMRA Restaurant';
+      const upiUri = `upi://pay?pa=${payeeAddress}&pn=${encodeURIComponent(payeeName)}&am=${grandTotal.toFixed(2)}&cu=INR&tn=LimraOrder`;
 
-      clearCart();
-      document.getElementById('order-customer-name').value = '';
-      document.getElementById('order-customer-phone').value = '';
-      document.getElementById('order-customer-email').value = '';
-      if (document.getElementById('order-address')) document.getElementById('order-address').value = '';
-      if (document.getElementById('order-distance')) document.getElementById('order-distance').value = '';
-      document.getElementById('order-notes').value = '';
-      deliveryKm = 0;
-      showStep(1); // Reset to step 1
-      setTimeout(() => statusEl.classList.add('hidden'), 5000);
-    } catch (err) {
-      console.error('Order error:', err);
-      const detail = err?.message || 'Please try again or use WhatsApp.';
-      statusEl.textContent = `Order failed: ${detail}`;
-      statusEl.style.color = 'var(--color-red-badge)';
-      statusEl.classList.remove('hidden');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Place Order`;
+      // Render the QR code via dynamic qr server api
+      qrLoader.classList.remove('hidden');
+      qrImg.onload = () => qrLoader.classList.add('hidden');
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiUri)}`;
+
+      // Present the custom UPI Modal UI
+      modal.classList.remove('pointer-events-none', 'opacity-0');
+      modal.querySelector('#upi-modal-content').classList.remove('scale-95');
+
+      // Setup clipboard copying
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(payeeAddress).then(() => {
+          const originalSvg = copyBtn.innerHTML;
+          copyBtn.innerHTML = `<svg class="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
+          setTimeout(() => { copyBtn.innerHTML = originalSvg; }, 1800);
+        });
+      };
+
+      // Cancel button action
+      cancelBtn.onclick = () => {
+        modal.classList.add('pointer-events-none', 'opacity-0');
+        modal.querySelector('#upi-modal-content').classList.add('scale-95');
+        // Reset Place Order button state
+        btn.disabled = false;
+        btn.innerHTML = `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Place Order`;
+      };
+
+      // Confirm Paid action
+      confirmBtn.onclick = async () => {
+        // Show simulated banking verifications
+        statusOverlay.classList.remove('pointer-events-none', 'opacity-0');
+        overlayLoader.classList.remove('hidden');
+        overlaySuccess.classList.add('hidden');
+
+        // Delay 2s to simulate real transaction checking
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Switch to complete payment screen
+        overlayLoader.classList.add('hidden');
+        overlaySuccess.classList.remove('hidden');
+
+        // Let user see success overlay for 1.5s then complete order placement
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Close UPI Modal and overlays
+        modal.classList.add('pointer-events-none', 'opacity-0');
+        modal.querySelector('#upi-modal-content').classList.add('scale-95');
+        statusOverlay.classList.add('pointer-events-none', 'opacity-0');
+
+        // Place and complete the order in DB
+        await saveAndCompleteOrder();
+      };
+
+      return; // prevent immediate COD execution
     }
+
+    // Direct Cash/Card execution
+    await saveAndCompleteOrder();
   });
 
   // Optional WhatsApp copy
