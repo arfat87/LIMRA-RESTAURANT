@@ -820,3 +820,83 @@
   font-size: 0.65rem;
   color: var(--adm-muted);
 }
+
+/* Premium Order Detail Map and quick buttons */
+.adm-detail-map-card {
+  margin-top: 1.25rem;
+}
+.adm-detail-map-wrap {
+  position: relative;
+  height: 220px;
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--adm-border);
+  overflow: hidden;
+}
+.adm-detail-map {
+  height: 100%;
+  width: 100%;
+  z-index: 10;
+}
+.adm-comm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.adm-comm-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+}
+.adm-comm-btn.whatsapp {
+  background: #e6f7f1;
+  color: #00b074;
+}
+.adm-comm-btn.whatsapp:hover {
+  background: #00b074;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 176, 116, 0.25);
+}
+.adm-comm-btn.email {
+  background: #e8f4fd;
+  color: #2d9cdb;
+}
+.adm-comm-btn.email:hover {
+  background: #2d9cdb;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(45, 156, 219, 0.25);
+}
+.adm-comm-btn.call {
+  background: #fff3e6;
+  color: #f2994a;
+}
+.adm-comm-btn.call:hover {
+  background: #f2994a;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(242, 153, 74, 0.25);
+}
+.adm-email-badge {
+  font-size: 0.75rem;
+  color: var(--adm-muted);
+  word-break: break-all;
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.adm-comm-btn.adm-comm-disabled {
+  background: #f1f3f5 !important;
+  color: #adb5bd !important;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+

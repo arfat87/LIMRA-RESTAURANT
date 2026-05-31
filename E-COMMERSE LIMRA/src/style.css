@@ -577,3 +577,19 @@ body {
 .hero-accent:nth-child(3) { animation-delay: 0.44s, 1s; }
 .hero-accent:nth-child(4) { animation-delay: 0.54s, 1s; }
 .hero-accent:nth-child(5) { animation-delay: 0.64s, 1s; }
+
+/* Collapsible checkout accordion transitions */
+#checkout-details-content {
+  max-height: 500px;
+  opacity: 1;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+#checkout-details-content.hidden {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  margin-top: 0 !important;
+  pointer-events: none;
+  display: none !important;
+}
+

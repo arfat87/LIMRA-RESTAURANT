@@ -1,6 +1,8 @@
 import './style.css';
 import { saveOrder, saveBooking, getCustomerBookings } from './lib/insforge.js';
 import { menuItems, categoryImages, categoryLabels, categoryEmojis, categoryTabOrder } from './data/menu.js';
+import { sendEmailNotification, generateOrderPlacedHtml } from './lib/email-service.js';
+
 
 // ═══════════════════════════════════════
 // CART STATE
@@ -1118,6 +1120,69 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initDelivery();
 
+  function initCollapsibleDetails() {
+    const cardHeader = document.getElementById('checkout-details-header');
+    const content = document.getElementById('checkout-details-content');
+    const summary = document.getElementById('checkout-details-summary');
+    const arrowIcon = document.getElementById('details-arrow-icon');
+    
+    const nameInput = document.getElementById('order-customer-name');
+    const phoneInput = document.getElementById('order-customer-phone');
+    const emailInput = document.getElementById('order-customer-email');
+    const summaryText = document.getElementById('summary-text-info');
+    
+    if (!cardHeader || !content || !summary || !arrowIcon) return;
+    
+    let isCollapsed = false;
+    
+    function updateSummary() {
+      const name = nameInput?.value?.trim() || '';
+      const phone = phoneInput?.value?.trim() || '';
+      const email = emailInput?.value?.trim() || '';
+      const mode = isDelivery ? '🛵 Delivery' : '🥡 Self Pickup';
+      
+      if (!name && !phone && !email) {
+        summaryText.textContent = `Tap to fill details (${mode})`;
+      } else {
+        const parts = [
+          name ? `👤 ${name}` : '',
+          phone ? `📞 ${phone}` : '',
+          mode
+        ].filter(Boolean);
+        summaryText.textContent = parts.join(' · ');
+      }
+    }
+    
+    function toggle(collapse) {
+      isCollapsed = collapse;
+      if (collapse) {
+        content.classList.add('hidden');
+        summary.classList.remove('hidden');
+        arrowIcon.classList.remove('rotate-180');
+      } else {
+        content.classList.remove('hidden');
+        summary.classList.add('hidden');
+        arrowIcon.classList.add('rotate-180');
+      }
+      updateSummary();
+    }
+    
+    cardHeader.addEventListener('click', () => {
+      toggle(!isCollapsed);
+    });
+    
+    [nameInput, phoneInput, emailInput].forEach(input => {
+      input?.addEventListener('input', updateSummary);
+    });
+    
+    document.getElementById('delivery-type-deliver')?.addEventListener('click', updateSummary);
+    document.getElementById('delivery-type-pickup')?.addEventListener('click', updateSummary);
+    
+    updateSummary();
+  }
+  initCollapsibleDetails();
+
+
   // Place order (saved to admin dashboard)
   document.getElementById('place-order-btn').addEventListener('click', async () => {
     if (cart.length === 0) { alert('Your cart is empty! Add some items first.'); return; }
@@ -1168,6 +1233,21 @@ document.addEventListener('DOMContentLoaded', () => {
       statusEl.textContent = `${orderLabel} placed! We will confirm soon.`;
       statusEl.style.color = 'var(--color-accent)';
       statusEl.classList.remove('hidden');
+
+      // Send Automatic HTML Email Receipt to Customer
+      try {
+        const orderItemsMap = cartSnapshot.map(item => ({
+          item_name: item.name,
+          quantity: item.qty,
+          unit_price: item.price,
+          line_total: item.price * item.qty
+        }));
+        const emailHtml = generateOrderPlacedHtml(order, orderItemsMap);
+        await sendEmailNotification(email, `🛒 Order #${order.order_number} Received - LIMRA Restaurant`, emailHtml);
+      } catch (emailErr) {
+        console.warn('[Checkout] Background automatic email notification failed:', emailErr);
+      }
+
 
       // WhatsApp Confirmation Link
       let waMsg = `Hello! My order is placed successfully at SK Arif (Limra Restaurant).\n\n*Order Details:*\n• Name: ${name}\n• Phone: ${phone}\n• Email: ${email}\n`;

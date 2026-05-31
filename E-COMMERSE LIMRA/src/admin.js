@@ -4,6 +4,8 @@ import { Chart, registerables } from 'chart.js';
 import { insforge } from './lib/insforge.js';
 import { menuItems, categoryImages, categoryLabels } from './data/menu.js';
 import { getAdminLoginUrl } from './lib/admin-routes.js';
+import { sendEmailNotification, generateOrderConfirmedHtml, generateOrderCancelledHtml } from './lib/email-service.js';
+
 
 Chart.register(...registerables);
 
@@ -194,6 +196,53 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function parseNotesMetadata(notes) {
+  const result = {
+    email: '',
+    type: 'pickup',
+    address: '',
+    distance: '',
+    charge: '',
+    customNote: ''
+  };
+  
+  if (!notes) return result;
+  
+  const emailMatch = notes.match(/\[EMAIL:\s*([^\]]+)\]/i);
+  if (emailMatch) {
+    result.email = emailMatch[1].trim();
+  }
+  
+  if (notes.includes('[DELIVERY]')) {
+    result.type = 'delivery';
+  } else if (notes.includes('[SELF PICKUP]')) {
+    result.type = 'pickup';
+  }
+  
+  if (result.type === 'delivery') {
+    const addrMatch = notes.match(/Address:\s*([^|\]]+)/i);
+    const distMatch = notes.match(/Distance:\s*([^|\]]+)/i);
+    const chargeMatch = notes.match(/Delivery charge:\s*([^|\]]+)/i);
+    
+    if (addrMatch) result.address = addrMatch[1].trim();
+    if (distMatch) result.distance = distMatch[1].trim();
+    if (chargeMatch) result.charge = chargeMatch[1].trim();
+  }
+  
+  let cleanNote = notes
+    .replace(/\[EMAIL:[^\]]+\]/gi, '')
+    .replace(/\[DELIVERY\] Address:[^|]+/gi, '')
+    .replace(/Distance:[^|]+/gi, '')
+    .replace(/Delivery charge:[^|]+/gi, '')
+    .replace(/\[SELF PICKUP\]/gi, '')
+    .replace(/\|/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+    
+  result.customNote = cleanNote;
+  return result;
+}
+
 function fmtDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleString('en-IN', {
@@ -373,6 +422,8 @@ function buildCustomerStats() {
     const c = ensure(order.customer_phone, order.customer_name);
     c.orderCount += 1;
     c.totalSpent += Number(order.total_amount);
+    const meta = parseNotesMetadata(order.notes);
+    if (meta.email) c.email = meta.email;
     if (!c.lastOrder || new Date(order.created_at) > new Date(c.lastOrder)) {
       c.lastOrder = order.created_at;
       c.name = order.customer_name;
@@ -386,6 +437,8 @@ function buildCustomerStats() {
   bookings.forEach(booking => {
     const c = ensure(booking.customer_phone, booking.customer_name);
     c.bookingCount += 1;
+    const meta = parseNotesMetadata(booking.notes);
+    if (meta.email) c.email = meta.email;
     if (booking.type === 'table') c.tableBookings += 1;
     if (booking.type === 'party') c.partyBookings += 1;
     if (booking.type === 'wedding') c.weddingBookings += 1;
@@ -544,6 +597,48 @@ function renderCharts() {
   });
 }
 
+const categoryColors = {
+  soup: '#ff5b5b',
+  'veg-starters': '#2d9cdb',
+  'nonveg-starters': '#f2994a',
+  'tandoor-kabab': '#9b59b6',
+  bread: '#00b074',
+  biryani: '#ffc107',
+  'veg-curry': '#e83e8c',
+  'nonveg-curry': '#fd7e14',
+  'veg-rice': '#20c997',
+  'nonveg-rice': '#17a2b8',
+  'chinese-veg': '#6f42c1',
+  'chinese-nonveg': '#dc3545',
+  noodles: '#28a745',
+  thali: '#6c757d',
+  desserts: '#ff85a2',
+  salads: '#b5e2fa',
+  'momos-chaat': '#edafb8',
+  juices: '#38b000',
+  lassi: '#ffc6ff',
+  milkshakes: '#bdb2ff',
+  mocktails: '#9bf6ff',
+  beverages: '#a0c4ff'
+};
+
+function getCategorySalesData() {
+  const counts = {};
+  Object.keys(categoryLabels).forEach(cat => {
+    counts[cat] = 0;
+  });
+  orderItems.forEach(item => {
+    const order = orders.find(o => o.id === item.order_id);
+    if (order && order.status !== 'cancelled') {
+      const menu = menuItems.find(m => m.name === item.item_name);
+      if (menu && menu.category) {
+        counts[menu.category] = (counts[menu.category] || 0) + item.quantity;
+      }
+    }
+  });
+  return counts;
+}
+
 function renderAnalytics() {
   destroyChart('analyticsSales');
   charts.analyticsSales = new Chart($('chart-analytics-sales'), {
@@ -589,6 +684,52 @@ function renderAnalytics() {
       datasets: [{ data: trending.map(([, q]) => q), backgroundColor: '#00b074', borderRadius: 8 }],
     },
     options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } },
+  });
+
+  // Food Category Distribution Chart
+  destroyChart('categorySales');
+  const catSales = getCategorySalesData();
+  const activeCats = Object.entries(catSales).filter(([, qty]) => qty > 0);
+  
+  let labels, data, colors;
+  if (activeCats.length === 0) {
+    const fallbackData = {
+      biryani: 15,
+      'tandoor-kabab': 12,
+      bread: 9,
+      'nonveg-curry': 6,
+      soup: 4
+    };
+    labels = Object.keys(fallbackData).map(cat => categoryLabels[cat] || cat);
+    data = Object.values(fallbackData);
+    colors = Object.keys(fallbackData).map(cat => categoryColors[cat] || '#8b95a5');
+  } else {
+    labels = activeCats.map(([cat]) => categoryLabels[cat] || cat);
+    data = activeCats.map(([, qty]) => qty);
+    colors = activeCats.map(([cat]) => categoryColors[cat] || '#8b95a5');
+  }
+  
+  charts.categorySales = new Chart($('chart-category-sales'), {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: colors,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { boxWidth: 12, font: { size: 10 } }
+        }
+      },
+      cutout: '60%'
+    }
   });
 }
 
@@ -660,7 +801,25 @@ async function updateOrderStatus(orderId, newStatus) {
   const { error } = await insforge.database.from('orders').update({ status: newStatus }).eq('id', orderId);
   if (error) { alert('Failed to update: ' + error.message); return false; }
   const order = orders.find(o => o.id === orderId);
-  if (order) order.status = newStatus;
+  if (order) {
+    order.status = newStatus;
+    
+    // Send Email Notification on Confirmation or Cancellation
+    const meta = parseNotesMetadata(order.notes);
+    if (meta.email) {
+      try {
+        if (newStatus === 'confirmed') {
+          const emailHtml = generateOrderConfirmedHtml(order);
+          await sendEmailNotification(meta.email, `✅ Order #${order.order_number} Confirmed - LIMRA Restaurant`, emailHtml);
+        } else if (newStatus === 'cancelled') {
+          const emailHtml = generateOrderCancelledHtml(order);
+          await sendEmailNotification(meta.email, `❌ Order #${order.order_number} Cancelled - LIMRA Restaurant`, emailHtml);
+        }
+      } catch (emailErr) {
+        console.warn('[Admin] Background email status notification failed:', emailErr);
+      }
+    }
+  }
   renderOverview();
   renderOrdersTable();
   renderOrderDetailPicker();
@@ -737,6 +896,19 @@ function renderOrderDetail(orderId) {
         </tr>
       `).join('');
 
+  const parsedMeta = parseNotesMetadata(order.notes);
+
+  const digits = order.customer_phone.replace(/\D/g, '');
+  const formattedPhone = digits.length === 10 ? '91' : '';
+  const whatsappPhone = formattedPhone + digits;
+  const statusText = STATUS_LABEL[order.status] || order.status;
+  const whatsappMsg = `Hi ${order.customer_name}, your LIMRA order #${order.order_number} has been received! Current status: ${statusText}. We are preparing it with care and will contact you as soon as possible. Thank you for choosing LIMRA!`;
+  const whatsappLink = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMsg)}`;
+
+  const emailSubject = `LIMRA Restaurant - Order #${order.order_number} Confirmation`;
+  const emailBody = `Hi ${order.customer_name},\n\nThank you for your order! Your order #${order.order_number} for ${fmtMoney(order.total_amount)} has been successfully booked.\n\nWe will contact you as soon as possible to arrange delivery/pickup.\n\nWarm regards,\nLIMRA Restaurant Team`;
+  const emailLink = parsedMeta.email ? `mailto:${parsedMeta.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}` : '#';
+
   content.innerHTML = `
     <div class="adm-detail-grid">
       <div class="adm-detail-col">
@@ -745,8 +917,9 @@ function renderOrderDetail(orderId) {
             <div class="adm-customer-avatar">${initials(order.customer_name)}</div>
             <div>
               <p class="adm-customer-name">${escapeHtml(order.customer_name)}</p>
-              <span class="adm-pill confirmed">Customer</span>
+              <span class="adm-pill confirmed">${parsedMeta.type === 'delivery' ? '🚗 Delivery' : '🥡 Pickup'}</span>
               <p class="adm-customer-phone"><a href="tel:${order.customer_phone}">${escapeHtml(order.customer_phone)}</a></p>
+              ${parsedMeta.email ? `<span class="adm-email-badge">${escapeHtml(parsedMeta.email)}</span>` : ''}
             </div>
           </div>
         </div>
@@ -762,13 +935,29 @@ function renderOrderDetail(orderId) {
             <div class="adm-info-item"><label>Last Updated</label><p>${fmtDate(order.updated_at)}</p></div>
             <div class="adm-info-item" style="grid-column:1/-1"><label>Order ID</label><p class="adm-info-muted">${order.id}</p></div>
           </div>
-          ${order.notes ? `
+          ${parsedMeta.customNote ? `
             <div class="adm-detail-section">
-              <p class="adm-detail-section-title">Customer Note</p>
-              <div class="adm-note-box">${escapeHtml(order.notes)}</div>
+              <p class="adm-detail-section-title">Customer Instructions</p>
+              <div class="adm-note-box">${escapeHtml(parsedMeta.customNote)}</div>
             </div>
           ` : ''}
         </div>
+
+        ${parsedMeta.type === 'delivery' ? `
+          <div class="adm-card">
+            <h3 class="adm-card-title">Delivery Location & Tracking</h3>
+            <div class="adm-info-grid" style="margin-bottom: 1rem;">
+              <div class="adm-info-item" style="grid-column: 1/-1"><label>Delivery Address</label><p>${escapeHtml(parsedMeta.address || 'Not specified')}</p></div>
+              <div class="adm-info-item"><label>Distance</label><p>${escapeHtml(parsedMeta.distance || '—')}</p></div>
+              <div class="adm-info-item"><label>Delivery Charge</label><p>${escapeHtml(parsedMeta.charge || '—')}</p></div>
+            </div>
+            <div class="adm-detail-map-card">
+              <div class="adm-detail-map-wrap">
+                <div id="order-detail-map" class="adm-detail-map"></div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
 
         <div class="adm-card">
           <h3 class="adm-card-title">Order Timeline</h3>
@@ -819,7 +1008,19 @@ function renderOrderDetail(orderId) {
             ${order.status === 'preparing' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm ready-order">✓ Mark Ready</button>` : ''}
             ${order.status === 'ready' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm deliver-order">✓ Mark Delivered</button>` : ''}
             ${order.status !== 'cancelled' && order.status !== 'delivered' ? `<button type="button" class="adm-btn adm-btn-danger adm-btn-sm cancel-order">✕ Cancel</button>` : ''}
-            <a href="tel:${order.customer_phone}" class="adm-btn adm-btn-outline adm-btn-sm">📞 Call Customer</a>
+          </div>
+
+          <h3 class="adm-card-title" style="margin-top: 1.5rem; margin-bottom: 0.75rem;">Customer Shortcuts</h3>
+          <div class="adm-comm-grid">
+            <a href="${whatsappLink}" target="_blank" class="adm-comm-btn whatsapp">
+              💬 WhatsApp
+            </a>
+            <a href="${parsedMeta.email ? emailLink : '#'}" class="adm-comm-btn email ${!parsedMeta.email ? 'adm-comm-disabled' : ''}" id="comm-email-btn">
+              ✉️ Email
+            </a>
+            <a href="tel:${order.customer_phone}" class="adm-comm-btn call">
+              📞 Call
+            </a>
           </div>
         </div>
       </div>
@@ -833,6 +1034,87 @@ function renderOrderDetail(orderId) {
   content.querySelector('.cancel-order')?.addEventListener('click', () => {
     if (confirm('Cancel this order?')) updateOrderStatus(order.id, 'cancelled');
   });
+
+  content.querySelector('#comm-email-btn')?.addEventListener('click', (e) => {
+    if (!parsedMeta.email) {
+      e.preventDefault();
+      alert('No email address provided by this customer.');
+    }
+  });
+
+  // Map cleanup and initialization
+  if (window.orderDetailMap) {
+    try {
+      window.orderDetailMap.remove();
+    } catch (e) {
+      console.warn('Error removing map:', e);
+    }
+    window.orderDetailMap = null;
+  }
+
+  if (parsedMeta.type === 'delivery') {
+    const mapContainer = document.getElementById('order-detail-map');
+    if (mapContainer) {
+      try {
+        const limraCoords = [21.8603074, 87.4793798];
+        const map = L.map('order-detail-map').setView(limraCoords, 14);
+        window.orderDetailMap = map;
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Add restaurant marker (Gold)
+        const restaurantIcon = L.icon({
+          iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowSize: [41, 41]
+        });
+        L.marker(limraCoords, { icon: restaurantIcon }).addTo(map).bindPopup('<b>LIMRA Restaurant</b>').openPopup();
+
+        // Forward geocode customer address
+        const addrStr = parsedMeta.address;
+        if (addrStr) {
+          fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addrStr)}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.length > 0 && window.orderDetailMap === map) {
+                const lat = parseFloat(data[0].lat);
+                const lon = parseFloat(data[0].lon);
+                const clientCoords = [lat, lon];
+                
+                const clientIcon = L.icon({
+                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                  popupAnchor: [1, -34],
+                  shadowSize: [41, 41]
+                });
+                
+                const clientMarker = L.marker(clientCoords, { icon: clientIcon }).addTo(map);
+                clientMarker.bindPopup(`<b>Delivery Pin</b><br>${escapeHtml(addrStr)}`).openPopup();
+                
+                L.polyline([limraCoords, clientCoords], {
+                  color: '#00b074',
+                  dashArray: '5, 10',
+                  weight: 3
+                }).addTo(map);
+                
+                const bounds = L.latLngBounds([limraCoords, clientCoords]);
+                map.fitBounds(bounds, { padding: [40, 40] });
+              }
+            })
+            .catch(err => console.warn('Nominatim geocode failed in admin detail:', err));
+        }
+      } catch (err) {
+        console.warn('Map initialization failed in admin detail:', err);
+      }
+    }
+  }
 }
 
 // ── Customers ───────────────────────────────────────────
@@ -872,6 +1154,7 @@ function renderCustomers() {
               <p class="adm-customer-name">${escapeHtml(c.name)}</p>
               <p class="adm-customer-role">Customer</p>
               <a href="tel:${c.phone}" class="adm-customer-phone">${escapeHtml(c.phone)}</a>
+              ${c.email ? `<span class="adm-email-badge" style="margin-top:0.25rem">${escapeHtml(c.email)}</span>` : ''}
             </div>
           </div>
           ${c.orderCount > 0 ? `
@@ -967,10 +1250,22 @@ function renderBookingsList() {
   }
 
   el.innerHTML = filtered.map(b => {
+    const meta = parseNotesMetadata(b.notes || b.message);
     const statusOptions = BOOKING_STATUSES.map(s =>
       `<option value="${s}" ${s === b.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`
     ).join('');
     const typeLabel = { table: '🪑 Table', party: '🎉 Party', wedding: '💍 Wedding' }[b.type] || b.type;
+
+    const digits = b.customer_phone.replace(/\D/g, '');
+    const formattedPhone = digits.length === 10 ? '91' : '';
+    const whatsappPhone = formattedPhone + digits;
+    const bookingStatusText = STATUS_LABEL[b.status] || b.status;
+    const whatsappMsg = `Hi ${b.customer_name}, your LIMRA booking #${b.booking_number} for ${typeLabel} is currently ${bookingStatusText}. We look forward to hosting you!`;
+    const whatsappLink = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMsg)}`;
+
+    const emailSubject = `LIMRA Restaurant - Booking #${b.booking_number} Confirmation`;
+    const emailBody = `Hi ${b.customer_name},\n\nThank you for booking with LIMRA! Your ${typeLabel} booking #${b.booking_number} is currently ${bookingStatusText}.\n\nDate: ${b.booking_date || '—'}\nTime: ${b.booking_time || '—'}\nGuests: ${b.guests || '—'}\n\nWe look forward to welcoming you!\n\nWarm regards,\nLIMRA Restaurant Team`;
+    const emailLink = meta.email ? `mailto:${meta.email}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}` : '#';
 
     return `
       <div class="adm-card">
@@ -978,6 +1273,7 @@ function renderBookingsList() {
           <div>
             <p class="font-bold">Booking #${b.booking_number} · ${typeLabel}</p>
             <p class="text-sm" style="color:var(--adm-muted)">${b.customer_name} · ${b.customer_phone}</p>
+            ${meta.email ? `<span class="adm-email-badge" style="margin-bottom:0.35rem">${escapeHtml(meta.email)}</span>` : ''}
             <p class="text-sm">${b.booking_date || '—'} ${b.booking_time || ''} · ${b.guests || '?'} guests</p>
           </div>
           <div class="flex items-center gap-2">
@@ -987,9 +1283,31 @@ function renderBookingsList() {
         </div>
         ${b.seat_label ? `<p class="text-sm">Seat: <strong>${b.seat_label}</strong> · ${b.preference || ''}</p>` : ''}
         ${b.message ? `<p class="text-sm mt-2 p-2 rounded-lg" style="background:#f8faf9">${b.message}</p>` : ''}
+        
+        <div class="adm-comm-grid" style="margin-top:0.75rem; max-width: 320px;">
+          <a href="${whatsappLink}" target="_blank" class="adm-comm-btn whatsapp">
+            💬 WhatsApp
+          </a>
+          <a href="${meta.email ? emailLink : '#'}" class="adm-comm-btn email ${!meta.email ? 'adm-comm-disabled' : ''}" id="booking-email-${b.id}">
+            ✉️ Email
+          </a>
+          <a href="tel:${b.customer_phone}" class="adm-comm-btn call">
+            📞 Call
+          </a>
+        </div>
       </div>
     `;
   }).join('');
+
+  filtered.forEach(b => {
+    const meta = parseNotesMetadata(b.notes || b.message);
+    if (!meta.email) {
+      el.querySelector(`#booking-email-${b.id}`)?.addEventListener('click', (e) => {
+        e.preventDefault();
+        alert('No email address provided by this customer.');
+      });
+    }
+  });
 
   el.querySelectorAll('.booking-status-select').forEach(select => {
     select.addEventListener('change', async e => {
