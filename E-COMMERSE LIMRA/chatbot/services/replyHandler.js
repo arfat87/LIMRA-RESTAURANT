@@ -1,90 +1,76 @@
-import { createAdminClient } from '@insforge/sdk';
-import { config } from '../config.js';
+import { db } from './dbService.js';
+import { geminiService } from './geminiService.js';
 import { sendWhatsAppMessage } from '../providers/whatsappMock.js';
 
-const insforge = createAdminClient({ baseUrl: config.insforgeUrl, apiKey: config.insforgeAdminKey });
-
 /**
-  * Interactive 2-Way Autoreply Router.
-  * Handles incoming WhatsApp messages from clients and replies with an engaging menu.
-  */
+ * 2-Way Autoreply Router & Switchboard.
+ * Handles incoming customer messages:
+ * 1. Logs message history in the database.
+ * 2. Checks if Human Mode is active (suppressing auto-replies) or AI Mode is active.
+ * 3. Triggers the Gemini AI engine context-aware response when in AI Mode.
+ */
 export async function handleIncomingWhatsAppMessage(fromPhone, userMessage) {
-  const text = String(userMessage).trim().toLowerCase();
-  const phoneDigits = fromPhone.replace(/\D/g, '');
+  const cleanPhone = String(fromPhone).trim();
+  const bodyText = String(userMessage).trim();
   
-  console.log(`💬 [WhatsApp Webhook] Received from +${phoneDigits}: "${userMessage}"`);
+  if (!cleanPhone || !bodyText) return;
   
-  const mainMenuText = 
-    `👋 *Welcome to the LIMRA Restaurant Chatbot!*\n` +
-    `How can we serve you today? 🍛 We have hot and fresh tandoori, biryani, and desserts ready.\n\n` +
-    `🔢 *Reply with a number below to query our assistant:*\n` +
-    `*1* ➔ Check my active orders status 🛒\n` +
-    `*2* ➔ View today's menu & specials 🍽\n` +
-    `*3* ➔ Reserve a table / Party event 📅\n` +
-    `*4* ➔ Contact SK Arif (Manager support) 📞`;
-
-  let responseText = '';
-
-  switch (text) {
-    case '1':
-      try {
-        // Query the database for matching active customer orders
-        const { data: orders, error } = await insforge.database
-          .from('orders')
-          .select('order_number, total_amount, status, created_at')
-          .eq('customer_phone', fromPhone)
-          .order('created_at', { ascending: false })
-          .limit(3);
-          
-        if (error) throw error;
-        
-        if (!orders || orders.length === 0) {
-          responseText = `🔍 We couldn't find any recent orders associated with your number (+${phoneDigits}) in our database.\n\nType *3* to book a table or *4* to call our helpdesk!`;
-        } else {
-          responseText = `🛒 *Your Recent Orders:*\n----------------------------------------\n`;
-          orders.forEach(o => {
-            const dateStr = new Date(o.created_at).toLocaleDateString('en-IN');
-            const statusLabel = o.status.toUpperCase();
-            responseText += `• *Order #${o.order_number}* (Placed: ${dateStr})\n  Grand Total: ₹${o.total_amount}\n  Status: *${statusLabel}* 📍\n\n`;
-          });
-          responseText += `Reply *4* to connect directly with manager support.`;
-        }
-      } catch (err) {
-        console.error('Webhook order status query failed:', err);
-        responseText = `⚠️ Sorry, we encountered a database synchronization issue. Please try again later or call support.`;
-      }
-      break;
-      
-    case '2':
-      responseText = 
-        `🍽️ *Today's Specials at LIMRA Restaurant:*\n----------------------------------------\n` +
-        `🔥 *Starters:* Special Tandoori Chicken, Paneer Tikka (₹160)\n` +
-        `🍛 *Mains:* SK Arif's Special Handi Mutton Biryani (₹240)\n` +
-        `🥤 *Desserts:* Sweet Badam Milk, Special Mango Lassi\n\n` +
-        `🛒 *Order Online:* https://vb9ucr22.insforge.site/#order`;
-      break;
-      
-    case '3':
-      responseText = 
-        `📅 *Table Bookings & Catering Reservations:*\n----------------------------------------\n` +
-        `Planning a party or booking a table? Indoor tables have a small ₹50 fee.\n\n` +
-        `📍 *Reserve Online:* https://vb9ucr22.insforge.site/#booking\n` +
-        `We cater birthdays, anniversaries, corporate events, and wedding parties!`;
-      break;
-      
-    case '4':
-      responseText = 
-        `📞 *Connect with LIMRA Management:*\n----------------------------------------\n` +
-        `Manager: SK Arif\n` +
-        `📞 *Call:* +91 97390 83418\n` +
-        `✉️ *Email:* limrarestaurant99@gmail.com\n\n` +
-        `Give us a call and we'll resolve any issues immediately! 🙏`;
-      break;
-      
-    default:
-      // Fallback greeting displays the main interactive menu
-      responseText = mainMenuText;
+  console.log(`📥 [WhatsApp Webhook] Incoming from ${cleanPhone}: "${bodyText}"`);
+  
+  // 1. Ensure conversation exists and register the client message
+  let convo = db.conversations.getByPhone(cleanPhone);
+  if (!convo) {
+    // Attempt to match or add customer profile
+    let customer = db.customers.getByPhone(cleanPhone);
+    const name = customer ? customer.name : 'Client';
+    
+    convo = db.conversations.upsert(cleanPhone, {
+      customer_name: name,
+      mode: 'ai',
+      status: 'active',
+      last_message: bodyText,
+      unread_count: 1
+    });
   }
   
-  await sendWhatsAppMessage(fromPhone, responseText);
+  // Add message to timeline history
+  db.messages.add(cleanPhone, 'customer', bodyText);
+  
+  // Refresh conversation details in memory
+  convo = db.conversations.getByPhone(cleanPhone);
+  const currentMode = convo.mode || 'ai';
+  
+  // 2. Route message based on active mode
+  if (currentMode === 'human') {
+    // Human Mode active: do not auto-reply. Set status to pending to flag human takeover in dashboard
+    console.log(`👨‍💼 [WhatsApp Switchboard] Chat +${cleanPhone} is in HUMAN Mode. Silently queuing for agent...`);
+    db.conversations.upsert(cleanPhone, {
+      status: 'pending',
+      last_message: bodyText
+    });
+    return;
+  }
+  
+  // 3. AI Mode active: trigger Gemini 2.5 Flash automation
+  console.log(`🤖 [WhatsApp Switchboard] Chat +${cleanPhone} is in AI Mode. Triggering Gemini AI responder...`);
+  
+  try {
+    const aiResponse = await geminiService.generateResponse(cleanPhone, bodyText);
+    
+    // Save AI response to database
+    db.messages.add(cleanPhone, 'ai', aiResponse);
+    
+    // Reset unread count since AI resolved the chat
+    db.conversations.upsert(cleanPhone, {
+      status: 'active',
+      unread_count: 0
+    });
+    
+    // Send response via WhatsApp provider (mock log or live API)
+    await sendWhatsAppMessage(cleanPhone, aiResponse);
+    console.log(`🤖 [WhatsApp Switchboard] Auto-replied successfully to +${cleanPhone}.`);
+    
+  } catch (err) {
+    console.error(`❌ [WhatsApp Switchboard] Error generating AI response for +${cleanPhone}:`, err.message || err);
+  }
 }

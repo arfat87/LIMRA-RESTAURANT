@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIMRA Restaurant — WhatsApp Agent Console</title>
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Styling -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  
+  <div class="app-container">
+    
+    <!-- 1. Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo-box">
+          <i class="fa-solid fa-utensils"></i>
+        </div>
+        <div class="brand-text">
+          <h2>LIMRA</h2>
+          <span>WhatsApp Console</span>
+        </div>
+      </div>
+      
+      <nav class="nav-menu">
+        <a href="#" class="nav-item active" data-view="dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-view="chats">
+          <i class="fa-solid fa-comments"></i>
+          <span>Chat Portal</span>
+          <span class="badge badge-alert" id="sidebar-unread-badge" style="display:none;">0</span>
+        </a>
+        <a href="#" class="nav-item" data-view="customers">
+          <i class="fa-solid fa-users"></i>
+          <span>Customers</span>
+        </a>
+        <a href="#" class="nav-item" data-view="kb">
+          <i class="fa-solid fa-book-open"></i>
+          <span>Knowledge Base</span>
+        </a>
+        <a href="#" class="nav-item" data-view="marketing">
+          <i class="fa-solid fa-bullhorn"></i>
+          <span>Marketing</span>
+        </a>
+        <a href="#" class="nav-item" data-view="analytics">
+          <i class="fa-solid fa-chart-line"></i>
+          <span>Analytics</span>
+        </a>
+        <a href="#" class="nav-item" data-view="settings">
+          <i class="fa-solid fa-sliders"></i>
+          <span>AI Settings</span>
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="operator-profile">
+          <div class="avatar">👨‍💼</div>
+          <div class="info">
+            <span class="name">SK Arif</span>
+            <span class="role">Resturent Owner</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- 2. Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top header bar -->
+      <header class="top-bar">
+        <div class="search-global">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" placeholder="Search orders, bookings, clients...">
+        </div>
+        
+        <div class="top-bar-actions">
+          <div class="sync-indicator" id="sync-indicator">
+            <span class="dot pulse-green"></span>
+            <span class="text">Database Synced</span>
+          </div>
+          
+          <button class="btn-icon" id="notification-btn" title="System Notifications">
+            <i class="fa-solid fa-bell"></i>
+            <span class="badge" id="notification-unread-count">0</span>
+          </button>
+        </div>
+      </header>
+      
+      <!-- Sub-panel views (Toggled dynamically via JS) -->
+      
+      <!-- VIEW 1: DASHBOARD OVERVIEW -->
+      <section class="view-panel" id="view-dashboard">
+        <div class="panel-header">
+          <h1>Restaurant Automation Hub</h1>
+          <p>Real-time overview of AI performance, customer metrics, and WhatsApp communications.</p>
+        </div>
+        
+        <!-- Stats Row -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="icon-box bg-purple"><i class="fa-solid fa-comments"></i></div>
+            <div class="data">
+              <span class="label">Total Chats</span>
+              <h3 id="stat-total-chats">-</h3>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="icon-box bg-green"><i class="fa-solid fa-robot"></i></div>
+            <div class="data">
+              <span class="label">AI Handled</span>
+              <h3 id="stat-ai-chats">-</h3>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="icon-box bg-orange"><i class="fa-solid fa-user-tie"></i></div>
+            <div class="data">
+              <span class="label">Human Handled</span>
+              <h3 id="stat-human-chats">-</h3>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="icon-box bg-red"><i class="fa-solid fa-heart"></i></div>
+            <div class="data">
+              <span class="label">Satisfaction Score</span>
+              <h3 id="stat-satisfaction">-</h3>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="icon-box bg-blue"><i class="fa-solid fa-clipboard-list"></i></div>
+            <div class="data">
+              <span class="label">Total Orders</span>
+              <h3 id="stat-orders">-</h3>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="icon-box bg-emerald"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+            <div class="data">
+              <span class="label">Chat Revenue</span>
+              <h3 id="stat-revenue">-</h3>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Dual Column section -->
+        <div class="split-row">
+          
+          <!-- Column 1: Live Activity Feed -->
+          <div class="card col-2">
+            <div class="card-header">
+              <h2>Recent Customer Activity</h2>
+              <span class="badge badge-normal">Live</span>
+            </div>
+            <div class="card-content">
+              <div class="timeline" id="dashboard-activity-feed">
+                <!-- Injected dynamically -->
+              </div>
+            </div>
+          </div>
+          
+          <!-- Column 2: Dashboard Quick Actions -->
+          <div class="card col-1">
+            <div class="card-header">
+              <h2>System Notifications</h2>
+            </div>
+            <div class="card-content">
+              <div class="notif-list" id="dashboard-notif-feed">
+                <!-- Injected dynamically -->
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+      
+      <!-- VIEW 2: WHATSAPP CHAT PORTAL -->
+      <section class="view-panel" id="view-chats" style="display:none;">
+        <div class="chat-portal-layout">
+          
+          <!-- Column A: Conversation List -->
+          <div class="chat-list-sidebar">
+            <div class="sidebar-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="chat-search-input" placeholder="Search chats by name/phone...">
+            </div>
+            
+            <div class="filter-pills">
+              <button class="pill active" data-filter="all">All</button>
+              <button class="pill" data-filter="ai">🤖 AI</button>
+              <button class="pill" data-filter="human">👨‍💼 Human</button>
+              <button class="pill" data-filter="pending">⚠️ Pending</button>
+            </div>
+            
+            <div class="chat-items-list" id="conversations-list-container">
+              <!-- Injected dynamically -->
+            </div>
+          </div>
+          
+          <!-- Column B: Message Streams -->
+          <div class="chat-feed-container">
+            
+            <!-- Chat Window Header -->
+            <div class="chat-feed-header" id="active-chat-header" style="display:none;">
+              <div class="customer-info">
+                <div class="avatar-large" id="chat-header-avatar">C</div>
+                <div class="info">
+                  <h3 id="chat-header-name">Arfat Salim</h3>
+                  <span id="chat-header-phone">+91 98765 43210</span>
+                </div>
+              </div>
+              
+              <div class="chat-mode-toggles">
+                <span class="mode-label">Switch Mode:</span>
+                <button class="btn-toggle btn-toggle-ai" id="toggle-mode-ai-btn">
+                  <i class="fa-solid fa-robot"></i> 🤖 AI Active
+                </button>
+                <button class="btn-toggle btn-toggle-human" id="toggle-mode-human-btn">
+                  <i class="fa-solid fa-user-tie"></i> 👨‍💼 Human Handoff
+                </button>
+              </div>
+            </div>
+            
+            <!-- Message Stream Area -->
+            <div class="chat-messages-scroll" id="chat-messages-scroll-area">
+              <div class="no-chat-selected">
+                <i class="fa-brands fa-whatsapp"></i>
+                <h2>WhatsApp Communications Portal</h2>
+                <p>Select a customer conversation from the left to manage messaging, review order history, and toggle AI auto-reply.</p>
+              </div>
+            </div>
+            
+            <!-- Message Sending Input Box -->
+            <div class="chat-input-bar" id="active-chat-input-bar" style="display:none;">
+              
+              <!-- Quick Attachment simulation -->
+              <div class="quick-attachments">
+                <button class="btn-icon-bar" title="Attach Image"><i class="fa-solid fa-image"></i></button>
+                <button class="btn-icon-bar" title="Attach Document"><i class="fa-solid fa-file-pdf"></i></button>
+                <button class="btn-icon-bar" title="Record Voice"><i class="fa-solid fa-microphone"></i></button>
+              </div>
+              
+              <input type="text" id="chat-message-input" placeholder="Type a message to reply...">
+              <button class="btn-send" id="chat-send-btn">
+                <i class="fa-solid fa-paper-plane"></i> Send
+              </button>
+            </div>
+            
+            <!-- Simulation Utilities (For testing!) -->
+            <div class="simulation-bar" id="active-chat-simulation-bar" style="display:none;">
+              <span class="sim-title">🛠️ Customer Simulator:</span>
+              <input type="text" id="sim-message-input" placeholder="Simulate customer typing to chatbot...">
+              <button class="btn-sim" id="sim-send-btn">Simulate Query</button>
+            </div>
+            
+          </div>
+          
+          <!-- Column C: Customer Profiles & Details Panel -->
+          <div class="chat-metadata-sidebar" id="active-chat-metadata-sidebar" style="display:none;">
+            <div class="metadata-header">
+              <h2>Customer Directory</h2>
+            </div>
+            
+            <div class="metadata-scroll">
+              <div class="customer-profile-card">
+                <div class="avatar-giant">👨‍💻</div>
+                <h3 id="meta-customer-name">Arfat Salim</h3>
+                <span class="loyalty-pill" id="meta-customer-loyalty">Loyal Client</span>
+                
+                <div class="spend-stats">
+                  <div class="stat">
+                    <span class="label">Total Spent</span>
+                    <strong id="meta-customer-spent">₹1,540</strong>
+                  </div>
+                  <div class="stat">
+                    <span class="label">Orders</span>
+                    <strong id="meta-customer-orders">5</strong>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Notes/Metadata Forms -->
+              <div class="card-fields">
+                <div class="form-group">
+                  <label><i class="fa-solid fa-pen"></i> Customer Notes</label>
+                  <textarea id="meta-customer-notes" placeholder="e.g. Likes Biryani extra spicy..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                  <label><i class="fa-solid fa-user-group"></i> Internal Team Comments</label>
+                  <textarea id="meta-team-comments" placeholder="Add comments for managers..."></textarea>
+                </div>
+                
+                <button class="btn-primary btn-block" id="meta-save-metadata-btn">
+                  <i class="fa-solid fa-save"></i> Save Details
+                </button>
+              </div>
+              
+              <!-- Recent Order List -->
+              <div class="recent-orders-list">
+                <h3>Order Logs</h3>
+                <div class="orders-feed" id="meta-orders-feed">
+                  <!-- Injected dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+      
+      <!-- VIEW 3: CUSTOMERS DIRECTORY -->
+      <section class="view-panel" id="view-customers" style="display:none;">
+        <div class="panel-header">
+          <h1>Customer Database</h1>
+          <p>Full profiles, metrics, spend details, and historical data logs for your guests.</p>
+        </div>
+        
+        <div class="card">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer Name</th>
+                <th>Phone Number</th>
+                <th>Email Address</th>
+                <th>Total Spending</th>
+                <th>Orders count</th>
+                <th>Loyalty Tier</th>
+                <th>Interaction Log</th>
+              </tr>
+            </thead>
+            <tbody id="customers-table-body">
+              <!-- Injected dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+      
+      <!-- VIEW 4: KNOWLEDGE BASE MANAGER -->
+      <section class="view-panel" id="view-kb" style="display:none;">
+        <div class="panel-header">
+          <h1>AI Knowledge Base</h1>
+          <p>Add documents, menus, pricing sheets, and policies that Gemini AI uses to answer customer requests.</p>
+        </div>
+        
+        <div class="split-row">
+          <!-- Column 1: Document Builder -->
+          <div class="card col-1">
+            <div class="card-header">
+              <h2>Add Document to Knowledge</h2>
+            </div>
+            <div class="card-content">
+              <form class="card-fields" id="kb-add-form">
+                <div class="form-group">
+                  <label>Document Category</label>
+                  <select id="kb-category-select">
+                    <option value="general">General / Restaurant Info</option>
+                    <option value="menu">Menu Item & Specials</option>
+                    <option value="delivery">Delivery & Pricing Rules</option>
+                    <option value="faqs">FAQs & Queries</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label>Document Title</label>
+                  <input type="text" id="kb-title-input" placeholder="e.g. Mutton Biryani Specifications" required>
+                </div>
+                
+                <div class="form-group">
+                  <label>Document Contents</label>
+                  <textarea id="kb-content-textarea" placeholder="Provide raw details, rules, prices, or FAQs..." required></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary">
+                  <i class="fa-solid fa-plus"></i> Add to AI Reference
+                </button>
+              </form>
+            </div>
+          </div>
+          
+          <!-- Column 2: Document List -->
+          <div class="card col-2">
+            <div class="card-header">
+              <h2>Active AI References</h2>
+            </div>
+            <div class="card-content">
+              <div class="kb-docs-list" id="kb-docs-list-container">
+                <!-- Injected dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- VIEW 5: MARKETING CAMPAIGNS -->
+      <section class="view-panel" id="view-marketing" style="display:none;">
+        <div class="panel-header">
+          <h1>WhatsApp Marketing Automation</h1>
+          <p>Launch high-fidelity promotional broadcasts, Biryani bash discount campaigns, and new menu announcements.</p>
+        </div>
+        
+        <div class="split-row">
+          
+          <!-- Campaign Builder -->
+          <div class="card col-1">
+            <div class="card-header">
+              <h2>Launch Campaign Blast</h2>
+            </div>
+            <div class="card-content">
+              <form class="card-fields" id="marketing-campaign-form">
+                <div class="form-group">
+                  <label>Campaign Title</label>
+                  <input type="text" id="camp-title-input" placeholder="e.g. Weekend Biryani Dhamaka" required>
+                </div>
+                
+                <div class="form-group">
+                  <label>Target Segmentation</label>
+                  <select id="camp-segment-select">
+                    <option value="All Customers">All Customers (Mailing List)</option>
+                    <option value="Loyal Clients">Loyal Clients Segment</option>
+                    <option value="Recent Diners">Recent Diners (Past 30 days)</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label>WhatsApp Message Template</label>
+                  <textarea id="camp-body-textarea" placeholder="🔥 Specially for you! Get a Mutton Biryani + Mango Lassi combo at just ₹300 tomorrow at Limra Restaurant!..." required></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary">
+                  <i class="fa-solid fa-paper-plane"></i> Launch Broadcast Blast
+                </button>
+              </form>
+            </div>
+          </div>
+          
+          <!-- Campaign History -->
+          <div class="card col-2">
+            <div class="card-header">
+              <h2>Broadcast History & Performance</h2>
+            </div>
+            <div class="card-content">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Campaign Title</th>
+                    <th>Segment</th>
+                    <th>Status</th>
+                    <th>Date Launched</th>
+                    <th>Deliveries</th>
+                    <th>CTR Response</th>
+                  </tr>
+                </thead>
+                <tbody id="campaigns-table-body">
+                  <!-- Injected dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+      
+      <!-- VIEW 6: ANALYTICS CENTER -->
+      <section class="view-panel" id="view-analytics" style="display:none;">
+        <div class="panel-header">
+          <h1>Business Performance & Insights</h1>
+          <p>Sales conversion stats, popular dishes sold through chats, and AI resolution rates.</p>
+        </div>
+        
+        <div class="split-row">
+          
+          <!-- Chart 1: Conversion Metrics -->
+          <div class="card col-1">
+            <div class="card-header">
+              <h2>Popular Menu Categories</h2>
+            </div>
+            <div class="card-content analytics-center">
+              <div class="pie-chart-mock">
+                <div class="slice mutton" style="--val: 45;">Mutton Biryani (45%)</div>
+                <div class="slice chicken" style="--val: 35;">Chicken Dishes (35%)</div>
+                <div class="slice drinks" style="--val: 20;">Beverages (20%)</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Chart 2: Stats breakdown -->
+          <div class="card col-2">
+            <div class="card-header">
+              <h2>Communication Channel Share</h2>
+            </div>
+            <div class="card-content">
+              <div class="bar-chart-container">
+                <div class="bar-row">
+                  <span class="label">AI Auto-Reply</span>
+                  <div class="bar-bar"><div class="fill bg-green" style="width: 82%;">82%</div></div>
+                </div>
+                <div class="bar-row">
+                  <span class="label">Human Handled</span>
+                  <div class="bar-bar"><div class="fill bg-orange" style="width: 18%;">18%</div></div>
+                </div>
+                <div class="bar-row">
+                  <span class="label">WhatsApp Sales conversion</span>
+                  <div class="bar-bar"><div class="fill bg-emerald" style="width: 68%;">68%</div></div>
+                </div>
+                <div class="bar-row">
+                  <span class="label">Support Ticket Resolution</span>
+                  <div class="bar-bar"><div class="fill bg-blue" style="width: 95%;">95%</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+      
+      <!-- VIEW 7: AI SETTINGS -->
+      <section class="view-panel" id="view-settings" style="display:none;">
+        <div class="panel-header">
+          <h1>Gemini AI Parameters</h1>
+          <p>Adjust system prompt guidelines, auto-reply constraints, and handoff takeover triggers.</p>
+        </div>
+        
+        <div class="card max-w-2xl">
+          <div class="card-header">
+            <h2>AI Assistant Configurations</h2>
+          </div>
+          <div class="card-content">
+            <form class="card-fields" id="ai-settings-form">
+              <div class="form-group">
+                <label>System Prompts / Base Instructions</label>
+                <textarea id="settings-prompt-textarea" style="height: 200px;"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label>AI Personality Profile</label>
+                <input type="text" id="settings-personality-input">
+              </div>
+              
+              <div class="form-group">
+                <label>Response Style Preference</label>
+                <input type="text" id="settings-style-input">
+              </div>
+              
+              <div class="form-group">
+                <label>Handoff Takeover Triggers</label>
+                <input type="text" id="settings-handoff-input">
+              </div>
+              
+              <div class="form-group-checkbox">
+                <input type="checkbox" id="settings-autoreply-checkbox">
+                <label for="settings-autoreply-checkbox">Enable Global AI Autoreply</label>
+              </div>
+              
+              <button type="submit" class="btn-primary">
+                <i class="fa-solid fa-save"></i> Save AI Parameters
+              </button>
+            </form>
+          </div>
+        </div>
+        
+        <div class="card max-w-2xl" style="margin-top: 30px;">
+          <div class="card-header">
+            <h2>Order Status Notification Templates</h2>
+          </div>
+          <div class="card-content">
+            <form class="card-fields" id="order-templates-form">
+              <div class="form-group-checkbox">
+                <input type="checkbox" id="settings-order-notifs-checkbox">
+                <label for="settings-order-notifs-checkbox">Enable Automatic WhatsApp Order Notifications</label>
+              </div>
+              
+              <div class="form-group">
+                <label>🛒 Order Placed / Confirmed Template</label>
+                <textarea id="tpl-confirmed" style="height: 110px;"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label>🍳 Order Preparing Template</label>
+                <textarea id="tpl-preparing" style="height: 70px;"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label>🍜 Order Ready Template</label>
+                <textarea id="tpl-ready" style="height: 70px;"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label>🛵 Out For Delivery Template</label>
+                <textarea id="tpl-out-for-delivery" style="height: 90px;"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label>🍲 Order Delivered Template</label>
+                <textarea id="tpl-delivered" style="height: 70px;"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label>⭐ Feedback Review Request Template</label>
+                <textarea id="tpl-review-request" style="height: 90px;"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label>❌ Order Cancelled Template</label>
+                <textarea id="tpl-cancelled" style="height: 70px;"></textarea>
+              </div>
+              
+              <button type="submit" class="btn-primary">
+                <i class="fa-solid fa-save"></i> Save Notification Templates
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+      
+    </main>
+    
+  </div>
+  
+  <script src="app.js"></script>
+</body>
+</html>
