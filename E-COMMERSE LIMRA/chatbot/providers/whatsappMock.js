@@ -1,5 +1,9 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
   * Beautiful WhatsApp Mock Provider Sandbox.
@@ -10,8 +14,8 @@ export async function sendWhatsAppMessage(toPhone, messageText) {
   const formattedPhone = toPhone.replace(/\D/g, '');
   const timestamp = new Date().toLocaleString('en-IN');
   
-  // Set logs directory relative to this chatbot script
-  const logDir = path.resolve('chatbot/logs');
+  // Set logs directory robustly relative to this file
+  const logDir = path.resolve(__dirname, '../logs');
   if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir, { recursive: true });
   }

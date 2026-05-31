@@ -1,10 +1,10 @@
 import cron from 'node-cron';
-import { createClient } from '@insforge/sdk';
+import { createAdminClient } from '@insforge/sdk';
 import { config } from '../config.js';
 import { TEMPLATES } from '../templates/messages.js';
 import { sendWhatsAppMessage } from '../providers/whatsappMock.js';
 
-const insforge = createClient({ baseUrl: config.insforgeUrl, anonKey: config.insforgeAnonKey });
+const insforge = createAdminClient({ baseUrl: config.insforgeUrl, apiKey: config.insforgeAdminKey });
 
 /**
   * Weekly Marketing Automation.

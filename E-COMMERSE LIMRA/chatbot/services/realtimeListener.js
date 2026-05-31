@@ -1,46 +1,93 @@
-import { createClient } from '@insforge/sdk';
+import { createAdminClient } from '@insforge/sdk';
 import { config } from '../config.js';
 import { TEMPLATES } from '../templates/messages.js';
 import { sendWhatsAppMessage } from '../providers/whatsappMock.js';
 
-const insforge = createClient({ baseUrl: config.insforgeUrl, anonKey: config.insforgeAnonKey });
+const insforge = createAdminClient({ baseUrl: config.insforgeUrl, apiKey: config.insforgeAdminKey });
+
+// Local cache to store order statuses: orderId -> status
+const orderStatuses = {};
+let isFirstRun = true;
 
 /**
-  * Listens to real-time updates inside PostgreSQL database via InsForge Realtime.
-  * Captures insertions (Order Placed) and updates (Order Status Confirmed / Completed / Delivered).
+  * Queries recent orders from the database to initialize the local status cache.
   */
-export function initRealtimeListener() {
-  console.log('📡 Subscribing to InsForge Real-Time Orders table triggers...');
-  
-  // 1. Listen to Order Insertions (New Order Placed)
-  insforge.database
-    .from('orders')
-    .on('INSERT', async (payload) => {
-      const order = payload.new;
-      console.log(`📥 [Realtime INSERT] New Order Captured: #${order.order_number}`);
+async function initializeCache() {
+  try {
+    const { data: recentOrders, error } = await insforge.database
+      .from('orders')
+      .select('id, status')
+      .order('created_at', { ascending: false })
+      .limit(100);
       
-      const phone = order.customer_phone || '';
-      const text = TEMPLATES.orderPlaced(order.customer_name, order.order_number, order.total_amount);
-      await sendWhatsAppMessage(phone, text);
-    })
-    .subscribe();
+    if (error) throw error;
     
-  // 2. Listen to Order Updates (Status Changes)
-  insforge.database
-    .from('orders')
-    .on('UPDATE', async (payload) => {
-      const oldOrder = payload.old;
-      const newOrder = payload.new;
+    if (recentOrders) {
+      for (const order of recentOrders) {
+        orderStatuses[order.id] = order.status;
+      }
+    }
+    
+    console.log(`✅ [DB Poller] Cache initialized successfully with ${Object.keys(orderStatuses).length} orders.`);
+    isFirstRun = false;
+  } catch (err) {
+    console.error('⚠️ [DB Poller] Failed to initialize order cache. Retrying in 5 seconds...', err.message || err);
+    setTimeout(initializeCache, 5000);
+  }
+}
+
+/**
+  * Core polling daemon.
+  * Queries database once every 4 seconds to inspect any status updates or newly placed orders.
+  */
+async function pollDatabaseChanges() {
+  if (isFirstRun) return;
+  console.log(`🔍 [DB Poller] Scanning orders table...`);
+  
+  try {
+    const { data: recentOrders, error } = await insforge.database
+      .from('orders')
+      .select('id, order_number, customer_name, customer_phone, total_amount, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(40);
       
-      if (oldOrder.status !== newOrder.status) {
-        console.log(`🔄 [Realtime UPDATE] Order #${newOrder.order_number} status transition: ${oldOrder.status} -> ${newOrder.status}`);
+    if (error) throw error;
+    if (!recentOrders) {
+      console.log('🔍 [DB Poller] No order records returned.');
+      return;
+    }
+    
+    console.log(`🔍 [DB Poller] Fetched ${recentOrders.length} order records.`);
+    
+    for (const order of recentOrders) {
+      const orderId = order.id;
+      const currentStatus = order.status;
+      const phone = order.customer_phone || '';
+      
+      // 1. Detect New Order Placement (Insert)
+      const hasOrderSeen = orderStatuses.hasOwnProperty(orderId);
+      if (!hasOrderSeen) {
+        // Cache the status to avoid duplicate processing
+        orderStatuses[orderId] = currentStatus;
         
+        console.log(`📥 [DB Poller] New Order Placed: #${order.order_number}`);
+        const text = TEMPLATES.orderPlaced(order.customer_name, order.order_number, order.total_amount);
+        await sendWhatsAppMessage(phone, text);
+        continue;
+      }
+      
+      // 2. Detect Order Status Updates (Update)
+      const oldStatus = orderStatuses[orderId];
+      if (oldStatus !== currentStatus) {
+        // Update local status cache
+        orderStatuses[orderId] = currentStatus;
+        
+        console.log(`🔄 [DB Poller] Order #${order.order_number} status change: ${oldStatus} -> ${currentStatus}`);
         let messageText = '';
-        const name = newOrder.customer_name;
-        const num = newOrder.order_number;
-        const phone = newOrder.customer_phone || '';
+        const name = order.customer_name;
+        const num = order.order_number;
         
-        switch (newOrder.status) {
+        switch (currentStatus) {
           case 'confirmed':
             messageText = TEMPLATES.orderConfirmed(name, num);
             break;
@@ -56,8 +103,8 @@ export function initRealtimeListener() {
           await sendWhatsAppMessage(phone, messageText);
           
           // Queue a Review follow-up message 1 hour later if status is 'delivered'
-          if (newOrder.status === 'delivered') {
-            console.log(`⏳ Queueing Review request follow-up for order #${num} in 1 hour...`);
+          if (currentStatus === 'delivered') {
+            console.log(`⏳ [DB Poller] Queueing Review request follow-up for order #${num} in 1 hour...`);
             setTimeout(async () => {
               const reviewText = TEMPLATES.reviewRequest(name);
               await sendWhatsAppMessage(phone, reviewText);
@@ -65,6 +112,21 @@ export function initRealtimeListener() {
           }
         }
       }
-    })
-    .subscribe();
+    }
+  } catch (err) {
+    console.error('❌ [DB Poller] Daemon execution error:', err.message || err);
+  }
+}
+
+/**
+  * Initializes the database polling daemon.
+  */
+export function initRealtimeListener() {
+  console.log('📡 Booting Database Status Polling Daemon (Interval: 4 seconds)...');
+  
+  // Step 1: Populate cache with existing orders to prevent back-processing old orders
+  initializeCache();
+  
+  // Step 2: Set interval poller running every 4 seconds
+  setInterval(pollDatabaseChanges, 4000);
 }

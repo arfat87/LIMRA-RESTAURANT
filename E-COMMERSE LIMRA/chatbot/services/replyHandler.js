@@ -1,8 +1,8 @@
-import { createClient } from '@insforge/sdk';
+import { createAdminClient } from '@insforge/sdk';
 import { config } from '../config.js';
 import { sendWhatsAppMessage } from '../providers/whatsappMock.js';
 
-const insforge = createClient({ baseUrl: config.insforgeUrl, anonKey: config.insforgeAnonKey });
+const insforge = createAdminClient({ baseUrl: config.insforgeUrl, apiKey: config.insforgeAdminKey });
 
 /**
   * Interactive 2-Way Autoreply Router.
