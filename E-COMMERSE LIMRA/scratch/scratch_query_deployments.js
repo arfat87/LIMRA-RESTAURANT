@@ -26,7 +26,11 @@ proc.stdout.on('data', (data) => {
         const json = JSON.parse(line);
         if (json.id === 7) {
           console.log('=== SQL QUERY RESULT ===');
-          console.log(JSON.stringify(json.result, null, 2));
+          if (json.result && json.result.content && json.result.content[0]) {
+            console.log(json.result.content[0].text);
+          } else {
+            console.log(JSON.stringify(json.result, null, 2));
+          }
           proc.kill();
           process.exit(0);
         }

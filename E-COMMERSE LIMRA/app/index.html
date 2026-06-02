@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Limra Restaurant — Mobile App</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="bg-[#121212] font-sans antialiased text-[#faf9f6]">
+
+  <!-- ═══════════════════════════════════════
+       SPLASH SCREEN OVERLAY
+       ═══════════════════════════════════════ -->
+  <div id="splash-screen" class="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-gradient-to-b from-primary-dark via-primary to-primary-dark p-8 transition-all duration-700 ease-in-out">
+    <div></div>
+    <div class="flex flex-col items-center gap-6 animate-pulse">
+      <div class="relative">
+        <div class="absolute -inset-4 rounded-full bg-gold/20 blur-xl"></div>
+        <img src="/images/logo.png" alt="Limra Logo" class="relative w-36 h-36 object-contain rounded-full shadow-premium-lg border-2 border-gold">
+      </div>
+      <div class="text-center">
+        <h1 class="text-3xl font-extrabold tracking-tight text-white font-sans">LIMRA</h1>
+        <p class="text-gold font-medium tracking-widest text-xs uppercase mt-1">Premium Restaurant & Ordering</p>
+      </div>
+    </div>
+    <div class="flex flex-col items-center gap-4 w-full max-w-xs">
+      <div class="w-12 h-12 rounded-full border-4 border-gold/20 border-t-gold animate-spin"></div>
+      <p class="text-white/60 text-xs tracking-wider font-light">Loading delicious experiences...</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       APP SHELL CONTAINER
+       ═══════════════════════════════════════ -->
+  <div id="app-shell" class="relative mx-auto my-0 h-screen w-full max-w-md overflow-hidden bg-dark shadow-premium-lg md:my-4 md:h-[840px] md:rounded-[40px] md:border-[8px] md:border-surface flex flex-col">
+    
+    <!-- ═══════════════════════════════════════
+         GLOBAL IN-APP PUSH NOTIFICATIONS
+         ═══════════════════════════════════════ -->
+    <div id="app-notification" class="absolute top-4 left-4 right-4 z-[999] translate-y-[-150%] transition-transform duration-500 ease-out bg-primary/95 backdrop-blur-md border border-gold/30 rounded-2xl p-4 shadow-premium flex items-start gap-3">
+      <div class="p-2 bg-gold/10 rounded-xl text-gold">
+        <span class="text-lg">🔔</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <h4 id="notification-title" class="text-sm font-bold text-white truncate">New Offer Alert!</h4>
+        <p id="notification-desc" class="text-xs text-white/80 mt-0.5 leading-relaxed">Get 50% discount on your next biryani order using coupon LIMRA50.</p>
+      </div>
+      <button id="close-notification" class="text-white/40 hover:text-white text-xs font-bold px-1">✕</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         APP CONTENT VIEWS (ROUTED DYNAMICALLY)
+         ═══════════════════════════════════════ -->
+    <main id="view-container" class="flex-1 overflow-y-auto relative w-full pb-20">
+
+      <!-- ─── AUTHENTICATION VIEW ─── -->
+      <section id="view-auth" class="absolute inset-0 p-6 flex flex-col justify-between hidden bg-[#121212]">
+        <div class="flex flex-col items-center text-center mt-6">
+          <img src="/images/logo.png" alt="Limra" class="w-20 h-20 rounded-full border border-gold/40 shadow-premium">
+          <h2 class="text-2xl font-extrabold mt-4 text-white">Welcome to Limra</h2>
+          <p class="text-xs text-white/60 mt-1">Please sign in to order your favorite delicacies</p>
+          
+          <!-- Tab selector -->
+          <div class="flex bg-surface p-1 rounded-xl w-full max-w-xs mt-6 border border-white/5">
+            <button id="btn-tab-otp" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-primary text-white transition-all shadow-sm">Mobile + OTP</button>
+            <button id="btn-tab-email" class="flex-1 py-2 text-xs font-semibold rounded-lg text-white/60 hover:text-white transition-all">Email & Password</button>
+          </div>
+        </div>
+
+        <div class="my-auto py-6 w-full">
+          <!-- OTP Login Form -->
+          <form id="form-login-otp" class="space-y-4 max-w-sm mx-auto">
+            <div>
+              <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Mobile Number</label>
+              <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/60 font-semibold">+91</span>
+                <input type="tel" id="otp-phone" placeholder="Enter 10-digit number" maxlength="10" required
+                       class="w-full bg-surface border border-white/10 rounded-xl py-3 pl-14 pr-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+              </div>
+            </div>
+            
+            <!-- OTP Entry Section (Initially Hidden) -->
+            <div id="otp-verify-section" class="hidden space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider">Enter 4-Digit OTP</label>
+                <span id="mock-otp-hint" class="text-xs text-gold font-medium">Hint: check console or notification</span>
+              </div>
+              <div class="flex justify-center gap-3">
+                <input type="text" maxlength="1" class="otp-input w-12 h-12 bg-surface border border-white/10 text-center font-bold text-lg text-white rounded-xl focus:border-gold focus:outline-none transition-colors">
+                <input type="text" maxlength="1" class="otp-input w-12 h-12 bg-surface border border-white/10 text-center font-bold text-lg text-white rounded-xl focus:border-gold focus:outline-none transition-colors">
+                <input type="text" maxlength="1" class="otp-input w-12 h-12 bg-surface border border-white/10 text-center font-bold text-lg text-white rounded-xl focus:border-gold focus:outline-none transition-colors">
+                <input type="text" maxlength="1" class="otp-input w-12 h-12 bg-surface border border-white/10 text-center font-bold text-lg text-white rounded-xl focus:border-gold focus:outline-none transition-colors">
+              </div>
+            </div>
+
+            <button type="submit" id="btn-otp-action"
+                    class="w-full py-3 bg-gradient-to-r from-gold to-gold-light hover:brightness-110 active:scale-[0.98] text-primary-dark font-extrabold rounded-xl text-sm transition-all shadow-md shadow-gold/10">
+              Send OTP Verification
+            </button>
+          </form>
+
+          <!-- Email Login Form -->
+          <form id="form-login-email" class="space-y-4 max-w-sm mx-auto hidden">
+            <div>
+              <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Email Address</label>
+              <input type="email" id="email-username" placeholder="name@domain.com" required
+                     class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider">Password</label>
+                <a href="#" class="text-xs text-gold hover:underline">Forgot?</a>
+              </div>
+              <input type="password" id="email-password" placeholder="••••••••" required
+                     class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="remember-me" checked class="accent-primary rounded">
+              <label for="remember-me" class="text-xs text-white/60 font-medium">Keep me logged in</label>
+            </div>
+            <button type="submit"
+                    class="w-full py-3 bg-gradient-to-r from-gold to-gold-light hover:brightness-110 active:scale-[0.98] text-primary-dark font-extrabold rounded-xl text-sm transition-all shadow-md shadow-gold/10">
+              Sign In Account
+            </button>
+          </form>
+
+          <!-- Social logins -->
+          <div class="mt-6 flex flex-col items-center gap-3">
+            <span class="text-[10px] text-white/30 font-semibold uppercase tracking-widest">— Or Connect With —</span>
+            <div class="flex gap-4 w-full max-w-xs justify-center">
+              <button class="social-login-btn p-3 bg-surface rounded-full border border-white/5 hover:border-gold/30 hover:scale-105 active:scale-95 transition-all text-lg">🌐</button>
+              <button class="social-login-btn p-3 bg-surface rounded-full border border-white/5 hover:border-gold/30 hover:scale-105 active:scale-95 transition-all text-lg">🍏</button>
+              <button class="social-login-btn p-3 bg-surface rounded-full border border-white/5 hover:border-gold/30 hover:scale-105 active:scale-95 transition-all text-lg">👥</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center pb-2">
+          <p class="text-xs text-white/60">
+            Don't have a customer account? 
+            <button id="btn-go-register" class="text-gold font-bold hover:underline">Create Account</button>
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── REGISTRATION STEPPER VIEW ─── -->
+      <section id="view-register" class="absolute inset-0 p-6 flex flex-col justify-between hidden bg-[#121212]">
+        <div class="flex items-center gap-3 border-b border-white/5 pb-4">
+          <button id="btn-back-auth" class="p-2 bg-surface rounded-xl hover:bg-white/5 text-white/80">←</button>
+          <div>
+            <h2 class="text-lg font-bold text-white">Create New Account</h2>
+            <p class="text-[10px] text-white/40 tracking-wider">Step <span id="register-step-num">1</span> of 2</p>
+          </div>
+        </div>
+
+        <!-- Registration Step 1: Personal Info -->
+        <div id="register-step-1" class="my-auto py-6 space-y-4 max-w-sm mx-auto w-full">
+          <div>
+            <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Full Name</label>
+            <input type="text" id="reg-name" placeholder="John Doe" required
+                   class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Mobile Number</label>
+            <input type="tel" id="reg-phone" placeholder="10-digit phone number" maxlength="10" required
+                   class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Email Address</label>
+            <input type="email" id="reg-email" placeholder="name@domain.com" required
+                   class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Password</label>
+            <input type="password" id="reg-password" placeholder="Create strong password" required
+                   class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Confirm Password</label>
+            <input type="password" id="reg-confirm" placeholder="Repeat your password" required
+                   class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+          </div>
+        </div>
+
+        <!-- Registration Step 2: Address Info -->
+        <div id="register-step-2" class="my-auto py-6 space-y-4 max-w-sm mx-auto w-full hidden">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Flat/House No.</label>
+              <input type="text" id="reg-flat" placeholder="Flat 402" required
+                     class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Building Name</label>
+              <input type="text" id="reg-building" placeholder="Grand Residency"
+                     class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Street Address</label>
+            <input type="text" id="reg-street" placeholder="12th Main Road, Sector A" required
+                   class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Area & Locality</label>
+            <input type="text" id="reg-locality" placeholder="Indiranagar" required
+                   class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">Landmark</label>
+              <input type="text" id="reg-landmark" placeholder="Near SBI Bank"
+                     class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-white/60 uppercase tracking-wider mb-1.5">PIN Code</label>
+              <input type="text" id="reg-pincode" placeholder="600001" maxlength="6" required
+                     class="w-full bg-surface border border-white/10 rounded-xl py-3 px-4 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-semibold text-white/60 uppercase tracking-wider">Address Type:</span>
+            <div class="flex gap-2">
+              <label class="flex items-center gap-1.5 py-1 px-3 bg-surface border border-white/10 rounded-lg text-xs font-semibold cursor-pointer">
+                <input type="radio" name="reg-addr-type" value="Home" checked class="accent-primary"> Home
+              </label>
+              <label class="flex items-center gap-1.5 py-1 px-3 bg-surface border border-white/10 rounded-lg text-xs font-semibold cursor-pointer">
+                <input type="radio" name="reg-addr-type" value="Office" class="accent-primary"> Office
+              </label>
+              <label class="flex items-center gap-1.5 py-1 px-3 bg-surface border border-white/10 rounded-lg text-xs font-semibold cursor-pointer">
+                <input type="radio" name="reg-addr-type" value="Other" class="accent-primary"> Other
+              </label>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="checkbox" id="reg-addr-default" checked class="accent-primary rounded">
+            <label for="reg-addr-default" class="text-xs text-white/60 font-semibold">Set as Default Delivery Address</label>
+          </div>
+        </div>
+
+        <button id="btn-register-action"
+                class="w-full py-3.5 bg-gradient-to-r from-gold to-gold-light hover:brightness-110 active:scale-[0.98] text-primary-dark font-extrabold rounded-xl text-sm transition-all shadow-md shadow-gold/10">
+          Continue
+        </button>
+      </section>
+
+      <!-- ─── HOME VIEW ─── -->
+      <section id="view-home" class="p-4 space-y-6 hidden">
+        <!-- Home Header -->
+        <div class="flex justify-between items-center pt-2">
+          <div>
+            <span class="text-[10px] text-gold font-bold uppercase tracking-widest font-sans">Premium Dining</span>
+            <h1 class="text-xl font-extrabold text-white leading-none">Limra Restaurant</h1>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <button id="btn-hdr-notifications" class="p-2.5 bg-surface border border-white/5 rounded-xl hover:bg-white/5 text-white/80 relative transition-colors">
+              🔔
+              <span id="hdr-notif-badge" class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-dark hidden"></span>
+            </button>
+            <button id="btn-hdr-admin" class="py-2 px-3 bg-primary/20 border border-primary/50 text-gold text-xs font-bold rounded-xl hover:bg-primary/30 transition-colors">
+              🔐 Staff Admin
+            </button>
+          </div>
+        </div>
+
+        <!-- Promo sliders -->
+        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-dark to-primary border border-white/5 shadow-premium p-5 flex items-center justify-between">
+          <div class="space-y-2 flex-1 pr-4">
+            <span class="bg-gold/15 border border-gold/30 text-gold text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Festival Special</span>
+            <h3 class="text-lg font-bold text-white leading-tight">Royal Biryani Extravaganza!</h3>
+            <p class="text-white/70 text-xs">Flat 50% discount on first delivery order. Code: <strong class="text-gold">LIMRA50</strong></p>
+          </div>
+          <img src="/media/items/58.jpg" alt="Special Biryani" class="w-24 h-24 object-cover rounded-xl shadow-premium border border-gold/20">
+        </div>
+
+        <!-- Search trigger -->
+        <div id="home-search-trigger" class="flex items-center gap-3 bg-surface border border-white/5 rounded-2xl py-3.5 px-4 cursor-pointer text-white/40 hover:text-white hover:border-white/10 transition-all shadow-premium">
+          <span class="text-base">🔍</span>
+          <span class="text-sm font-semibold">Search Biryani, Kebabs, Desserts...</span>
+        </div>
+
+        <!-- Categories Slider -->
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-sm font-bold text-white tracking-wide">Browse Categories</h3>
+          </div>
+          <div id="home-categories-grid" class="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+            <!-- Dynamically injected -->
+          </div>
+        </div>
+
+        <!-- Featured / Recommendations -->
+        <div class="space-y-4">
+          <div class="flex justify-between items-center">
+            <h3 class="text-sm font-bold text-white tracking-wide">Chef's Recommended Items</h3>
+          </div>
+          <div id="home-recommendations-list" class="grid grid-cols-2 gap-3.5">
+            <!-- Dynamically injected card components -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SEARCH VIEW ─── -->
+      <section id="view-search" class="p-4 space-y-6 hidden">
+        <div class="flex items-center gap-3">
+          <div class="flex-1 relative">
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/40">🔍</span>
+            <input type="text" id="search-input" placeholder="Type items, tags or category..." autofocus
+                   class="w-full bg-surface border border-white/10 rounded-2xl py-3.5 pl-11 pr-10 text-sm font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none transition-colors">
+            <button id="btn-clear-search" class="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white font-bold hidden">✕</button>
+          </div>
+        </div>
+
+        <!-- Search Suggestions -->
+        <div id="search-suggestions-container" class="space-y-4">
+          <div id="search-recent-block" class="space-y-2.5 hidden">
+            <div class="flex justify-between items-center">
+              <h4 class="text-xs font-bold text-white/50 uppercase tracking-wider">Recent Searches</h4>
+              <button id="btn-clear-history" class="text-xs text-gold hover:underline">Clear All</button>
+            </div>
+            <div id="search-history-chips" class="flex flex-wrap gap-2">
+              <!-- history chips -->
+            </div>
+          </div>
+
+          <div class="space-y-2.5">
+            <h4 class="text-xs font-bold text-white/50 uppercase tracking-wider">Popular Searches</h4>
+            <div class="flex flex-wrap gap-2">
+              <span class="popular-search-tag py-2 px-3.5 bg-surface hover:bg-white/5 rounded-full text-xs font-semibold cursor-pointer border border-white/5 transition-all text-white/80">Chicken Biryani</span>
+              <span class="popular-search-tag py-2 px-3.5 bg-surface hover:bg-white/5 rounded-full text-xs font-semibold cursor-pointer border border-white/5 transition-all text-white/80">Paneer Tikka</span>
+              <span class="popular-search-tag py-2 px-3.5 bg-surface hover:bg-white/5 rounded-full text-xs font-semibold cursor-pointer border border-white/5 transition-all text-white/80">Tandoori Naan</span>
+              <span class="popular-search-tag py-2 px-3.5 bg-surface hover:bg-white/5 rounded-full text-xs font-semibold cursor-pointer border border-white/5 transition-all text-white/80">Malai Kabab</span>
+              <span class="popular-search-tag py-2 px-3.5 bg-surface hover:bg-white/5 rounded-full text-xs font-semibold cursor-pointer border border-white/5 transition-all text-white/80">Desserts</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Results Grid -->
+        <div id="search-results-block" class="space-y-3 hidden">
+          <div class="flex justify-between items-center">
+            <h4 class="text-xs font-bold text-white/50 uppercase tracking-wider">Matching Foods (<span id="search-results-count">0</span>)</h4>
+          </div>
+          <div id="search-results-list" class="grid grid-cols-2 gap-3.5">
+            <!-- cards injected here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── FAVORITES VIEW ─── -->
+      <section id="view-favorites" class="p-4 space-y-6 hidden">
+        <div>
+          <h2 class="text-xl font-extrabold text-white">Your Saved Favorites</h2>
+          <p class="text-xs text-white/40 mt-1">Quickly reorder your meals in one click</p>
+        </div>
+
+        <div id="favorites-empty" class="flex flex-col items-center justify-center py-16 text-center space-y-3">
+          <span class="text-4xl">❤️</span>
+          <h4 class="text-sm font-bold text-white">No Favorite Dishes Saved</h4>
+          <p class="text-xs text-white/60 max-w-xs">Tap the heart icon on any food item page to save it for immediate ordering later.</p>
+        </div>
+
+        <div id="favorites-list" class="grid grid-cols-2 gap-3.5">
+          <!-- Favorites items injected -->
+        </div>
+      </section>
+
+      <!-- ─── CART & PRICING STEPPER VIEW ─── -->
+      <section id="view-cart" class="p-4 space-y-6 hidden">
+        <div>
+          <h2 class="text-xl font-extrabold text-white">Your Shopping Cart</h2>
+          <p class="text-xs text-white/40 mt-1">Confirm order contents and apply coupon offers</p>
+        </div>
+
+        <div id="cart-empty-state" class="flex flex-col items-center justify-center py-16 text-center space-y-3">
+          <span class="text-4xl">🛒</span>
+          <h4 class="text-sm font-bold text-white">Your Cart is Empty</h4>
+          <p class="text-xs text-white/60 max-w-xs">Return to the menu to browse our hot items and add them to your plate.</p>
+          <button id="btn-cart-shop" class="py-2.5 px-6 bg-primary text-white text-xs font-extrabold rounded-xl hover:brightness-110 transition-all">Browse Hot Menu</button>
+        </div>
+
+        <div id="cart-content-wrapper" class="space-y-6 hidden">
+          <!-- Cart Items Container -->
+          <div id="cart-items-list" class="space-y-3">
+            <!-- items injected -->
+          </div>
+
+          <!-- Coupon Module -->
+          <div class="bg-surface border border-white/5 rounded-2xl p-4 space-y-3 shadow-premium">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Apply Promo Coupon</h4>
+            <div class="flex gap-2">
+              <input type="text" id="coupon-input" placeholder="Enter code (LIMRA50)"
+                     class="flex-1 bg-dark border border-white/10 rounded-xl px-4 py-2 text-sm font-bold text-white placeholder-white/30 uppercase tracking-widest focus:border-gold focus:outline-none transition-colors">
+              <button id="btn-coupon-apply" class="py-2 px-5 bg-gold text-primary-dark text-xs font-extrabold rounded-xl active:scale-95 transition-all">Apply</button>
+            </div>
+            <div id="coupon-feedback" class="text-xs font-semibold hidden"></div>
+          </div>
+
+          <!-- Slider Km for delivery charges -->
+          <div class="bg-surface border border-white/5 rounded-2xl p-4 space-y-3 shadow-premium">
+            <div class="flex justify-between items-center">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Delivery Charge Estimator</h4>
+              <span id="delivery-km-display" class="text-xs text-gold font-bold">2.5 km</span>
+            </div>
+            <input type="range" id="delivery-km-slider" min="0" max="15" step="0.5" value="2.5" class="w-full accent-primary">
+            <p class="text-[10px] text-white/40">Standard charges apply: ₹10 per km. Set to 0 for self pickup.</p>
+          </div>
+
+          <!-- Cooking instructions -->
+          <div class="bg-surface border border-white/5 rounded-2xl p-4 space-y-2 shadow-premium">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Special cooking instructions</h4>
+            <textarea id="cart-notes-input" placeholder="Make it extra spicy, no onions, keep napkins..." rows="2"
+                      class="w-full bg-dark border border-white/10 rounded-xl p-3 text-xs font-semibold text-white placeholder-white/30 focus:border-gold focus:outline-none resize-none transition-colors"></textarea>
+          </div>
+
+          <!-- Price breakdown summary -->
+          <div class="space-y-2 border-t border-white/5 pt-4">
+            <div class="flex justify-between text-xs text-white/60">
+              <span>Item Subtotal</span>
+              <span>₹<span id="summary-subtotal">0</span></span>
+            </div>
+            <div id="summary-discount-row" class="flex justify-between text-xs text-green-400 hidden">
+              <span>Coupon Discount (<span id="summary-coupon-name">—</span>)</span>
+              <span>-₹<span id="summary-discount">0</span></span>
+            </div>
+            <div class="flex justify-between text-xs text-white/60">
+              <span>Delivery Charge (₹10/km)</span>
+              <span>₹<span id="summary-delivery">0</span></span>
+            </div>
+            <div class="flex justify-between text-xs text-white/60">
+              <span>5% GST Tax</span>
+              <span>₹<span id="summary-tax">0</span></span>
+            </div>
+            <div class="flex justify-between text-sm font-extrabold text-white border-t border-white/5 pt-2.5">
+              <span>Final Grand Total</span>
+              <span class="text-gold">₹<span id="summary-total">0</span></span>
+            </div>
+          </div>
+
+          <!-- Proceed Trigger -->
+          <button id="btn-cart-checkout"
+                  class="w-full py-4 bg-gradient-to-r from-gold to-gold-light hover:brightness-110 active:scale-[0.98] text-primary-dark font-extrabold rounded-2xl text-sm transition-all shadow-md shadow-gold/10">
+            Proceed to Checkout
+          </button>
+        </div>
+      </section>
+
+      <!-- ─── CHECKOUT VIEW ─── -->
+      <section id="view-checkout" class="p-4 space-y-6 hidden">
+        <div class="flex items-center gap-3 border-b border-white/5 pb-4">
+          <button id="btn-checkout-back-cart" class="p-2 bg-surface rounded-xl hover:bg-white/5 text-white/80">←</button>
+          <div>
+            <h2 class="text-lg font-bold text-white">Order Checkout</h2>
+            <p class="text-xs text-white/40">Provide shipping details & pay securely</p>
+          </div>
+        </div>
+
+        <div class="space-y-5">
+          <!-- Delivery Address Module -->
+          <div class="bg-surface border border-white/5 rounded-2xl p-4 space-y-3 shadow-premium">
+            <div class="flex justify-between items-center">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Delivery Address</h4>
+              <button id="btn-checkout-change-addr" class="text-xs text-gold font-bold hover:underline">Change / Add</button>
+            </div>
+            <div id="checkout-address-box" class="p-3 bg-dark border border-white/5 rounded-xl">
+              <p id="checkout-address-type" class="text-xs font-bold text-gold">Home Address</p>
+              <p id="checkout-address-text" class="text-xs text-white/70 mt-1 leading-relaxed">No default delivery address saved.</p>
+            </div>
+          </div>
+
+          <!-- Personal Information Autofilled -->
+          <div class="bg-surface border border-white/5 rounded-2xl p-4 space-y-3 shadow-premium">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Customer Contact Details</h4>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] text-white/40 uppercase font-semibold">Name</label>
+                <p id="checkout-contact-name" class="text-xs font-bold text-white mt-0.5">—</p>
+              </div>
+              <div>
+                <label class="block text-[10px] text-white/40 uppercase font-semibold">Mobile Phone</label>
+                <p id="checkout-contact-phone" class="text-xs font-bold text-white mt-0.5">—</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment System Selection -->
+          <div class="bg-surface border border-white/5 rounded-2xl p-4 space-y-3 shadow-premium">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Select Payment Method</h4>
+            <div class="space-y-2">
+              <label class="flex items-center justify-between p-3.5 bg-dark border border-white/5 rounded-xl cursor-pointer hover:border-gold/30 transition-colors">
+                <div class="flex items-center gap-3">
+                  <span class="text-lg">📲</span>
+                  <div>
+                    <p class="text-xs font-bold text-white">Google Pay / PhonePe / Paytm (UPI)</p>
+                    <p class="text-[9px] text-white/40">Pay instantly from bank account</p>
+                  </div>
+                </div>
+                <input type="radio" name="payment-method" value="upi" checked class="accent-primary">
+              </label>
+
+              <label class="flex items-center justify-between p-3.5 bg-dark border border-white/5 rounded-xl cursor-pointer hover:border-gold/30 transition-colors">
+                <div class="flex items-center gap-3">
+                  <span class="text-lg">💳</span>
+                  <div>
+                    <p class="text-xs font-bold text-white">Credit / Debit Card / Net Banking</p>
+                    <p class="text-[9px] text-white/40">Processed securely via Razorpay</p>
+                  </div>
+                </div>
+                <input type="radio" name="payment-method" value="card" class="accent-primary">
+              </label>
+
+              <label class="flex items-center justify-between p-3.5 bg-dark border border-white/5 rounded-xl cursor-pointer hover:border-gold/30 transition-colors">
+                <div class="flex items-center gap-3">
+                  <span class="text-lg">💵</span>
+                  <div>
+                    <p class="text-xs font-bold text-white">Cash on Delivery (COD)</p>
+                    <p class="text-[9px] text-white/40">Pay with physical cash upon arrival</p>
+                  </div>
+                </div>
+                <input type="radio" name="payment-method" value="cod" class="accent-primary">
+              </label>
+            </div>
+          </div>
+
+          <!-- Payment Billing summary -->
+          <div class="bg-surface border border-white/5 rounded-2xl p-4 shadow-premium flex justify-between items-center">
+            <div>
+              <p class="text-[10px] text-white/50 font-bold uppercase tracking-wider">Amount To Pay</p>
+              <p class="text-xl font-extrabold text-gold">₹<span id="checkout-total-display">0</span></p>
+            </div>
+            <button id="btn-place-order"
+                    class="py-3.5 px-6 bg-gradient-to-r from-gold to-gold-light hover:brightness-110 active:scale-[0.98] text-primary-dark font-extrabold rounded-xl text-xs transition-all shadow-md shadow-gold/10">
+              Confirm & Pay Order
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── ORDER TRACKING VIEW ─── -->
+      <section id="view-tracking" class="p-4 space-y-6 hidden">
+        <div class="flex justify-between items-center border-b border-white/5 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white">Track Active Order</h2>
+            <p class="text-xs text-white/40">Estimated Arrival: <strong id="track-eta" class="text-gold">35 Mins</strong></p>
+          </div>
+          <span class="py-1 px-3 bg-primary/20 border border-primary/45 rounded-lg text-gold font-bold text-[10px] uppercase tracking-wider">#<span id="track-order-number">0000</span></span>
+        </div>
+
+        <!-- Tracking Visual Stepper -->
+        <div class="bg-surface border border-white/5 rounded-2xl p-5 shadow-premium space-y-6">
+          <div id="tracking-steps-container" class="relative pl-7 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-[2px] before:bg-white/10">
+            
+            <div class="tracking-step flex items-start gap-3 relative" data-step="1">
+              <span class="step-dot absolute -left-[23px] top-1 w-3 h-3 bg-white/20 border-2 border-dark rounded-full transition-colors duration-500"></span>
+              <div>
+                <h4 class="text-xs font-bold text-white/60 transition-colors duration-500">Order Received</h4>
+                <p class="text-[10px] text-white/40">Waiting for restaurant to confirm receipt</p>
+              </div>
+            </div>
+
+            <div class="tracking-step flex items-start gap-3 relative" data-step="2">
+              <span class="step-dot absolute -left-[23px] top-1 w-3 h-3 bg-white/20 border-2 border-dark rounded-full transition-colors duration-500"></span>
+              <div>
+                <h4 class="text-xs font-bold text-white/60 transition-colors duration-500">Order Confirmed</h4>
+                <p class="text-[10px] text-white/40">Your order has been checked & approved</p>
+              </div>
+            </div>
+
+            <div class="tracking-step flex items-start gap-3 relative" data-step="3">
+              <span class="step-dot absolute -left-[23px] top-1 w-3 h-3 bg-white/20 border-2 border-dark rounded-full transition-colors duration-500"></span>
+              <div>
+                <h4 class="text-xs font-bold text-white/60 transition-colors duration-500">Preparing Food</h4>
+                <p class="text-[10px] text-white/40">Our master chef is cooking up your meal</p>
+              </div>
+            </div>
+
+            <div class="tracking-step flex items-start gap-3 relative" data-step="4">
+              <span class="step-dot absolute -left-[23px] top-1 w-3 h-3 bg-white/20 border-2 border-dark rounded-full transition-colors duration-500"></span>
+              <div>
+                <h4 class="text-xs font-bold text-white/60 transition-colors duration-500">Ready for Pickup</h4>
+                <p class="text-[10px] text-white/40">Food packaged nicely in thermal bags</p>
+              </div>
+            </div>
+
+            <div class="tracking-step flex items-start gap-3 relative" data-step="5">
+              <span class="step-dot absolute -left-[23px] top-1 w-3 h-3 bg-white/20 border-2 border-dark rounded-full transition-colors duration-500"></span>
+              <div>
+                <h4 class="text-xs font-bold text-white/60 transition-colors duration-500">Out for Delivery</h4>
+                <p class="text-[10px] text-white/40">Valet is carrying your hot meal to your location</p>
+              </div>
+            </div>
+
+            <div class="tracking-step flex items-start gap-3 relative" data-step="6">
+              <span class="step-dot absolute -left-[23px] top-1 w-3 h-3 bg-white/20 border-2 border-dark rounded-full transition-colors duration-500"></span>
+              <div>
+                <h4 class="text-xs font-bold text-white/60 transition-colors duration-500">Delivered</h4>
+                <p class="text-[10px] text-white/40">Enjoy your delicious meals from Limra!</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Contact Valet or Store options -->
+        <div class="flex gap-3">
+          <a href="tel:+919876543210" class="flex-1 py-3 bg-surface hover:bg-white/5 text-center text-xs font-bold text-white rounded-xl border border-white/5 transition-all">📞 Call Restaurant</a>
+          <a id="btn-tracking-whatsapp" href="#" target="_blank" class="flex-1 py-3 bg-green-600 hover:bg-green-700 text-center text-xs font-bold text-white rounded-xl transition-all">💬 Chat on WhatsApp</a>
+        </div>
+      </section>
+
+      <!-- ─── CUSTOMER DASHBOARD ACCOUNT VIEW ─── -->
+      <section id="view-dashboard" class="p-4 space-y-6 hidden">
+        <!-- Profile summary card -->
+        <div class="bg-gradient-to-r from-primary to-primary-light border border-white/5 rounded-2xl p-5 shadow-premium flex items-center justify-between">
+          <div class="space-y-1">
+            <h2 id="dash-name" class="text-lg font-bold text-white">John Doe</h2>
+            <p id="dash-email" class="text-xs text-white/60 font-medium">john@domain.com</p>
+            <p id="dash-phone" class="text-xs text-gold font-medium">9876543210</p>
+          </div>
+          <button id="btn-dash-logout" class="py-1.5 px-3 bg-white/10 hover:bg-white/20 text-xs font-bold text-white rounded-lg transition-all">Logout</button>
+        </div>
+
+        <!-- Loyalty Rewards Engine -->
+        <div class="bg-surface border border-white/5 rounded-2xl p-5 shadow-premium space-y-3">
+          <div class="flex justify-between items-center">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Loyalty Rewards Program</h4>
+            <span class="text-xs text-gold font-bold"><span id="dash-points">0</span> Points</span>
+          </div>
+          <div class="w-full bg-dark h-2 rounded-full overflow-hidden border border-white/5">
+            <div id="dash-points-bar" class="h-full bg-gradient-to-r from-gold to-gold-light transition-all duration-500" style="width: 0%;"></div>
+          </div>
+          <p class="text-[10px] text-white/40">You earn 10 points for every ₹100 ordered. Redeem points at checkout for free dishes!</p>
+        </div>
+
+        <!-- Favorite Dishes Quick Links -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Your Saved Addresses</h4>
+          <div id="dash-addresses-list" class="space-y-2.5">
+            <!-- address cards list -->
+          </div>
+        </div>
+
+        <!-- Order Logs -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-white/50">Recent Order History</h4>
+          <div id="dash-orders-list" class="space-y-3">
+            <!-- history items -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── MOBILE STAFF ADMIN VIEW ─── -->
+      <section id="view-admin" class="p-4 space-y-6 hidden">
+        <div class="flex justify-between items-center border-b border-white/5 pb-4">
+          <div>
+            <h2 class="text-lg font-extrabold text-white">Staff Management Portal</h2>
+            <p class="text-xs text-white/40">Restaurant active state monitoring</p>
+          </div>
+          <button id="btn-admin-close" class="py-1 px-3 bg-surface hover:bg-white/5 text-xs font-bold text-white rounded-lg border border-white/5">Exit</button>
+        </div>
+
+        <!-- Metric Cards -->
+        <div class="grid grid-cols-3 gap-2.5">
+          <div class="bg-surface p-3 rounded-xl border border-white/5 text-center">
+            <p class="text-[9px] text-white/40 uppercase font-bold">Revenue</p>
+            <p id="adm-metric-rev" class="text-sm font-bold text-gold mt-1">₹0</p>
+          </div>
+          <div class="bg-surface p-3 rounded-xl border border-white/5 text-center">
+            <p class="text-[9px] text-white/40 uppercase font-bold">Total Orders</p>
+            <p id="adm-metric-orders" class="text-sm font-bold text-gold mt-1">0</p>
+          </div>
+          <div class="bg-surface p-3 rounded-xl border border-white/5 text-center">
+            <p class="text-[9px] text-white/40 uppercase font-bold">Customers</p>
+            <p id="adm-metric-clients" class="text-sm font-bold text-gold mt-1">0</p>
+          </div>
+        </div>
+
+        <!-- Sub Tabs selector -->
+        <div class="flex bg-surface p-1 rounded-xl w-full border border-white/5">
+          <button id="btn-adm-tab-orders" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white transition-all shadow-sm">Active Orders</button>
+          <button id="btn-adm-tab-menu" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-white/60 hover:text-white transition-all">Menu Editor</button>
+          <button id="btn-adm-tab-coupons" class="flex-1 py-1.5 text-xs font-semibold rounded-lg text-white/60 hover:text-white transition-all">Coupons</button>
+        </div>
+
+        <!-- Sub Tab: Active Orders -->
+        <div id="adm-tab-orders-content" class="space-y-4">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-white/50">Pending & Preparing Orders</h3>
+          <div id="adm-orders-list" class="space-y-3">
+            <!-- active orders list -->
+          </div>
+        </div>
+
+        <!-- Sub Tab: Menu Editor -->
+        <div id="adm-tab-menu-content" class="space-y-4 hidden">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-white/50">Dishes Catalog</h3>
+            <button id="btn-adm-add-dish" class="py-1 px-2.5 bg-primary text-white text-xs font-bold rounded-lg hover:brightness-110">＋ Add Dish</button>
+          </div>
+          <div id="adm-menu-list" class="space-y-2">
+            <!-- list of edit/delete items -->
+          </div>
+        </div>
+
+        <!-- Sub Tab: Coupons -->
+        <div id="adm-tab-coupons-content" class="space-y-4 hidden">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-white/50">Active Promo Coupons</h3>
+            <button id="btn-adm-add-coupon" class="py-1 px-2.5 bg-primary text-white text-xs font-bold rounded-lg hover:brightness-110">＋ Create Coupon</button>
+          </div>
+          <div id="adm-coupons-list" class="space-y-2.5">
+            <!-- coupons list -->
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ═══════════════════════════════════════
+         BOTTOM NAVIGATION BAR (FOOTER TABS)
+         ═══════════════════════════════════════ -->
+    <nav id="bottom-navbar" class="absolute bottom-0 left-0 right-0 z-50 bg-[#121212]/95 backdrop-blur-md border-t border-white/5 px-2 pb-5 pt-3 md:pb-3 flex justify-between items-center shadow-native md:rounded-b-[32px]">
+      
+      <button class="nav-tab flex flex-col items-center gap-1 flex-1 py-1 text-white/40 hover:text-white transition-colors" data-view="home">
+        <span class="text-lg">🏠</span>
+        <span class="text-[9px] font-bold tracking-wider uppercase font-sans">Home</span>
+      </button>
+
+      <button class="nav-tab flex flex-col items-center gap-1 flex-1 py-1 text-white/40 hover:text-white transition-colors" data-view="search">
+        <span class="text-lg">🔍</span>
+        <span class="text-[9px] font-bold tracking-wider uppercase font-sans">Search</span>
+      </button>
+
+      <button class="nav-tab flex flex-col items-center gap-1 flex-1 py-1 text-white/40 hover:text-white transition-colors relative" data-view="cart">
+        <span class="text-lg">🛒</span>
+        <span class="text-[9px] font-bold tracking-wider uppercase font-sans">Cart</span>
+        <span id="cart-nav-badge" class="absolute top-0 right-4 bg-primary text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border border-dark hidden">0</span>
+      </button>
+
+      <button class="nav-tab flex flex-col items-center gap-1 flex-1 py-1 text-white/40 hover:text-white transition-colors" data-view="favorites">
+        <span class="text-lg">❤️</span>
+        <span class="text-[9px] font-bold tracking-wider uppercase font-sans">Favorites</span>
+      </button>
+
+      <button class="nav-tab flex flex-col items-center gap-1 flex-1 py-1 text-white/40 hover:text-white transition-colors" data-view="dashboard">
+        <span class="text-lg">👤</span>
+        <span class="text-[9px] font-bold tracking-wider uppercase font-sans">Account</span>
+      </button>
+
+    </nav>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       FOOD ITEM DETAILS VIEW MODAL
+       ═══════════════════════════════════════ -->
+  <div id="modal-item-details" class="fixed inset-0 z-[1000] hidden bg-black/60 backdrop-blur-sm flex items-end justify-center md:items-center p-0 md:p-6 transition-all duration-300">
+    <div class="bg-dark border border-white/5 w-full max-w-md rounded-t-3xl md:rounded-3xl overflow-hidden shadow-premium flex flex-col max-h-[85vh] animate-slide-up">
+      
+      <!-- Top banner image -->
+      <div class="relative h-60 w-full">
+        <img id="detail-image" src="/media/items/58.jpg" alt="Item Image" class="w-full h-full object-cover">
+        <div class="absolute inset-0 bg-gradient-to-t from-dark via-transparent to-transparent"></div>
+        <button id="btn-modal-close" class="absolute top-4 right-4 p-2 bg-dark/60 rounded-full text-white/80 hover:text-white border border-white/5 transition-colors font-bold w-9 h-9 flex items-center justify-center">✕</button>
+        <button id="btn-modal-fav" class="absolute top-4 left-4 p-2 bg-dark/60 rounded-full text-white/80 border border-white/5 transition-colors font-bold w-9 h-9 flex items-center justify-center">❤️</button>
+      </div>
+
+      <!-- Content text -->
+      <div class="p-6 space-y-4 flex-1 overflow-y-auto">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 id="detail-name" class="text-lg font-bold text-white leading-tight">Mutton Royal Biryani</h3>
+            <p id="detail-category" class="text-[10px] text-gold font-bold uppercase tracking-wider mt-0.5">Biryani</p>
+          </div>
+          <p class="text-xl font-extrabold text-gold">₹<span id="detail-price">0</span></p>
+        </div>
+
+        <p id="detail-desc" class="text-xs text-white/70 leading-relaxed font-normal">
+          This premium classic Indian biryani features fragrant Basmati rice slow-cooked with tender, spiced mutton chunks, exotic spices, saffron, and fresh herbs. Served with cooling raita.
+        </p>
+
+        <!-- Variants selector -->
+        <div class="space-y-2.5">
+          <span class="text-[10px] text-white/40 uppercase font-bold tracking-wider">Select Serving Size</span>
+          <div class="flex gap-2">
+            <label class="flex-1 flex items-center justify-between p-3 bg-surface border border-gold/30 rounded-xl text-xs font-semibold cursor-pointer">
+              <span>Standard (Regular Portion)</span>
+              <input type="radio" name="item-variant" value="standard" checked class="accent-primary">
+            </label>
+            <label class="flex-1 flex items-center justify-between p-3 bg-surface border border-white/5 rounded-xl text-xs font-semibold cursor-pointer opacity-50">
+              <span>Premium (Family Jumbo)</span>
+              <input type="radio" name="item-variant" value="premium" class="accent-primary" disabled>
+            </label>
+          </div>
+        </div>
+
+        <!-- Add Button -->
+        <div class="pt-4 flex items-center gap-4">
+          <div class="flex items-center gap-3 bg-surface border border-white/5 rounded-xl p-1.5 px-3">
+            <button id="btn-detail-qty-minus" class="w-7 h-7 bg-white/5 hover:bg-white/10 text-white font-bold rounded-lg text-sm flex items-center justify-center">−</button>
+            <span id="detail-qty" class="text-sm font-bold w-5 text-center">1</span>
+            <button id="btn-detail-qty-plus" class="w-7 h-7 bg-white/5 hover:bg-white/10 text-white font-bold rounded-lg text-sm flex items-center justify-center">＋</button>
+          </div>
+          <button id="btn-detail-add-cart" class="flex-1 py-3.5 bg-gradient-to-r from-gold to-gold-light hover:brightness-110 text-primary-dark font-extrabold rounded-xl text-xs transition-all shadow-md shadow-gold/15">
+            Add to Basket • ₹<span id="detail-btn-total">0</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       ADDRESS SELECTOR MODAL / SHEET
+       ═══════════════════════════════════════ -->
+  <div id="modal-address-select" class="fixed inset-0 z-[1000] hidden bg-black/60 backdrop-blur-sm flex items-end justify-center md:items-center p-0 md:p-6 transition-all duration-300">
+    <div class="bg-dark border border-white/5 w-full max-w-md rounded-t-3xl md:rounded-3xl overflow-hidden shadow-premium flex flex-col max-h-[75vh] animate-slide-up">
+      <div class="p-4 border-b border-white/5 flex justify-between items-center bg-[#121212]">
+        <h3 class="text-sm font-bold text-white">Select Shipping Address</h3>
+        <button id="btn-close-address-modal" class="text-white/40 hover:text-white font-bold">✕</button>
+      </div>
+      <div class="p-4 space-y-4 flex-1 overflow-y-auto">
+        <div id="modal-addresses-container" class="space-y-2.5">
+          <!-- address selectors list -->
+        </div>
+        <button id="btn-modal-add-new-address" class="w-full py-3 bg-surface hover:bg-white/5 text-xs text-gold border border-gold/30 hover:border-gold border-dashed rounded-xl font-bold transition-all">
+          ＋ Add New Delivery Address
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts Module -->
+  <script type="module" src="./src/main.js"></script>
+
+</body>
+</html>

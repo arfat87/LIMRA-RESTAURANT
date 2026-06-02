@@ -1,0 +1,210 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════
+   PREMIUM CUSTOM VARIABLES & VARIABLES BINDING
+   ═══════════════════════════════════════ */
+:root {
+  --color-primary: #0B4F30;
+  --color-primary-light: #136740;
+  --color-primary-dark: #063B23;
+  --color-gold: #C29B38;
+  --color-gold-light: #D4AF37;
+  --color-gold-dark: #A07E2A;
+  --color-dark: #121212;
+  --color-surface: #1E1E1E;
+  --color-offwhite: #FAF9F6;
+  --color-border: rgba(255, 255, 255, 0.08);
+}
+
+/* Base custom styles */
+body {
+  background-color: var(--color-dark);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Scrollbar styling */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* ═══════════════════════════════════════
+   MOCK SHELL DESKTOP EMBED DEVICE
+   ═══════════════════════════════════════ */
+@media (min-width: 768px) {
+  body {
+    background-image: radial-gradient(circle at 20% 30%, #063B23 0%, #121212 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-h: 100vh;
+    padding: 2rem 0;
+  }
+
+  /* Make the app frame look like a beautiful high-end smartphone */
+  #app-shell {
+    position: relative;
+    border: 10px solid #2a2a2a;
+    border-radius: 42px;
+    height: 840px;
+    width: 412px;
+    box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8),
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    overflow: hidden;
+  }
+
+  /* Smartphone Speaker / Camera Notch Mock */
+  #app-shell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140px;
+    height: 24px;
+    background-color: #2a2a2a;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    z-index: 99999;
+  }
+}
+
+/* ═══════════════════════════════════════
+   SMOOTH MOBILE TRANSITION ANIMATIONS
+   ═══════════════════════════════════════ */
+.view-slide-in {
+  animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.view-slide-out {
+  animation: slideOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+/* Add custom animations for modals */
+.animate-slide-up {
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ═══════════════════════════════════════
+   PREMIUM GLASSMORPHISM & UTILITIES
+   ═══════════════════════════════════════ */
+.bg-surface-glass {
+  background-color: rgba(30, 30, 30, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, var(--color-gold-light) 0%, var(--color-gold) 50%, var(--color-gold-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Category bubble premium shadow and border */
+.category-bubble {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.category-bubble.active {
+  border-color: var(--color-gold);
+  background-color: var(--color-primary);
+  box-shadow: 0 8px 24px rgba(11, 79, 48, 0.4);
+}
+
+/* Food menu item card active press */
+.menu-card-mobile {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.menu-card-mobile:active {
+  transform: scale(0.97);
+  border-color: rgba(212, 175, 55, 0.3);
+}
+
+/* Stepper Tracker style */
+.tracking-step.active .step-dot {
+  background-color: var(--color-gold-light);
+  box-shadow: 0 0 0 5px rgba(212, 175, 55, 0.25);
+  border-color: var(--color-primary);
+}
+
+.tracking-step.active h4 {
+  color: var(--color-gold-light);
+  font-weight: 700;
+}
+
+/* In-app OTP inputs spacing and animations */
+.otp-input:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Bottom Nav active highlights */
+.nav-tab.active {
+  color: var(--color-gold-light);
+  transform: translateY(-2px);
+}
+
+.nav-tab.active span:first-child {
+  filter: drop-shadow(0 2px 8px rgba(212, 175, 55, 0.3));
+}
+
+/* Loyalty Points gold gradient slider */
+.gold-gradient-slider {
+  background: linear-gradient(90deg, var(--color-gold-dark) 0%, var(--color-gold) 50%, var(--color-gold-light) 100%);
+}
+
+/* Social Buttons scale */
+.social-login-btn {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+.social-login-btn:active {
+  transform: scale(0.9);
+  background-color: rgba(255, 255, 255, 0.05);
+}

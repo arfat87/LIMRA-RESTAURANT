@@ -1,5 +1,5 @@
 import './style.css';
-import { saveOrder, saveBooking, getCustomerBookings } from './lib/insforge.js';
+import { insforge, saveOrder, saveBooking, getCustomerBookings, getCustomerOrders } from './lib/insforge.js';
 import { menuItems, categoryImages, categoryLabels, categoryEmojis, categoryTabOrder } from './data/menu.js';
 import { sendEmailNotification, generateOrderPlacedHtml } from './lib/email-service.js';
 
@@ -1687,6 +1687,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSmoothScroll();
   initBackToTop();
   initSavedAddressLoading();
+  initAuthPanel();
 
   // Sync Party Booking Budget Range Slider dynamically
   const slider = document.getElementById('party-budget-slider');
@@ -1734,3 +1735,352 @@ window.closeMenuLightbox = function(e) {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') window.closeMenuPhoto();
 });
+
+// ═══════════════════════════════════════
+// CUSTOMER AUTH & SAVED PROFILE MANAGEMENT
+// ═══════════════════════════════════════
+let currentUser = null;
+let userProfile = null;
+
+async function initAuthPanel() {
+  const userBtn = document.getElementById('user-profile-btn');
+  const mobileLink = document.getElementById('mobile-profile-link');
+  const closeBtn = document.getElementById('auth-close-btn');
+  const overlay = document.getElementById('auth-overlay');
+  const drawer = document.getElementById('auth-drawer');
+
+  if (!drawer) return;
+
+  const openDrawer = () => {
+    drawer.classList.remove('closed');
+    drawer.classList.add('open');
+    overlay.classList.remove('hidden');
+    setTimeout(() => overlay.classList.remove('opacity-0'), 50);
+  };
+
+  const closeDrawer = () => {
+    drawer.classList.remove('open');
+    drawer.classList.add('closed');
+    overlay.classList.add('opacity-0');
+    setTimeout(() => overlay.classList.add('hidden'), 300);
+  };
+
+  userBtn?.addEventListener('click', openDrawer);
+  mobileLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openDrawer();
+  });
+  closeBtn?.addEventListener('click', closeDrawer);
+  overlay?.addEventListener('click', closeDrawer);
+
+  // Tab Switcher
+  const tabSignin = document.getElementById('tab-signin-btn');
+  const tabSignup = document.getElementById('tab-signup-btn');
+  const formSignin = document.getElementById('form-signin');
+  const formSignup = document.getElementById('form-signup');
+
+  tabSignin?.addEventListener('click', () => {
+    tabSignin.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-800 bg-white shadow-sm';
+    tabSignup.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500';
+    formSignin.classList.remove('hidden');
+    formSignup.classList.add('hidden');
+  });
+
+  tabSignup?.addEventListener('click', () => {
+    tabSignup.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-800 bg-white shadow-sm';
+    tabSignin.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500';
+    formSignup.classList.remove('hidden');
+    formSignin.classList.add('hidden');
+  });
+
+  // Display Errors helper
+  const errorMsg = document.getElementById('auth-error-msg');
+  const displayError = (msg) => {
+    if (errorMsg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.remove('hidden');
+      setTimeout(() => errorMsg.classList.add('hidden'), 6000);
+    } else {
+      alert(msg);
+    }
+  };
+
+  // 1. Sign Up Handler
+  document.getElementById('form-signup')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('signup-name').value.trim();
+    const phone = document.getElementById('signup-phone').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+
+    if (!name || !phone || !email || !password) return;
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating account...';
+
+    try {
+      const { data, error } = await insforge.auth.signUp({
+        email,
+        password,
+        name,
+        redirectTo: window.location.origin
+      });
+
+      if (error) throw error;
+
+      // Auto-create profile row in custom table
+      const profileData = {
+        id: data.user.id,
+        name,
+        phone,
+        email,
+        address: ''
+      };
+      
+      const { error: dbError } = await insforge.database
+        .from('customer_profiles')
+        .insert([profileData]);
+        
+      if (dbError) {
+        console.warn('Profile database row setup failed:', dbError.message);
+      }
+
+      alert('Account created successfully! A verification link has been sent to your email. Please check it and Sign In.');
+      tabSignin?.click();
+    } catch (err) {
+      displayError(err.message || 'Registration failed.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Register Account ➔';
+    }
+  });
+
+  // 2. Sign In Handler
+  document.getElementById('form-signin')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('signin-email').value.trim();
+    const password = document.getElementById('signin-password').value;
+
+    if (!email || !password) return;
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in...';
+
+    try {
+      const { data, error } = await insforge.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      
+      await checkAuthStatus();
+      alert('Welcome to LIMRA Restaurant! You are now signed in.');
+    } catch (err) {
+      displayError(err.message || 'Login failed. Please verify email/password.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign In ➔';
+    }
+  });
+
+  // 3. Google OAuth Handler
+  document.getElementById('oauth-google-btn')?.addEventListener('click', async () => {
+    try {
+      await insforge.auth.signInWithOAuth({
+        provider: 'google',
+        redirectTo: window.location.origin
+      });
+    } catch (err) {
+      displayError(err.message || 'Google Auth redirection failed.');
+    }
+  });
+
+  // 4. Log Out Handler
+  document.getElementById('auth-logout-btn')?.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to sign out?')) return;
+    await insforge.auth.signOut();
+    currentUser = null;
+    userProfile = null;
+    renderAuthUI();
+    
+    // Clear checkout inputs
+    document.getElementById('order-customer-name').value = '';
+    document.getElementById('order-customer-phone').value = '';
+    document.getElementById('order-customer-email').value = '';
+    if (document.getElementById('order-address')) {
+      document.getElementById('order-address').value = '';
+    }
+    updateCartUI();
+    
+    alert('Signed out successfully.');
+    closeDrawer();
+  });
+
+  // 5. Save Profile details
+  document.getElementById('form-profile-details')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    const phone = document.getElementById('profile-phone').value.trim();
+    const address = document.getElementById('profile-address').value.trim();
+
+    if (!phone || !address) {
+      alert('Please fill out both phone and address fields.');
+      return;
+    }
+
+    const saveBtn = document.getElementById('profile-save-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving details...';
+
+    try {
+      const profileUpdate = {
+        id: currentUser.id,
+        name: currentUser.name || userProfile?.name || 'Guest Client',
+        phone,
+        address,
+        email: currentUser.email
+      };
+
+      const { error } = await insforge.database
+        .from('customer_profiles')
+        .upsert([profileUpdate]);
+
+      if (error) throw error;
+
+      userProfile = profileUpdate;
+      
+      // Auto-prefill the Checkout details
+      document.getElementById('order-customer-name').value = userProfile.name;
+      document.getElementById('order-customer-phone').value = userProfile.phone;
+      document.getElementById('order-customer-email').value = userProfile.email;
+      if (document.getElementById('order-address')) {
+        document.getElementById('order-address').value = userProfile.address;
+      }
+      updateCartUI();
+
+      alert('Permanent contact details and address saved successfully!');
+      await loadUserHistory();
+    } catch (err) {
+      alert('Failed to save profile: ' + (err.message || err));
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Profile Details';
+    }
+  });
+
+  // Initialize checks
+  await checkAuthStatus();
+}
+
+async function checkAuthStatus() {
+  try {
+    const { data } = await insforge.auth.getCurrentUser();
+    const user = data?.user || null;
+    currentUser = user;
+    
+    if (user) {
+      const { data: profiles, error } = await insforge.database
+        .from('customer_profiles')
+        .select('*')
+        .eq('id', user.id);
+        
+      if (!error && profiles && profiles.length > 0) {
+        userProfile = profiles[0];
+      } else {
+        userProfile = {
+          id: user.id,
+          name: user.name || 'Guest Client',
+          phone: '',
+          address: '',
+          email: user.email
+        };
+      }
+      
+      // Auto-fill checkout fields immediately
+      if (userProfile.name) document.getElementById('order-customer-name').value = userProfile.name;
+      if (userProfile.phone) document.getElementById('order-customer-phone').value = userProfile.phone;
+      if (userProfile.email) document.getElementById('order-customer-email').value = userProfile.email;
+      if (userProfile.address && document.getElementById('order-address')) {
+        document.getElementById('order-address').value = userProfile.address;
+      }
+      updateCartUI();
+
+      // Load past orders
+      await loadUserHistory();
+    }
+    
+    renderAuthUI();
+  } catch (err) {
+    console.warn('Auth check failed:', err);
+  }
+}
+
+function renderAuthUI() {
+  const loggedOutView = document.getElementById('auth-logged-out-view');
+  const loggedInView = document.getElementById('auth-logged-in-view');
+  const loggedInDot = document.getElementById('user-logged-in-dot');
+
+  if (currentUser) {
+    loggedOutView?.classList.add('hidden');
+    loggedInView?.classList.remove('hidden');
+    loggedInDot?.classList.remove('hidden');
+
+    const displayName = document.getElementById('profile-display-name');
+    const displayEmail = document.getElementById('profile-display-email');
+    const profilePhone = document.getElementById('profile-phone');
+    const profileAddress = document.getElementById('profile-address');
+
+    if (displayName) displayName.textContent = currentUser.name || userProfile?.name || 'Guest Client';
+    if (displayEmail) displayEmail.textContent = currentUser.email;
+    if (profilePhone) profilePhone.value = userProfile?.phone || '';
+    if (profileAddress) profileAddress.value = userProfile?.address || '';
+  } else {
+    loggedOutView?.classList.remove('hidden');
+    loggedInView?.classList.add('hidden');
+    loggedInDot?.classList.add('hidden');
+  }
+}
+
+async function loadUserHistory() {
+  const listEl = document.getElementById('profile-orders-list');
+  if (!listEl) return;
+
+  try {
+    const phone = userProfile?.phone || '';
+    if (!phone) {
+      listEl.innerHTML = `<p class="text-xs text-slate-400 italic text-center">Save your phone number above to sync your order logs!</p>`;
+      return;
+    }
+
+    const orders = await getCustomerOrders(phone);
+    
+    if (orders.length === 0) {
+      listEl.innerHTML = `<p class="text-xs text-slate-400 italic text-center">No orders placed under this phone number yet.</p>`;
+    } else {
+      listEl.innerHTML = orders.slice(0, 5).map(o => {
+        let badgeColor = 'bg-amber-50 text-amber-600 border-amber-200';
+        if (o.status === 'delivered') badgeColor = 'bg-emerald-50 text-emerald-600 border-emerald-200';
+        if (o.status === 'cancelled') badgeColor = 'bg-red-50 text-red-600 border-red-200';
+
+        let itemsSummary = o.items ? o.items.map(i => `${i.quantity}x ${i.item_name}`).join(', ') : '1x Dinner Special';
+
+        return `
+          <div class="rounded-xl border p-3 text-[11px] space-y-1 bg-white" style="border-color:var(--color-border)">
+            <div class="flex justify-between items-center font-bold">
+              <span class="text-slate-800">Order #${o.order_number}</span>
+              <span class="status-badge ${badgeColor} border px-2 py-0.5 rounded-full text-[9px]">${o.status}</span>
+            </div>
+            <p class="text-slate-500 font-semibold truncate">${itemsSummary}</p>
+            <div class="flex justify-between items-center text-slate-400 text-[10px] pt-1">
+              <span>Total: ₹${Number(o.total_amount).toLocaleString('en-IN')}</span>
+              <span>${new Date(o.created_at).toLocaleDateString('en-IN')}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    console.warn('Failed to load user history:', err);
+    listEl.innerHTML = `<p class="text-xs text-slate-400 italic text-center">Could not load history details.</p>`;
+  }
+}
