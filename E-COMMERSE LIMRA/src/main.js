@@ -33,6 +33,20 @@ let isDelivery = true;    // true = delivery, false = self pickup
 let deliveryKm = 0;       // km entered by customer
 let deliveryMap = null;
 let deliveryMarker = null;
+let selectedDeliveryArea = ""; // selected place name
+const AREA_DELIVERY_CHARGES = {
+  'jerthan': 20,
+  'kudi': 40,
+  'egra': 100,
+  'qiya': 20,
+  'alangiri': 40,
+  'dobandhi': 50,
+  'mohanpur': 80,
+  'kasba gola': 80,
+  'rajnagar': 100,
+  'atla': 150,
+  'boita': 50
+};
 let streetLayer = null;
 let satelliteLayer = null;
 let currentMapLayer = 'street';
@@ -42,6 +56,9 @@ let mapSelectedAddress = '';
 
 function getDeliveryCharge() {
   if (!isDelivery) return 0;
+  if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+    return AREA_DELIVERY_CHARGES[selectedDeliveryArea] || 0;
+  }
   const km = Math.max(0, parseFloat(deliveryKm) || 0);
   return Math.round(km * DELIVERY_RATE);
 }
@@ -249,7 +266,12 @@ function buildOrderMessage() {
   });
   msg += `\n*Subtotal: ₹${subtotal}*`;
   if (isDelivery) {
-    msg += `\n🛵 *Delivery Charge: ₹${delivery}*`;
+    if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+      const areaLabel = selectedDeliveryArea.charAt(0).toUpperCase() + selectedDeliveryArea.slice(1);
+      msg += `\n🛵 *Delivery Charge: ₹${delivery}* (Area: ${areaLabel})`;
+    } else {
+      msg += `\n🛵 *Delivery Charge: ₹${delivery}*`;
+    }
     msg += `\n*Grand Total: ₹${subtotal + delivery}*`;
     if (address) msg += `\n\n📍 *Deliver to:* ${address}`;
   } else {
@@ -1381,6 +1403,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (locateBtn) {
       locateBtn.addEventListener('click', locateAddress);
     }
+
+    const areaSelect = document.getElementById('order-delivery-area');
+    if (areaSelect) {
+      areaSelect.addEventListener('change', () => {
+        selectedDeliveryArea = areaSelect.value;
+        const addressInput = document.getElementById('order-address');
+        
+        if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+          // If a specific area is chosen, auto-verify the location and prefill address
+          updateLocationBadge(true);
+          
+          const areaLabel = areaSelect.options[areaSelect.selectedIndex].text.split(' (')[0];
+          
+          // Prefill or append the area to the address if not already mentioned
+          if (addressInput) {
+            const currentAddr = addressInput.value.trim();
+            if (!currentAddr) {
+              addressInput.value = areaLabel;
+            } else if (!currentAddr.toLowerCase().includes(areaLabel.toLowerCase())) {
+              addressInput.value = `${currentAddr}, ${areaLabel}`;
+            }
+          }
+        } else {
+          // If custom or empty is chosen
+          updateLocationBadge(false);
+        }
+        updateCartUI();
+      });
+    }
   }
 
   function setDeliveryMode(delivery) {
@@ -1468,6 +1519,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const failedBox = document.getElementById('delivery-calc-failed');
     const resolvedAddressLabel = document.getElementById('delivery-resolved-address');
     const resolvedKmLabel = document.getElementById('delivery-resolved-km');
+    const distLabel = document.getElementById('delivery-dist-label');
+    const kmUnit = document.getElementById('delivery-resolved-km-unit');
 
     if (!isDelivery) {
       if (loader) loader.classList.add('hidden');
@@ -1475,8 +1528,35 @@ document.addEventListener('DOMContentLoaded', () => {
       if (failedBox) failedBox.classList.add('hidden');
       if (resolvedAddressLabel) resolvedAddressLabel.textContent = "Self Pickup (Free)";
       if (resolvedKmLabel) resolvedKmLabel.textContent = "0.0";
+      if (distLabel) distLabel.textContent = "Distance from Limra:";
+      if (kmUnit) kmUnit.style.display = "";
       return;
     }
+
+    if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+      if (loader) loader.classList.add('hidden');
+      if (successBox) successBox.classList.remove('hidden');
+      if (failedBox) failedBox.classList.add('hidden');
+      
+      const areaSelect = document.getElementById('order-delivery-area');
+      const areaLabel = areaSelect ? areaSelect.options[areaSelect.selectedIndex].text.split(' (')[0] : selectedDeliveryArea;
+      
+      const detailedAddress = document.getElementById('order-address')?.value?.trim() || "";
+      if (resolvedAddressLabel) {
+        resolvedAddressLabel.textContent = detailedAddress ? `${detailedAddress} (${areaLabel})` : areaLabel;
+      }
+      
+      if (distLabel) distLabel.textContent = "Rate Type:";
+      if (resolvedKmLabel) resolvedKmLabel.textContent = "Fixed Area Rate";
+      if (kmUnit) kmUnit.style.display = "none";
+      
+      updateCartUI();
+      return;
+    }
+
+    // Reset labels back to custom
+    if (distLabel) distLabel.textContent = "Distance from Limra:";
+    if (kmUnit) kmUnit.style.display = "";
 
     const addressVal = document.getElementById('order-address')?.value?.trim();
     if (!addressVal) {
@@ -1665,6 +1745,13 @@ document.addEventListener('DOMContentLoaded', () => {
           if (details.isDelivery !== undefined) {
             setDeliveryMode(details.isDelivery);
           }
+          if (details.selectedDeliveryArea !== undefined) {
+            selectedDeliveryArea = details.selectedDeliveryArea;
+            const areaSelect = document.getElementById('order-delivery-area');
+            if (areaSelect) {
+              areaSelect.value = selectedDeliveryArea;
+            }
+          }
           if (details.distance !== undefined) {
             deliveryKm = details.distance;
             const distInput = document.getElementById('order-distance');
@@ -1715,7 +1802,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const deliveryNote = isDelivery
-      ? `[DELIVERY] Address: ${address} | Distance: ${km.toFixed(1)} km | Delivery charge: ₹${charge}`
+      ? `[DELIVERY] Address: ${address} | Selected Area: ${selectedDeliveryArea ? (selectedDeliveryArea.charAt(0).toUpperCase() + selectedDeliveryArea.slice(1)) : 'Custom'} | Distance: ${km.toFixed(1)} km | Delivery charge: ₹${charge}`
       : '[SELF PICKUP]';
     const emailNote = email ? `[EMAIL: ${email}]` : '';
     const paymentNote = `[PAYMENT: ${payment}] | [PAYMENT_STATUS: ${payment === 'upi' ? 'COMPLETED' : 'PENDING'}]`;
@@ -1755,7 +1842,8 @@ document.addEventListener('DOMContentLoaded', () => {
           email,
           address,
           isDelivery,
-          distance: km
+          distance: km,
+          selectedDeliveryArea
         };
         localStorage.setItem('limra-customer-details', JSON.stringify(savedDetails));
         initSavedAddressLoading(); // Refresh loading state
@@ -1782,7 +1870,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         orderItemsText += `\n*Subtotal: ₹${subtotal}*`;
         if (isDelivery) {
-          orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}*`;
+          if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+            const areaLabel = selectedDeliveryArea.charAt(0).toUpperCase() + selectedDeliveryArea.slice(1);
+            orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}* (Area: ${areaLabel})`;
+          } else {
+            orderItemsText += `\n*Delivery Charge: ₹${charge}*`;
+          }
           orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
           orderItemsText += `\n*Grand Total: ₹${subtotal + charge + taxes}*`;
           if (address) orderItemsText += `\n📍 *Deliver to:* ${address}`;
@@ -1825,6 +1918,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('order-customer-email').value = '';
         if (document.getElementById('order-address')) document.getElementById('order-address').value = '';
         if (document.getElementById('order-distance')) document.getElementById('order-distance').value = '';
+        const areaSelect = document.getElementById('order-delivery-area');
+        if (areaSelect) areaSelect.value = '';
+        selectedDeliveryArea = '';
         document.getElementById('order-notes').value = '';
         deliveryKm = 0;
         showStep(1); // Reset to step 1

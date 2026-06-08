@@ -246,8 +246,25 @@
 
         <!-- Delivery Address Block -->
         <div id="delivery-address-block" class="space-y-2 pt-1.5">
+          <label class="block text-xs font-semibold text-slate-500">Select Delivery Area *</label>
+          <select id="order-delivery-area" class="cart-input cursor-pointer">
+            <option value="">-- Select Area / Village --</option>
+            <option value="jerthan">Jerthan</option>
+            <option value="kudi">Kudi</option>
+            <option value="egra">Egra</option>
+            <option value="qiya">Qiya</option>
+            <option value="alangiri">Alangiri</option>
+            <option value="dobandhi">Dobandhi</option>
+            <option value="mohanpur">Mohanpur</option>
+            <option value="kasba gola">Kasba Gola</option>
+            <option value="rajnagar">Rajnagar</option>
+            <option value="atla">Atla</option>
+            <option value="boita">Boita</option>
+            <option value="custom">Other / Custom Location</option>
+          </select>
+
           <div class="flex items-center justify-between">
-            <label class="block text-xs font-semibold text-slate-500">Delivery Address *</label>
+            <label class="block text-xs font-semibold text-slate-500">Delivery Address Details *</label>
             <span id="order-location-badge" class="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
               🔴 Location Unverified
             </span>
@@ -308,8 +325,8 @@
           <p class="text-xs text-slate-500">📍 Resolved Address:</p>
           <p class="text-sm font-semibold text-slate-800 truncate" id="delivery-resolved-address">Self Pickup</p>
           <div class="flex justify-between items-center pt-2">
-            <span class="text-xs text-slate-500">Distance from Limra:</span>
-            <span class="text-xs font-bold text-slate-800"><span id="delivery-resolved-km">0.0</span> km</span>
+            <span class="text-xs text-slate-500" id="delivery-dist-label">Distance from Limra:</span>
+            <span class="text-xs font-bold text-slate-800"><span id="delivery-resolved-km">0.0</span><span id="delivery-resolved-km-unit"> km</span></span>
           </div>
         </div>
         <div id="delivery-calc-failed" class="space-y-1 w-full text-center hidden">

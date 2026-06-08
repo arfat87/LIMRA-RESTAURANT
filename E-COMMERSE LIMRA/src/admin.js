@@ -264,6 +264,7 @@ function parseNotesMetadata(notes) {
     email: '',
     type: 'pickup',
     address: '',
+    area: '',
     distance: '',
     charge: '',
     payment: '',
@@ -286,10 +287,12 @@ function parseNotesMetadata(notes) {
   
   if (result.type === 'delivery') {
     const addrMatch = notes.match(/Address:\s*([^|\]]+)/i);
+    const areaMatch = notes.match(/Selected Area:\s*([^|\]]+)/i);
     const distMatch = notes.match(/Distance:\s*([^|\]]+)/i);
     const chargeMatch = notes.match(/Delivery charge:\s*([^|\]]+)/i);
     
     if (addrMatch) result.address = addrMatch[1].trim();
+    if (areaMatch) result.area = areaMatch[1].trim();
     if (distMatch) result.distance = distMatch[1].trim();
     if (chargeMatch) result.charge = chargeMatch[1].trim();
   }
@@ -306,6 +309,7 @@ function parseNotesMetadata(notes) {
   let cleanNote = notes
     .replace(/\[EMAIL:[^\]]+\]/gi, '')
     .replace(/\[DELIVERY\] Address:[^|]+/gi, '')
+    .replace(/Selected Area:[^|]+/gi, '')
     .replace(/Distance:[^|]+/gi, '')
     .replace(/Delivery charge:[^|]+/gi, '')
     .replace(/\[SELF PICKUP\]/gi, '')
@@ -1197,6 +1201,7 @@ function renderOrderDetail(orderId) {
               <div class="adm-info-item" style="grid-column: 1/-1">
                 <label>Delivery Address</label>
                 <p class="text-sm font-semibold">${escapeHtml(parsedMeta.address || 'Not specified')}</p>
+                ${parsedMeta.area ? `<p class="text-xs text-slate-500 mt-1">📍 Selected Area: <strong>${escapeHtml(parsedMeta.area)}</strong></p>` : ''}
               </div>
               <div class="adm-info-item" style="grid-column: 1/-1">
                 <label>Landmark</label>

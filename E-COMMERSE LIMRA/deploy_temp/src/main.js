@@ -31,9 +31,26 @@ let isDelivery = true;    // true = delivery, false = self pickup
 let deliveryKm = 0;       // km entered by customer
 let deliveryMap = null;
 let deliveryMarker = null;
+let selectedDeliveryArea = ""; // selected place name
+const AREA_DELIVERY_CHARGES = {
+  'jerthan': 20,
+  'kudi': 40,
+  'egra': 100,
+  'qiya': 20,
+  'alangiri': 40,
+  'dobandhi': 50,
+  'mohanpur': 80,
+  'kasba gola': 80,
+  'rajnagar': 100,
+  'atla': 150,
+  'boita': 50
+};
 
 function getDeliveryCharge() {
   if (!isDelivery) return 0;
+  if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+    return AREA_DELIVERY_CHARGES[selectedDeliveryArea] || 0;
+  }
   const km = Math.max(0, parseFloat(deliveryKm) || 0);
   return Math.round(km * DELIVERY_RATE);
 }
@@ -121,8 +138,17 @@ function updateCartUI() {
   const chargeEl = document.getElementById('cart-delivery-charge');
   const kmLabel = document.getElementById('delivery-km-label');
   if (chargeRow && chargeEl && kmLabel) {
-    const km = Math.max(0, parseFloat(deliveryKm) || 0);
-    kmLabel.textContent = km % 1 === 0 ? km : km.toFixed(1);
+    if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+      const areaSelect = document.getElementById('order-delivery-area');
+      const areaLabel = areaSelect ? areaSelect.options[areaSelect.selectedIndex].text.split(' (')[0] : selectedDeliveryArea;
+      kmLabel.textContent = ` (${areaLabel})`;
+      kmLabel.classList.remove('hidden');
+    } else {
+      const km = Math.max(0, parseFloat(deliveryKm) || 0);
+      kmLabel.textContent = km > 0 ? ` (${km % 1 === 0 ? km : km.toFixed(1)} km)` : '';
+      if (km > 0) kmLabel.classList.remove('hidden');
+      else kmLabel.classList.add('hidden');
+    }
     chargeEl.textContent = delivery;
     chargeRow.style.display = isDelivery ? '' : 'none';
   }
@@ -206,7 +232,12 @@ function buildOrderMessage() {
   });
   msg += `\n*Subtotal: ₹${subtotal}*`;
   if (isDelivery) {
-    msg += `\n🛵 *Delivery Charge: ₹${delivery}*`;
+    if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+      const areaLabel = selectedDeliveryArea.charAt(0).toUpperCase() + selectedDeliveryArea.slice(1);
+      msg += `\n🛵 *Delivery Charge: ₹${delivery}* (Area: ${areaLabel})`;
+    } else {
+      msg += `\n🛵 *Delivery Charge: ₹${delivery}*`;
+    }
     msg += `\n*Grand Total: ₹${subtotal + delivery}*`;
     if (address) msg += `\n\n📍 *Deliver to:* ${address}`;
   } else {
@@ -1157,6 +1188,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (locateBtn) {
       locateBtn.addEventListener('click', locateAddress);
     }
+
+    const areaSelect = document.getElementById('order-delivery-area');
+    if (areaSelect) {
+      areaSelect.addEventListener('change', () => {
+        selectedDeliveryArea = areaSelect.value;
+        const addressInput = document.getElementById('order-address');
+        
+        if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+          const areaLabel = areaSelect.options[areaSelect.selectedIndex].text.split(' (')[0];
+          
+          // Prefill or append the area to the address if not already mentioned
+          if (addressInput) {
+            const currentAddr = addressInput.value.trim();
+            if (!currentAddr) {
+              addressInput.value = areaLabel;
+            } else if (!currentAddr.toLowerCase().includes(areaLabel.toLowerCase())) {
+              addressInput.value = `${currentAddr}, ${areaLabel}`;
+            }
+          }
+        }
+        updateCartUI();
+      });
+    }
   }
   initDelivery();
 
@@ -1185,7 +1239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const deliveryNote = isDelivery
-      ? `[DELIVERY] Address: ${address} | Distance: ${km} km | Delivery charge: ₹${charge}`
+      ? `[DELIVERY] Address: ${address} | Selected Area: ${selectedDeliveryArea ? (selectedDeliveryArea.charAt(0).toUpperCase() + selectedDeliveryArea.slice(1)) : 'Custom'} | Distance: ${km} km | Delivery charge: ₹${charge}`
       : '[SELF PICKUP]';
     const emailNote = `[EMAIL: ${email}]`;
     const combinedNotes = [deliveryNote, emailNote, notes].filter(Boolean).join(' | ');
@@ -1219,7 +1273,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       orderItemsText += `\n*Subtotal: ₹${subtotal}*`;
       if (isDelivery) {
-        orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}*`;
+        if (selectedDeliveryArea && selectedDeliveryArea !== 'custom') {
+          const areaLabel = selectedDeliveryArea.charAt(0).toUpperCase() + selectedDeliveryArea.slice(1);
+          orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}* (Area: ${areaLabel})`;
+        } else {
+          orderItemsText += `\n🛵 *Delivery Charge: ₹${charge}*`;
+        }
         orderItemsText += `\n*Grand Total: ₹${subtotal + charge}*`;
         if (address) orderItemsText += `\n📍 *Deliver to:* ${address}`;
       } else {
@@ -1258,6 +1317,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('order-customer-email').value = '';
       if (document.getElementById('order-address')) document.getElementById('order-address').value = '';
       if (document.getElementById('order-distance')) document.getElementById('order-distance').value = '';
+      const areaSelect = document.getElementById('order-delivery-area');
+      if (areaSelect) areaSelect.value = '';
+      selectedDeliveryArea = '';
       document.getElementById('order-notes').value = '';
       deliveryKm = 0;
       setTimeout(() => statusEl.classList.add('hidden'), 5000);
