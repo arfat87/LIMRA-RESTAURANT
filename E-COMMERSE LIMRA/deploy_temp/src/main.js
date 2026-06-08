@@ -21,6 +21,7 @@ function loadCartFromStorage() {
 }
 
 let cart = loadCartFromStorage();
+let currentMenuCategory = 'all';
 
 // ═══════════════════════════════════════
 // DELIVERY STATE
@@ -102,6 +103,11 @@ function updateCartUI() {
   document.getElementById('cart-badge').classList.toggle('hidden', count === 0);
   const viewBadge = document.getElementById('view-cart-badge');
   if (viewBadge) viewBadge.textContent = count;
+
+  const viewCartBtn = document.getElementById('view-cart-btn');
+  if (viewCartBtn) {
+    viewCartBtn.classList.toggle('hidden', count === 0);
+  }
 
   // Footer
   document.getElementById('cart-count-text').textContent = count;
@@ -255,7 +261,7 @@ function createMenuCard(item) {
   return card;
 }
 
-function renderMenuGrid(containerId, category = 'all') {
+function renderMenuGrid(containerId, category = 'all', searchQuery = '') {
   const grid = document.getElementById(containerId);
   if (!grid) return;
 
@@ -263,9 +269,17 @@ function renderMenuGrid(containerId, category = 'all') {
   grid.classList.add('visible');
   grid.setAttribute('aria-busy', 'true');
 
-  const filtered = category === 'all'
+  let filtered = category === 'all'
     ? menuItems
     : menuItems.filter(m => m.category === category);
+
+  if (searchQuery && searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    filtered = filtered.filter(item => 
+      (item.name || '').toLowerCase().includes(q) || 
+      (item.category || '').toLowerCase().includes(q)
+    );
+  }
 
   if (filtered.length === 0) {
     grid.innerHTML = '<p class="col-span-full text-center py-12 text-sm" style="color:var(--color-text-muted)">No dishes in this category.</p>';
@@ -317,9 +331,14 @@ function initMenuTabs() {
     tab.setAttribute('aria-pressed', tab.classList.contains('active') ? 'true' : 'false');
     tab.addEventListener('click', () => {
       const cat = tab.dataset.category;
+      currentMenuCategory = cat;
       syncTabActiveState(cat);
-      renderMenuGrid('menu-grid', cat);
-      renderMenuGrid('order-grid', cat);
+      
+      const foodSearchInput = document.getElementById('food-search-input');
+      const query = foodSearchInput ? foodSearchInput.value : '';
+      
+      renderMenuGrid('menu-grid', cat, query);
+      renderMenuGrid('order-grid', cat, query);
     });
   });
 }
@@ -880,6 +899,29 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMenuGrid('menu-grid', 'all');
   renderMenuGrid('order-grid', 'all');
   updateCartUI();
+
+  // Food Search
+  const foodSearchInput = document.getElementById('food-search-input');
+  const clearFoodSearchBtn = document.getElementById('btn-clear-food-search');
+  if (foodSearchInput) {
+    foodSearchInput.addEventListener('input', () => {
+      const query = foodSearchInput.value;
+      if (clearFoodSearchBtn) {
+        if (query) clearFoodSearchBtn.classList.remove('hidden');
+        else clearFoodSearchBtn.classList.add('hidden');
+      }
+      renderMenuGrid('menu-grid', currentMenuCategory, query);
+      renderMenuGrid('order-grid', currentMenuCategory, query);
+    });
+  }
+  if (clearFoodSearchBtn && foodSearchInput) {
+    clearFoodSearchBtn.addEventListener('click', () => {
+      foodSearchInput.value = '';
+      clearFoodSearchBtn.classList.add('hidden');
+      renderMenuGrid('menu-grid', currentMenuCategory, '');
+      renderMenuGrid('order-grid', currentMenuCategory, '');
+    });
+  }
 
   // Cart drawer
   document.getElementById('cart-toggle-btn').addEventListener('click', openCart);

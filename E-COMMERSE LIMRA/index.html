@@ -246,8 +246,22 @@
 
         <!-- Delivery Address Block -->
         <div id="delivery-address-block" class="space-y-2 pt-1.5">
-          <label class="block text-xs font-semibold text-slate-500">Delivery Address *</label>
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-semibold text-slate-500">Delivery Address *</label>
+            <span id="order-location-badge" class="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+              🔴 Location Unverified
+            </span>
+          </div>
           <textarea id="order-address" placeholder="Enter your complete delivery address *" class="cart-input resize-none" rows="2"></textarea>
+          
+          <div class="grid grid-cols-2 gap-2">
+            <input type="text" id="order-landmark" placeholder="Landmark (e.g. Near Shiv Mandir)" class="cart-input py-2 text-xs" />
+            <input type="text" id="order-delivery-notes" placeholder="Delivery Notes (e.g. Ring bell)" class="cart-input py-2 text-xs" />
+          </div>
+
+          <input type="hidden" id="order-latitude" value="" />
+          <input type="hidden" id="order-longitude" value="" />
+          <input type="hidden" id="order-location-verified" value="false" />
           
           <div class="flex gap-2">
             <button id="open-map-btn" type="button" class="flex-1 text-xs font-semibold py-2.5 rounded-xl border transition-all flex items-center justify-center gap-1 active:scale-[0.98] bg-slate-50 hover:bg-slate-100 text-slate-700" style="border-color:var(--color-border)">
@@ -488,12 +502,20 @@
       <!-- Sign In Form -->
       <form id="form-signin" class="space-y-3.5 text-left flex-1">
         <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-500">Email Address</label>
-          <input type="email" id="signin-email" placeholder="email@example.com" class="cart-input" required />
+          <label class="block text-xs font-semibold text-slate-500">Email Address or Mobile Number</label>
+          <input type="text" id="signin-identifier" placeholder="email@example.com or 10-digit number" class="cart-input" required />
         </div>
-        <div class="space-y-1">
+        <div class="space-y-1" id="signin-password-group">
           <label class="block text-xs font-semibold text-slate-500">Password</label>
-          <input type="password" id="signin-password" placeholder="••••••••" class="cart-input" required />
+          <div class="relative">
+            <input type="password" id="signin-password" placeholder="••••••••" class="cart-input pr-10" required />
+            <button type="button" id="btn-signin-toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors text-xs font-bold uppercase" style="background: none; border: none; padding: 0;">
+              Show
+            </button>
+          </div>
+        </div>
+        <div class="text-right py-0.5">
+          <button type="button" id="btn-goto-forgot" class="text-xs font-semibold text-amber-600 hover:underline">Forgot Password?</button>
         </div>
         <button type="submit" class="w-full py-3 mt-4 text-white font-semibold rounded-xl text-sm transition-all hover:scale-[1.01]" style="background:var(--color-accent)">
           Sign In ➔
@@ -502,26 +524,101 @@
 
       <!-- Sign Up Form -->
       <form id="form-signup" class="space-y-3 text-left flex-1 hidden">
-        <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-500">Full Name</label>
-          <input type="text" id="signup-name" placeholder="John Doe" class="cart-input" required />
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-500">Email Address or Mobile Number</label>
+          <input type="text" id="signup-identifier" placeholder="email@example.com or 10-digit number" class="cart-input" required />
         </div>
-        <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-500">Phone Number</label>
-          <input type="tel" id="signup-phone" placeholder="10-digit number" class="cart-input" required />
+        <div class="space-y-1.5" id="signup-password-group">
+          <label class="block text-xs font-semibold text-slate-500">Create Password</label>
+          <div class="relative">
+            <input type="password" id="signup-password" placeholder="•••••••• (min 8 characters)" class="cart-input pr-10" required minlength="8" />
+            <button type="button" id="btn-signup-toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors text-xs font-bold uppercase" style="background: none; border: none; padding: 0;">
+              Show
+            </button>
+          </div>
         </div>
-        <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-500">Email Address</label>
-          <input type="email" id="signup-email" placeholder="email@example.com" class="cart-input" required />
-        </div>
-        <div class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-500">Password</label>
-          <input type="password" id="signup-password" placeholder="••••••••" class="cart-input" required />
-        </div>
-        <button type="submit" class="w-full py-3 mt-4 text-white font-semibold rounded-xl text-sm transition-all hover:scale-[1.01]" style="background:var(--color-accent)">
+
+        <button type="submit" id="btn-signup-action" class="w-full py-3 mt-4 text-white font-semibold rounded-xl text-sm transition-all hover:scale-[1.01]" style="background:var(--color-accent)">
           Register Account ➔
         </button>
       </form>
+
+      <!-- Verification View (Hidden initially) -->
+      <div id="auth-verification-view" class="space-y-4 text-left flex flex-col flex-1 hidden">
+        <div class="text-center py-2 space-y-1 select-none">
+          <span class="text-3xl">📧</span>
+          <h3 class="font-display text-base font-bold text-slate-800">Verify Your Account</h3>
+          <p id="verification-msg" class="text-xs text-slate-500 leading-relaxed"></p>
+        </div>
+        
+        <form id="form-verify" class="space-y-4">
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-amber-600 font-bold uppercase tracking-wider text-center">Enter Verification Code</label>
+            <input type="text" id="verification-otp" placeholder="123456" maxlength="6" required 
+                   class="cart-input border-amber-500 bg-amber-50/10 focus:border-amber-600 focus:ring-amber-600 text-center font-bold tracking-widest text-xl py-3" style="letter-spacing: 0.25em;" />
+          </div>
+          <button type="submit" class="w-full py-3 text-white font-semibold rounded-xl text-sm transition-all hover:scale-[1.01]" style="background:var(--color-accent)">
+            Verify Code
+          </button>
+        </form>
+        
+        <div class="text-center py-2">
+          <button type="button" id="btn-resend-otp" class="text-xs font-semibold text-slate-500 hover:text-amber-600 transition-colors">
+            Resend Code
+          </button>
+        </div>
+        
+        <button type="button" id="btn-back-to-signup" class="text-xs font-semibold text-slate-400 hover:text-slate-600 mt-auto text-center block w-full py-2" style="background: none; border: none; padding: 0;">
+          ← Back to Register
+        </button>
+      </div>
+
+      <!-- Forgot Password View (Hidden initially) -->
+      <div id="auth-forgot-view" class="space-y-4 text-left flex flex-col flex-1 hidden">
+        <div class="text-center py-2 space-y-1 select-none">
+          <span class="text-3xl">🔑</span>
+          <h3 class="font-display text-base font-bold text-slate-800">Reset Password</h3>
+          <p class="text-xs text-slate-500 leading-relaxed">Enter your registered email address or mobile number to receive a verification code.</p>
+        </div>
+
+        <!-- Forgot Step 1: Input Identifier -->
+        <form id="form-forgot-step1" class="space-y-3.5">
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-slate-500">Email Address or Mobile Number</label>
+            <input type="text" id="forgot-identifier" placeholder="email@example.com or 10-digit number" class="cart-input" required />
+          </div>
+          <button type="submit" class="w-full py-3 text-white font-semibold rounded-xl text-sm transition-all hover:scale-[1.01]" style="background:var(--color-accent)">
+            Send Reset Code
+          </button>
+        </form>
+
+        <!-- Forgot Step 2: Input Code & New Password -->
+        <form id="form-forgot-step2" class="space-y-3.5 hidden">
+          <p id="forgot-step2-msg" class="text-xs text-slate-500 text-center leading-relaxed"></p>
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-amber-600 font-bold uppercase tracking-wider text-center">Verification Code</label>
+            <input type="text" id="forgot-otp" placeholder="123456" maxlength="6" required 
+                   class="cart-input border-amber-500 bg-amber-50/10 focus:border-amber-600 focus:ring-amber-600 text-center font-bold tracking-widest text-lg" style="letter-spacing: 0.15em;" />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-xs font-semibold text-slate-500">Create New Password</label>
+            <div class="relative">
+              <input type="password" id="forgot-new-password" placeholder="•••••••• (min 8 characters)" class="cart-input pr-10" required minlength="8" />
+              <button type="button" id="btn-forgot-toggle-password" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors text-xs font-bold uppercase" style="background: none; border: none; padding: 0;">
+                Show
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="w-full py-3 text-white font-semibold rounded-xl text-sm transition-all hover:scale-[1.01]" style="background:var(--color-accent)">
+            Reset Password & Sign In
+          </button>
+        </form>
+
+        <button type="button" id="btn-back-to-login" class="text-xs font-semibold text-slate-400 hover:text-slate-600 mt-auto text-center block w-full py-2" style="background: none; border: none; padding: 0;">
+          ← Back to Sign In
+        </button>
+      </div>
+
 
       <!-- OAuth Divider & Button -->
       <div class="shrink-0 space-y-4">
@@ -830,6 +927,15 @@
       </div>
     </div>
 
+    <!-- Food Search Bar -->
+    <div class="max-w-md mx-auto mb-8 px-4 reveal">
+      <div class="relative">
+        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+        <input type="text" id="food-search-input" placeholder="Search Biryani, Kebabs, Desserts..." class="w-full pl-10 pr-10 py-3 text-sm border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent bg-white shadow-sm transition-all placeholder-slate-400">
+        <button id="btn-clear-food-search" type="button" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 hidden text-sm p-1">✕</button>
+      </div>
+    </div>
+
     <div class="flex flex-wrap justify-center gap-3 mb-10 reveal">
       <span class="flex items-center gap-2 px-4 py-2 rounded-full text-sm border" style="border-color:var(--color-border); background:var(--color-white)">
         <span class="w-2 h-2 rounded-full" style="background:var(--color-green-wa)"></span>
@@ -848,7 +954,7 @@
     <div id="order-grid" class="menu-product-grid grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-4" role="list" aria-live="polite" aria-label="Order menu items"></div>
 
     <div class="text-center mt-10 reveal">
-      <button id="view-cart-btn" class="inline-flex items-center gap-3 px-8 py-4 rounded-full font-bold text-white shadow-lg transition-all hover:scale-105" style="background:var(--color-accent)">
+      <button id="view-cart-btn" class="fixed bottom-24 right-6 z-40 inline-flex items-center gap-3 px-6 py-3.5 rounded-full font-bold text-white shadow-xl transition-all hover:scale-105 hidden" style="background:var(--color-accent)">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
         View Cart &amp; Order
         <span id="view-cart-badge" class="text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center" style="background:var(--color-white); color:var(--color-accent)">0</span>
@@ -1239,7 +1345,7 @@
 </a>
 
 <!-- Back to top -->
-<button id="back-to-top" aria-label="Back to top" class="fixed bottom-24 right-6 z-50 w-10 h-10 rounded-full flex items-center justify-center border shadow-sm transition-all duration-300 opacity-0 pointer-events-none" style="background:var(--color-white); border-color:var(--color-border); color:var(--color-accent)">
+<button id="back-to-top" aria-label="Back to top" class="fixed bottom-40 right-6 z-50 w-10 h-10 rounded-full flex items-center justify-center border shadow-sm transition-all duration-300 opacity-0 pointer-events-none" style="background:var(--color-white); border-color:var(--color-border); color:var(--color-accent)">
   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
 </button>
 
@@ -1344,14 +1450,60 @@
       <h3 class="text-base font-bold text-slate-800">Pin Delivery Location</h3>
       <button id="close-map-modal-btn" class="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors">✕</button>
     </div>
+    
+    <!-- Search Bar -->
+    <div class="p-3 border-b border-slate-100 bg-white relative">
+      <div class="relative">
+        <input type="text" id="map-search-input" placeholder="Search Address, Area, City or Landmark" class="w-full pl-9 pr-8 py-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500">
+        <span class="absolute left-3 top-3 text-slate-400">🔍</span>
+        <button id="map-clear-search-btn" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 hidden text-sm p-1">✕</button>
+      </div>
+      <!-- Suggestions dropdown -->
+      <div id="map-search-suggestions" class="absolute left-3 right-3 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-[300] hidden"></div>
+    </div>
+
     <!-- Map Body -->
-    <div id="delivery-map" style="height: 320px; width: 100%;" class="z-10"></div>
-    <!-- Footer status -->
-    <div class="p-4 bg-slate-50 flex items-center justify-between border-t border-slate-100 gap-4">
-      <p id="distance-calc-status" class="text-xs font-semibold text-slate-500">📍 Tap on the map to pin your location</p>
-      <button id="confirm-map-location-btn" type="button" class="text-xs font-bold text-white px-4 py-2.5 rounded-xl transition-all active:scale-[0.97]" style="background:var(--color-accent)">
-        Confirm Location
-      </button>
+    <div class="relative">
+      <div id="delivery-map" style="height: 260px; width: 100%;" class="z-10"></div>
+      
+      <!-- Top-right Map Overlays -->
+      <div class="absolute right-3 top-3 z-20 flex flex-col gap-2">
+        <button id="map-layer-toggle-btn" type="button" class="w-8 h-8 bg-white rounded-xl shadow-md border border-slate-200/80 flex items-center justify-center text-sm hover:bg-slate-50 transition-all active:scale-95" title="Toggle Satellite/Street View">🛰️</button>
+        <button id="map-locate-self-btn" type="button" class="w-8 h-8 bg-white rounded-xl shadow-md border border-slate-200/80 flex items-center justify-center text-sm hover:bg-slate-50 transition-all active:scale-95" title="Use My Current Location">🎯</button>
+      </div>
+    </div>
+
+    <!-- Footer Address Details & Confirmation -->
+    <div class="p-4 bg-slate-50 border-t border-slate-100 space-y-3">
+      <div class="text-xs space-y-1.5">
+        <div class="flex items-start gap-1">
+          <span class="font-bold text-slate-700 shrink-0">Address:</span>
+          <span id="map-selected-address" class="text-slate-500 line-clamp-2">No address selected yet. Drag pin or click map.</span>
+        </div>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+          <div><span class="font-bold text-slate-600">Latitude:</span> <span id="map-selected-lat" class="text-slate-500">—</span></div>
+          <div><span class="font-bold text-slate-600">Longitude:</span> <span id="map-selected-lng" class="text-slate-500">—</span></div>
+          <div><span class="font-bold text-slate-600">Area:</span> <span id="map-selected-area" class="text-slate-500">—</span></div>
+          <div><span class="font-bold text-slate-600">City:</span> <span id="map-selected-city" class="text-slate-500">—</span></div>
+          <div><span class="font-bold text-slate-600">State:</span> <span id="map-selected-state" class="text-slate-500">—</span></div>
+          <div><span class="font-bold text-slate-600">Postal Code:</span> <span id="map-selected-zip" class="text-slate-500">—</span></div>
+          <div class="col-span-2 mt-1">
+            <label class="block font-bold text-slate-700 mb-0.5">Landmark (e.g. Near Shiv Mandir)</label>
+            <input type="text" id="map-selected-landmark" placeholder="Optional landmark to help delivery rider" class="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white">
+          </div>
+          <div class="col-span-2">
+            <label class="block font-bold text-slate-700 mb-0.5">Delivery Notes (e.g. Gate code, ring bell)</label>
+            <input type="text" id="map-selected-notes" placeholder="Delivery notes (optional)" class="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white">
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between gap-4 pt-1">
+        <span id="distance-calc-status" class="text-[10px] font-semibold text-slate-400">📍 Pinned delivery location</span>
+        <button id="confirm-map-location-btn" type="button" class="text-xs font-bold text-white px-5 py-2.5 rounded-xl transition-all active:scale-[0.97]" style="background:var(--color-accent)">
+          Confirm Address
+        </button>
+      </div>
     </div>
   </div>
 </div>

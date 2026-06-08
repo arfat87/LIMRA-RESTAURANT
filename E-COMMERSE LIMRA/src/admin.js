@@ -27,6 +27,9 @@ const STATUS_LABEL = {
 let orders = [];
 let orderItems = [];
 let bookings = [];
+let dashboardMap = null;
+let dashboardMarkersGroup = null;
+let activeMapFilter = 'all';
 let currentUser = null;
 let selectedOrderId = null;
 let ordersPage = 1;
@@ -348,6 +351,18 @@ function paymentStatusPill(status) {
 
 function initials(name) {
   return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function getHaversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
 }
 
 function destroyChart(key) {
@@ -801,6 +816,166 @@ function renderOverview() {
   renderStats();
   renderDonuts();
   renderCharts();
+  try {
+    initDashboardMap();
+    renderDashboardMapMarkers();
+  } catch (err) {
+    console.warn('Dashboard map rendering failed:', err);
+  }
+}
+
+function initDashboardMap() {
+  const mapContainer = $('dashboard-deliveries-map');
+  if (!mapContainer || dashboardMap) return;
+
+  try {
+    const limraCoords = [21.8603074, 87.4793798];
+    dashboardMap = L.map('dashboard-deliveries-map', {
+      zoomControl: true,
+      scrollWheelZoom: true
+    }).setView(limraCoords, 13);
+
+    // Layer control
+    const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(dashboardMap);
+
+    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri'
+    });
+
+    L.control.layers({
+      "Street Map": streetLayer,
+      "Satellite": satelliteLayer
+    }, null, { position: 'topright' }).addTo(dashboardMap);
+
+    // Add restaurant marker (Gold)
+    const restaurantIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+    L.marker(limraCoords, { icon: restaurantIcon }).addTo(dashboardMap).bindPopup('<b>LIMRA Restaurant (Kitchen)</b>');
+
+    dashboardMarkersGroup = L.layerGroup().addTo(dashboardMap);
+    
+    // Expose window action for popup View Details buttons
+    window.adminOpenOrder = (orderId) => {
+      openOrderDetail(orderId);
+    };
+
+    // Attach filter button listeners
+    const allBtn = $('map-filter-all');
+    const pendingBtn = $('map-filter-pending');
+    const prepBtn = $('map-filter-preparing');
+
+    const setMapFilter = (filter) => {
+      activeMapFilter = filter;
+      [allBtn, pendingBtn, prepBtn].forEach(btn => {
+        if (btn) {
+          btn.classList.remove('active');
+          btn.style.background = '#f5f7fa';
+          btn.style.color = 'var(--adm-text)';
+        }
+      });
+      const activeBtn = filter === 'all' ? allBtn : (filter === 'pending' ? pendingBtn : prepBtn);
+      if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.background = 'var(--adm-green)';
+        activeBtn.style.color = '#fff';
+      }
+      renderDashboardMapMarkers();
+    };
+
+    allBtn?.addEventListener('click', () => setMapFilter('all'));
+    pendingBtn?.addEventListener('click', () => setMapFilter('pending'));
+    prepBtn?.addEventListener('click', () => setMapFilter('preparing'));
+
+  } catch (err) {
+    console.error('Error initializing dashboard map:', err);
+  }
+}
+
+function renderDashboardMapMarkers() {
+  if (!dashboardMap || !dashboardMarkersGroup) return;
+
+  dashboardMarkersGroup.clearLayers();
+
+  const limraCoords = [21.8603074, 87.4793798];
+  const bounds = [limraCoords];
+
+  // Filter orders matching activeMapFilter & has coordinates
+  const activeOrders = orders.filter(o => {
+    const meta = parseNotesMetadata(o.notes);
+    if (meta.type !== 'delivery') return false;
+    if (o.latitude === null || o.longitude === null) return false;
+
+    if (activeMapFilter === 'all') {
+      return ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status);
+    } else if (activeMapFilter === 'pending') {
+      return o.status === 'pending';
+    } else if (activeMapFilter === 'preparing') {
+      return ['confirmed', 'preparing', 'ready'].includes(o.status);
+    }
+    return false;
+  });
+
+  activeOrders.forEach(order => {
+    const lat = parseFloat(order.latitude);
+    const lng = parseFloat(order.longitude);
+    const orderCoords = [lat, lng];
+    bounds.push(orderCoords);
+
+    const icon = getMarkerIconForStatus(order.status);
+    const marker = L.marker(orderCoords, { icon });
+
+    const popupContent = `
+      <div style="font-family: 'Inter', sans-serif; font-size: 12px; line-height: 1.4; min-width: 160px; padding: 4px;">
+        <h4 style="margin: 0 0 6px 0; font-weight: 700; color: var(--adm-text);">Order #${order.order_number}</h4>
+        <p style="margin: 0 0 3px 0;"><b>Customer:</b> ${escapeHtml(order.customer_name)}</p>
+        <p style="margin: 0 0 3px 0;"><b>Status:</b> ${statusPill(order.status)}</p>
+        <p style="margin: 0 0 3px 0;"><b>Amount:</b> ${fmtMoney(order.total_amount)}</p>
+        <p style="margin: 0 0 8px 0;"><b>Phone:</b> <a href="tel:${order.customer_phone}">${order.customer_phone}</a></p>
+        <button class="adm-btn adm-btn-primary adm-btn-sm" style="width: 100%; font-size: 10px; padding: 4px 6px; border-radius: 6px; cursor: pointer; text-align: center; display: block;" onclick="window.adminOpenOrder('${order.id}')">View Details</button>
+      </div>
+    `;
+
+    marker.bindPopup(popupContent);
+    dashboardMarkersGroup.addLayer(marker);
+  });
+
+  // Fit bounds if we have delivery points
+  if (bounds.length > 1) {
+    try {
+      dashboardMap.fitBounds(L.latLngBounds(bounds), { padding: [50, 50] });
+    } catch (e) {
+      console.warn('Map fitBounds failed:', e);
+    }
+  } else {
+    dashboardMap.setView(limraCoords, 13);
+  }
+}
+
+function getMarkerIconForStatus(status) {
+  let color = 'blue';
+  if (status === 'pending') color = 'orange';
+  else if (status === 'confirmed') color = 'yellow';
+  else if (status === 'preparing') color = 'blue';
+  else if (status === 'ready') color = 'violet';
+  else if (status === 'delivered') color = 'green';
+  else if (status === 'cancelled') color = 'red';
+
+  return L.icon({
+    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
 }
 
 // ── Orders table ────────────────────────────────────────
@@ -1011,15 +1186,75 @@ function renderOrderDetail(orderId) {
 
         ${parsedMeta.type === 'delivery' ? `
           <div class="adm-card">
-            <h3 class="adm-card-title">Delivery Location & Tracking</h3>
-            <div class="adm-info-grid" style="margin-bottom: 1rem;">
-              <div class="adm-info-item" style="grid-column: 1/-1"><label>Delivery Address</label><p>${escapeHtml(parsedMeta.address || 'Not specified')}</p></div>
-              <div class="adm-info-item"><label>Distance</label><p>${escapeHtml(parsedMeta.distance || '—')}</p></div>
-              <div class="adm-info-item"><label>Delivery Charge</label><p>${escapeHtml(parsedMeta.charge || '—')}</p></div>
+            <div class="flex items-center justify-between mb-3" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+              <h3 class="adm-card-title" style="margin:0;">🚗 Delivery Location & Logistics</h3>
+              <span id="detail-verified-badge" class="adm-pill ${order.location_verified ? 'delivered' : 'pending'}">
+                ${order.location_verified ? '✓ Pin Verified' : '⚠️ Unverified Pin'}
+              </span>
             </div>
+            
+            <div class="adm-info-grid" style="margin-bottom: 1rem;">
+              <div class="adm-info-item" style="grid-column: 1/-1">
+                <label>Delivery Address</label>
+                <p class="text-sm font-semibold">${escapeHtml(parsedMeta.address || 'Not specified')}</p>
+              </div>
+              <div class="adm-info-item" style="grid-column: 1/-1">
+                <label>Landmark</label>
+                <p id="detail-landmark">${escapeHtml(order.landmark || '—')}</p>
+              </div>
+              <div class="adm-info-item" style="grid-column: 1/-1">
+                <label>Delivery Notes / Instructions</label>
+                <p id="detail-notes" style="font-weight: normal; color: var(--adm-muted); background: #f8faf9; padding: 0.5rem; border-radius: 8px; font-size: 0.825rem; margin-top: 0.25rem;">
+                  ${escapeHtml(order.delivery_notes || 'No delivery notes')}
+                </p>
+              </div>
+              <div class="adm-info-item">
+                <label>Calculated Distance</label>
+                <p id="detail-distance">${escapeHtml(parsedMeta.distance || '—')}</p>
+              </div>
+              <div class="adm-info-item">
+                <label>Delivery Charge</label>
+                <p>${escapeHtml(parsedMeta.charge || '—')}</p>
+              </div>
+              <div class="adm-info-item">
+                <label>Travel ETA</label>
+                <p id="detail-eta">—</p>
+              </div>
+              <div class="adm-info-item" style="grid-column: 1/-1">
+                <label>Coordinates</label>
+                <p id="detail-coords" class="font-mono text-xs select-all" style="font-family: monospace; font-size: 0.75rem; color: var(--adm-muted);">
+                  ${order.latitude !== null && order.longitude !== null ? `${order.latitude}, ${order.longitude}` : 'Calculating...'}
+                </p>
+              </div>
+            </div>
+            
             <div class="adm-detail-map-card">
-              <div class="adm-detail-map-wrap">
+              <div class="adm-detail-map-wrap" style="height: 250px;">
                 <div id="order-detail-map" class="adm-detail-map"></div>
+              </div>
+            </div>
+
+            <!-- Logistics Action Row -->
+            <div style="margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
+              <a href="#" target="_blank" class="adm-btn adm-btn-primary text-center" id="detail-nav-btn" style="text-decoration: none; text-align: center; display: block; font-weight: 700; width: 100%;">
+                🗺️ Start Navigation (Google Maps)
+              </a>
+              
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                <button type="button" class="adm-comm-btn whatsapp" id="detail-share-wa-btn">
+                  💬 Share WhatsApp
+                </button>
+                <button type="button" class="adm-comm-btn email" id="detail-share-sms-btn">
+                  📱 Send SMS
+                </button>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                <button type="button" class="adm-comm-btn call" id="detail-copy-details-btn" style="background:#eef0f4; color:var(--adm-text);">
+                  📋 Copy Address
+                </button>
+                <button type="button" class="adm-comm-btn call" id="detail-share-sys-btn" style="background:#eef0f4; color:var(--adm-text);">
+                  🔗 Share Route
+                </button>
               </div>
             </div>
           </div>
@@ -1123,12 +1358,24 @@ function renderOrderDetail(orderId) {
     if (mapContainer) {
       try {
         const limraCoords = [21.8603074, 87.4793798];
-        const map = L.map('order-detail-map').setView(limraCoords, 14);
+        const map = L.map('order-detail-map', {
+          zoomControl: true,
+          scrollWheelZoom: false
+        }).setView(limraCoords, 14);
         window.orderDetailMap = map;
         
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           attribution: '© OpenStreetMap contributors'
         }).addTo(map);
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri &mdash; Source: Esri'
+        });
+
+        L.control.layers({
+          "Street Map": streetLayer,
+          "Satellite": satelliteLayer
+        }, null, { position: 'topright' }).addTo(map);
         
         // Add restaurant marker (Gold)
         const restaurantIcon = L.icon({
@@ -1139,42 +1386,121 @@ function renderOrderDetail(orderId) {
           popupAnchor: [1, -34],
           shadowSize: [41, 41]
         });
-        L.marker(limraCoords, { icon: restaurantIcon }).addTo(map).bindPopup('<b>LIMRA Restaurant</b>').openPopup();
+        L.marker(limraCoords, { icon: restaurantIcon }).addTo(map).bindPopup('<b>LIMRA Restaurant</b>');
 
-        // Forward geocode customer address
-        const addrStr = parsedMeta.address;
-        if (addrStr) {
-          fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addrStr)}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data && data.length > 0 && window.orderDetailMap === map) {
-                const lat = parseFloat(data[0].lat);
-                const lon = parseFloat(data[0].lon);
-                const clientCoords = [lat, lon];
-                
-                const clientIcon = L.icon({
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowSize: [41, 41]
-                });
-                
-                const clientMarker = L.marker(clientCoords, { icon: clientIcon }).addTo(map);
-                clientMarker.bindPopup(`<b>Delivery Pin</b><br>${escapeHtml(addrStr)}`).openPopup();
-                
-                L.polyline([limraCoords, clientCoords], {
-                  color: '#00b074',
-                  dashArray: '5, 10',
-                  weight: 3
-                }).addTo(map);
-                
-                const bounds = L.latLngBounds([limraCoords, clientCoords]);
-                map.fitBounds(bounds, { padding: [40, 40] });
-              }
-            })
-            .catch(err => console.warn('Nominatim geocode failed in admin detail:', err));
+        // Resolve coordinates
+        const dbLat = order.latitude !== null ? parseFloat(order.latitude) : null;
+        const dbLng = order.longitude !== null ? parseFloat(order.longitude) : null;
+
+        const setupMapAndLogistics = (latVal, lngVal, isGeo = false) => {
+          if (window.orderDetailMap !== map) return;
+
+          const clientCoords = [latVal, lngVal];
+          const clientIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          });
+
+          const clientMarker = L.marker(clientCoords, { icon: clientIcon }).addTo(map);
+          clientMarker.bindPopup(`<b>Delivery Location</b><br>${escapeHtml(parsedMeta.address)}`).openPopup();
+
+          L.polyline([limraCoords, clientCoords], {
+            color: '#00b074',
+            dashArray: '5, 10',
+            weight: 3,
+            opacity: 0.8
+          }).addTo(map);
+
+          const bounds = L.latLngBounds([limraCoords, clientCoords]);
+          map.fitBounds(bounds, { padding: [40, 40] });
+
+          // Calculate logistics distance and ETA
+          const dist = getHaversineDistance(limraCoords[0], limraCoords[1], latVal, lngVal);
+          const eta = Math.ceil(dist * 2); // 30 km/h is 2 mins/km
+          const etaText = dist < 0.5 ? 'Under 2 mins' : `${eta} mins`;
+
+          // Update UI elements
+          const distEl = document.getElementById('detail-distance');
+          const etaEl = document.getElementById('detail-eta');
+          const coordsEl = document.getElementById('detail-coords');
+          const navBtn = document.getElementById('detail-nav-btn');
+
+          if (distEl) distEl.textContent = `${dist.toFixed(2)} km`;
+          if (etaEl) etaEl.textContent = etaText;
+          if (coordsEl) coordsEl.textContent = `${latVal.toFixed(6)}, ${lngVal.toFixed(6)}`;
+          if (navBtn) {
+            navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${latVal},${lngVal}`;
+          }
+
+          // Dynamic sharing text bindings
+          const shareMsg = `*LIMRA Delivery Route Details*\n` +
+            `*Order*: #${order.order_number}\n` +
+            `*Customer*: ${order.customer_name}\n` +
+            `*Phone*: ${order.customer_phone}\n` +
+            `*Address*: ${parsedMeta.address}\n` +
+            `*Landmark*: ${order.landmark || 'N/A'}\n` +
+            `*Notes*: ${order.delivery_notes || 'None'}\n` +
+            `*Location link*: https://maps.google.com/?q=${latVal},${lngVal}`;
+
+          const shareSms = `LIMRA Order #${order.order_number} Delivery: ${parsedMeta.address}. Landmark: ${order.landmark || 'N/A'}. Location: https://maps.google.com/?q=${latVal},${lngVal}`;
+
+          document.getElementById('detail-share-wa-btn')?.addEventListener('click', () => {
+            window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`, '_blank');
+          });
+
+          document.getElementById('detail-share-sms-btn')?.addEventListener('click', () => {
+            window.open(`sms:?body=${encodeURIComponent(shareSms)}`, '_blank');
+          });
+
+          document.getElementById('detail-copy-details-btn')?.addEventListener('click', () => {
+            navigator.clipboard.writeText(shareMsg).then(() => {
+              alert('Delivery address details copied to clipboard!');
+            });
+          });
+
+          document.getElementById('detail-share-sys-btn')?.addEventListener('click', () => {
+            if (navigator.share) {
+              navigator.share({
+                title: `LIMRA Delivery Route Details #${order.order_number}`,
+                text: `Customer: ${order.customer_name}\nPhone: ${order.customer_phone}\nAddress: ${parsedMeta.address}`,
+                url: `https://maps.google.com/?q=${latVal},${lngVal}`
+              }).catch(e => console.warn('Share aborted:', e));
+            } else {
+              alert('Web Share API not supported on this device/browser.');
+            }
+          });
+        };
+
+        if (dbLat !== null && dbLng !== null) {
+          setupMapAndLogistics(dbLat, dbLng);
+        } else {
+          // Fallback geocoding via Nominatim
+          const addrStr = parsedMeta.address;
+          if (addrStr) {
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addrStr)}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data && data.length > 0 && window.orderDetailMap === map) {
+                  const lat = parseFloat(data[0].lat);
+                  const lon = parseFloat(data[0].lon);
+                  setupMapAndLogistics(lat, lon, true);
+                } else {
+                  console.warn('Nominatim returned no coordinates in admin detail fallback');
+                  map.setView(limraCoords, 14);
+                  document.getElementById('detail-coords').textContent = 'Coordinates not found';
+                }
+              })
+              .catch(err => {
+                console.warn('Nominatim geocode failed in admin detail fallback:', err);
+                map.setView(limraCoords, 14);
+              });
+          } else {
+            map.setView(limraCoords, 14);
+          }
         }
       } catch (err) {
         console.warn('Map initialization failed in admin detail:', err);
@@ -1450,6 +1776,13 @@ function switchPanel(panelId) {
   if (panelId === 'order-detail') {
     renderOrderDetailPicker();
     renderOrderDetail(selectedOrderId);
+  }
+  if (panelId === 'dashboard') {
+    if (dashboardMap) {
+      setTimeout(() => {
+        dashboardMap.invalidateSize();
+      }, 100);
+    }
   }
 
   if (window.innerWidth < 1024) {

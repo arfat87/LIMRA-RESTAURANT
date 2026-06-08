@@ -1446,7 +1446,8 @@ export const menuItems = [
     "name": "Lime Juice",
     "price": 25,
     "category": "juices",
-    "emoji": "🧃"
+    "emoji": "🧃",
+    "image": "/media/items/169.jpg"
   },
   {
     "id": 170,
@@ -1509,7 +1510,8 @@ export const menuItems = [
     "name": "Dry Fruit Lassi",
     "price": 55,
     "category": "lassi",
-    "emoji": "🥛"
+    "emoji": "🥛",
+    "image": "/media/items/177.jpg"
   },
   {
     "id": 178,
@@ -1540,14 +1542,16 @@ export const menuItems = [
     "name": "Oreo Milkshake",
     "price": 85,
     "category": "milkshakes",
-    "emoji": "🥤"
+    "emoji": "🥤",
+    "image": "/media/items/181.jpg"
   },
   {
     "id": 182,
     "name": "KitKat Milkshake",
     "price": 85,
     "category": "milkshakes",
-    "emoji": "🥤"
+    "emoji": "🥤",
+    "image": "/media/items/182.jpg"
   },
   {
     "id": 183,
@@ -1562,7 +1566,8 @@ export const menuItems = [
     "name": "Dairy Milk Milkshake",
     "price": 85,
     "category": "milkshakes",
-    "emoji": "🥤"
+    "emoji": "🥤",
+    "image": "/media/items/184.jpg"
   },
   {
     "id": 185,
@@ -1617,7 +1622,8 @@ export const menuItems = [
     "name": "Lime Mint Mojito",
     "price": 50,
     "category": "mocktails",
-    "emoji": "🍹"
+    "emoji": "🍹",
+    "image": "/media/items/191.jpg"
   },
   {
     "id": 192,
@@ -1672,21 +1678,24 @@ export const menuItems = [
     "name": "Water 1 Litre",
     "price": 20,
     "category": "beverages",
-    "emoji": "💧"
+    "emoji": "💧",
+    "image": "/media/items/198.jpg"
   },
   {
     "id": 199,
     "name": "Water 500ml",
     "price": 10,
     "category": "beverages",
-    "emoji": "💧"
+    "emoji": "💧",
+    "image": "/media/items/199.jpg"
   },
   {
     "id": 200,
     "name": "Thums Up Glass",
     "price": 25,
     "category": "beverages",
-    "emoji": "💧"
+    "emoji": "💧",
+    "image": "/media/items/200.jpg"
   },
   {
     "id": 201,

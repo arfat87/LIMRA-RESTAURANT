@@ -15,7 +15,17 @@ function formatInsforgeError(error) {
 }
 
 /** Place order via RPC */
-export async function saveOrder({ customerName, customerPhone, items, notes = '' }) {
+export async function saveOrder({
+  customerName,
+  customerPhone,
+  items,
+  notes = '',
+  latitude = null,
+  longitude = null,
+  landmark = null,
+  deliveryNotes = null,
+  locationVerified = false
+}) {
   if (!items || !items.length) {
     throw new Error('Your cart is empty');
   }
@@ -35,6 +45,11 @@ export async function saveOrder({ customerName, customerPhone, items, notes = ''
     p_customer_phone: customerPhone.trim(),
     p_notes: notes ? notes.trim() : '',
     p_items: p_items,
+    p_latitude: latitude,
+    p_longitude: longitude,
+    p_landmark: landmark,
+    p_delivery_notes: deliveryNotes,
+    p_location_verified: locationVerified
   });
 
   if (!result.error) return result.data;

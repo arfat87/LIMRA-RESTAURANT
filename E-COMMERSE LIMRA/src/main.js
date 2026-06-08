@@ -23,6 +23,7 @@ function loadCartFromStorage() {
 }
 
 let cart = loadCartFromStorage();
+let currentMenuCategory = 'all';
 
 // ═══════════════════════════════════════
 // DELIVERY STATE
@@ -32,6 +33,12 @@ let isDelivery = true;    // true = delivery, false = self pickup
 let deliveryKm = 0;       // km entered by customer
 let deliveryMap = null;
 let deliveryMarker = null;
+let streetLayer = null;
+let satelliteLayer = null;
+let currentMapLayer = 'street';
+let mapSelectedLat = null;
+let mapSelectedLng = null;
+let mapSelectedAddress = '';
 
 function getDeliveryCharge() {
   if (!isDelivery) return 0;
@@ -112,6 +119,11 @@ function updateCartUI() {
   }
   const viewBadge = document.getElementById('view-cart-badge');
   if (viewBadge) viewBadge.textContent = count;
+
+  const viewCartBtn = document.getElementById('view-cart-btn');
+  if (viewCartBtn) {
+    viewCartBtn.classList.toggle('hidden', count === 0);
+  }
 
   // Footer & Empty state
   const step1Footer = document.getElementById('checkout-step-1-footer');
@@ -292,7 +304,7 @@ function createMenuCard(item) {
   return card;
 }
 
-function renderMenuGrid(containerId, category = 'all') {
+function renderMenuGrid(containerId, category = 'all', searchQuery = '') {
   const grid = document.getElementById(containerId);
   if (!grid) return;
 
@@ -300,9 +312,17 @@ function renderMenuGrid(containerId, category = 'all') {
   grid.classList.add('visible');
   grid.setAttribute('aria-busy', 'true');
 
-  const filtered = category === 'all'
+  let filtered = category === 'all'
     ? menuItems
     : menuItems.filter(m => m.category === category);
+
+  if (searchQuery && searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    filtered = filtered.filter(item => 
+      (item.name || '').toLowerCase().includes(q) || 
+      (item.category || '').toLowerCase().includes(q)
+    );
+  }
 
   if (filtered.length === 0) {
     grid.innerHTML = '<p class="col-span-full text-center py-12 text-sm" style="color:var(--color-text-muted)">No dishes in this category.</p>';
@@ -354,9 +374,14 @@ function initMenuTabs() {
     tab.setAttribute('aria-pressed', tab.classList.contains('active') ? 'true' : 'false');
     tab.addEventListener('click', () => {
       const cat = tab.dataset.category;
+      currentMenuCategory = cat;
       syncTabActiveState(cat);
-      renderMenuGrid('menu-grid', cat);
-      renderMenuGrid('order-grid', cat);
+      
+      const foodSearchInput = document.getElementById('food-search-input');
+      const query = foodSearchInput ? foodSearchInput.value : '';
+      
+      renderMenuGrid('menu-grid', cat, query);
+      renderMenuGrid('order-grid', cat, query);
     });
   });
 }
@@ -514,7 +539,7 @@ async function handleBookingSubmit(form, type, getExtra = () => ({})) {
   }
   
   const email = data.email?.trim() || '';
-  if (!email || !email.includes('@')) {
+  if (email && !email.includes('@')) {
     setBookingStatus(form, 'Please enter a valid email address.', true);
     return;
   }
@@ -916,6 +941,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderMenuGrid('menu-grid', 'all');
   renderMenuGrid('order-grid', 'all');
+
+  // Food Search
+  const foodSearchInput = document.getElementById('food-search-input');
+  const clearFoodSearchBtn = document.getElementById('btn-clear-food-search');
+  if (foodSearchInput) {
+    foodSearchInput.addEventListener('input', () => {
+      const query = foodSearchInput.value;
+      if (clearFoodSearchBtn) {
+        if (query) clearFoodSearchBtn.classList.remove('hidden');
+        else clearFoodSearchBtn.classList.add('hidden');
+      }
+      renderMenuGrid('menu-grid', currentMenuCategory, query);
+      renderMenuGrid('order-grid', currentMenuCategory, query);
+    });
+  }
+  if (clearFoodSearchBtn && foodSearchInput) {
+    clearFoodSearchBtn.addEventListener('click', () => {
+      foodSearchInput.value = '';
+      clearFoodSearchBtn.classList.add('hidden');
+      renderMenuGrid('menu-grid', currentMenuCategory, '');
+      renderMenuGrid('order-grid', currentMenuCategory, '');
+    });
+  }
+
   updateCartUI();
 
   // Cart drawer
@@ -958,6 +1007,18 @@ document.addEventListener('DOMContentLoaded', () => {
     content.classList.add('scale-95');
   }
 
+  function updateLocationBadge(verified) {
+    const badge = document.getElementById('order-location-badge');
+    if (!badge) return;
+    if (verified) {
+      badge.textContent = '🟢 Location Verified';
+      badge.className = 'text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1';
+    } else {
+      badge.textContent = '🔴 Location Unverified';
+      badge.className = 'text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full flex items-center gap-1';
+    }
+  }
+
   function initDeliveryMap() {
     if (!isDelivery) return;
     const mapContainer = document.getElementById('delivery-map');
@@ -973,10 +1034,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!deliveryMap) {
       deliveryMap = L.map('delivery-map').setView(limraCoords, 14);
       
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap contributors'
       }).addTo(deliveryMap);
+
+      satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19,
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+      });
 
       const restaurantIcon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
@@ -994,10 +1060,164 @@ document.addEventListener('DOMContentLoaded', () => {
       deliveryMap.on('click', async (e) => {
         await updatePinnedLocation(e.latlng);
       });
+
+      // UI Overlays - Layer Switcher
+      const layerBtn = document.getElementById('map-layer-toggle-btn');
+      if (layerBtn) {
+        layerBtn.addEventListener('click', () => {
+          if (currentMapLayer === 'street') {
+            deliveryMap.removeLayer(streetLayer);
+            satelliteLayer.addTo(deliveryMap);
+            currentMapLayer = 'satellite';
+            layerBtn.innerHTML = '🗺️';
+          } else {
+            deliveryMap.removeLayer(satelliteLayer);
+            streetLayer.addTo(deliveryMap);
+            currentMapLayer = 'street';
+            layerBtn.innerHTML = '🛰️';
+          }
+        });
+      }
+
+      // UI Overlays - Locate Self
+      const locateSelfBtn = document.getElementById('map-locate-self-btn');
+      if (locateSelfBtn) {
+        locateSelfBtn.addEventListener('click', () => {
+          const statusEl = document.getElementById('distance-calc-status');
+          if (statusEl) {
+            statusEl.innerHTML = `⌛ Detecting your current GPS location...`;
+            statusEl.style.color = '#e2b13c';
+          }
+
+          if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser.');
+            if (statusEl) statusEl.innerHTML = `❌ Geolocation not supported`;
+            return;
+          }
+
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const latlng = { lat: position.coords.latitude, lng: position.coords.longitude };
+              deliveryMap.setView(latlng, 16);
+              await updatePinnedLocation(latlng);
+            },
+            (error) => {
+              console.warn('GPS detection failed:', error);
+              alert('Could not detect your current location. Please check your browser permissions or manually tap the map to pin.');
+              if (statusEl) {
+                statusEl.innerHTML = `❌ Detection failed`;
+                statusEl.style.color = '#ef4444';
+              }
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+          );
+        });
+      }
+
+      // Search Autocomplete
+      const searchInput = document.getElementById('map-search-input');
+      const suggestionsBox = document.getElementById('map-search-suggestions');
+      const clearSearchBtn = document.getElementById('map-clear-search-btn');
+
+      if (searchInput && suggestionsBox) {
+        searchInput.addEventListener('input', () => {
+          const val = searchInput.value.trim();
+          if (clearSearchBtn) {
+            if (val) clearSearchBtn.classList.remove('hidden');
+            else clearSearchBtn.classList.add('hidden');
+          }
+
+          if (searchTimeout) clearTimeout(searchTimeout);
+          if (!val) {
+            suggestionsBox.innerHTML = '';
+            suggestionsBox.classList.add('hidden');
+            return;
+          }
+
+          searchTimeout = setTimeout(async () => {
+            try {
+              // Focus query around Egra area by adding context to search if local
+              const query = val.toLowerCase().includes('egra') ? val : `${val}, Egra, Purba Medinipur`;
+              const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`);
+              const data = await res.json();
+              
+              if (data && data.length > 0) {
+                suggestionsBox.innerHTML = data.map(item => `
+                  <div class="px-3 py-2 text-xs hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 suggestion-item" 
+                       data-lat="${item.lat}" data-lng="${item.lon}" data-name="${escapeHtml(item.display_name)}">
+                    📍 ${escapeHtml(item.display_name)}
+                  </div>
+                `).join('');
+                
+                suggestionsBox.classList.remove('hidden');
+
+                // Attach click listeners
+                suggestionsBox.querySelectorAll('.suggestion-item').forEach(el => {
+                  el.addEventListener('click', async () => {
+                    const lat = parseFloat(el.getAttribute('data-lat'));
+                    const lng = parseFloat(el.getAttribute('data-lng'));
+                    const name = el.getAttribute('data-name');
+                    
+                    searchInput.value = name;
+                    suggestionsBox.classList.add('hidden');
+                    
+                    const latlng = { lat, lng };
+                    deliveryMap.setView(latlng, 16);
+                    await updatePinnedLocation(latlng);
+                  });
+                });
+              } else {
+                suggestionsBox.innerHTML = `<div class="px-3 py-2.5 text-xs text-slate-400 italic text-center">No locations found. Try manual pinning.</div>`;
+                suggestionsBox.classList.remove('hidden');
+              }
+            } catch (err) {
+              console.warn('Search geocode autocomplete failed:', err);
+            }
+          }, 300);
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('#map-search-input') && !e.target.closest('#map-search-suggestions')) {
+            suggestionsBox.classList.add('hidden');
+          }
+        });
+      }
+
+      if (clearSearchBtn && searchInput) {
+        clearSearchBtn.addEventListener('click', () => {
+          searchInput.value = '';
+          clearSearchBtn.classList.add('hidden');
+          suggestionsBox.innerHTML = '';
+          suggestionsBox.classList.add('hidden');
+        });
+      }
+    }
+
+    // Prefill modal inputs if already confirmed
+    const existingLat = parseFloat(document.getElementById('order-latitude')?.value);
+    const existingLng = parseFloat(document.getElementById('order-longitude')?.value);
+    const existingLandmark = document.getElementById('order-landmark')?.value;
+    const existingNotes = document.getElementById('order-delivery-notes')?.value;
+
+    if (existingLandmark) {
+      document.getElementById('map-selected-landmark').value = existingLandmark;
+    }
+    if (existingNotes) {
+      document.getElementById('map-selected-notes').value = existingNotes;
     }
 
     setTimeout(() => {
-      if (deliveryMap) deliveryMap.invalidateSize();
+      if (deliveryMap) {
+        deliveryMap.invalidateSize();
+        if (existingLat && existingLng) {
+          const latlng = { lat: existingLat, lng: existingLng };
+          deliveryMap.setView(latlng, 16);
+          updatePinnedLocation(latlng);
+        } else {
+          deliveryMap.setView(limraCoords, 14);
+        }
+      }
     }, 150);
   }
 
@@ -1021,6 +1241,13 @@ document.addEventListener('DOMContentLoaded', () => {
       deliveryMarker.setLatLng(latlng);
     }
 
+    // Save selected coords in temporary state
+    mapSelectedLat = latlng.lat;
+    mapSelectedLng = latlng.lng;
+
+    document.getElementById('map-selected-lat').textContent = latlng.lat.toFixed(6);
+    document.getElementById('map-selected-lng').textContent = latlng.lng.toFixed(6);
+
     const dist = haversineDistance(limraCoords[0], limraCoords[1], latlng.lat, latlng.lng);
     deliveryKm = Math.min(50, Math.max(0.1, dist));
 
@@ -1031,78 +1258,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const statusEl = document.getElementById('distance-calc-status');
     if (statusEl) {
-      statusEl.innerHTML = `📍 Pinned: Delivery location pinned successfully!`;
-      statusEl.style.color = '#00b074';
+      statusEl.innerHTML = `⌛ Reverse geocoding location details...`;
+      statusEl.style.color = '#e2b13c';
     }
-
-    geocodeResolvedAddress = document.getElementById('order-address')?.value?.trim() || "";
-    updateCartUI();
 
     try {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`);
       const data = await res.json();
       if (data && data.display_name) {
-        const addrText = document.getElementById('order-address');
-        if (addrText) {
-          addrText.value = data.display_name;
-          geocodeResolvedAddress = data.display_name;
+        mapSelectedAddress = data.display_name;
+        document.getElementById('map-selected-address').textContent = data.display_name;
+
+        // Parse address subcomponents
+        const addr = data.address || {};
+        const area = addr.suburb || addr.neighbourhood || addr.village || addr.road || '—';
+        const city = addr.city || addr.town || addr.village || addr.county || '—';
+        const state = addr.state || '—';
+        const zip = addr.postcode || '—';
+
+        document.getElementById('map-selected-area').textContent = area;
+        document.getElementById('map-selected-city').textContent = city;
+        document.getElementById('map-selected-state').textContent = state;
+        document.getElementById('map-selected-zip').textContent = zip;
+
+        if (statusEl) {
+          statusEl.innerHTML = `🟢 Location pinned successfully (Distance: ${deliveryKm.toFixed(1)} km)`;
+          statusEl.style.color = '#10b981';
         }
       }
     } catch (e) {
       console.warn('Reverse geocode failed:', e);
+      if (statusEl) {
+        statusEl.innerHTML = `⚠️ Geocoding failed, coordinates saved.`;
+        statusEl.style.color = '#f59e0b';
+      }
     }
   }
 
   async function locateAddress() {
     const addressVal = document.getElementById('order-address')?.value?.trim();
-    if (!addressVal) {
-      alert('Please enter your address in the textarea first, then click Locate.');
-      return;
-    }
+    openMapModal();
+    if (!addressVal) return;
 
-    const btn = document.getElementById('locate-address-btn');
-    if (!btn) return;
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '⌛ ...';
-
-    try {
-      const query = `${addressVal}, Egra, Purba Medinipur, West Bengal, India`;
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-
-      if (data && data.length > 0) {
-         const latlng = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-         openMapModal();
-         setTimeout(() => {
-           if (deliveryMap) {
-             deliveryMap.setView([latlng.lat, latlng.lng], 15);
-             updatePinnedLocation(latlng);
-           }
-         }, 200);
-      } else {
-         const resFallback = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addressVal)}`);
-         const dataFallback = await resFallback.json();
-         if (dataFallback && dataFallback.length > 0) {
-           const latlng = { lat: parseFloat(dataFallback[0].lat), lng: parseFloat(dataFallback[0].lon) };
-           openMapModal();
-           setTimeout(() => {
-             if (deliveryMap) {
-               deliveryMap.setView([latlng.lat, latlng.lng], 15);
-               updatePinnedLocation(latlng);
-             }
-           }, 200);
-         } else {
-           alert('Could not locate address on the map. Please manually click/tap directly on the map to pin your location.');
-         }
+    // Prefill the search box inside the map and trigger search
+    setTimeout(() => {
+      const searchInput = document.getElementById('map-search-input');
+      if (searchInput) {
+        searchInput.value = addressVal;
+        searchInput.dispatchEvent(new Event('input'));
       }
-    } catch (e) {
-      console.warn('Geocode search failed:', e);
-      alert('Locating failed due to network rate-limiting. Please click/tap directly on the map to pin your location.');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
+    }, 300);
   }
 
   // ── Delivery type toggle ────────────────
@@ -1122,7 +1327,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (openMapBtn) openMapBtn.addEventListener('click', openMapModal);
     if (closeMapBtn) closeMapBtn.addEventListener('click', closeMapModal);
-    if (confirmMapBtn) confirmMapBtn.addEventListener('click', closeMapModal);
+    
+    if (confirmMapBtn) {
+      confirmMapBtn.addEventListener('click', () => {
+        if (!mapSelectedLat || !mapSelectedLng) {
+          alert('Please pin a location on the map first.');
+          return;
+        }
+
+        // Write values to checkout inputs
+        const addressInput = document.getElementById('order-address');
+        if (addressInput && mapSelectedAddress) {
+          addressInput.value = mapSelectedAddress;
+          geocodeResolvedAddress = mapSelectedAddress;
+        }
+
+        const latInput = document.getElementById('order-latitude');
+        if (latInput) latInput.value = mapSelectedLat;
+
+        const lngInput = document.getElementById('order-longitude');
+        if (lngInput) lngInput.value = mapSelectedLng;
+
+        const landmarkInput = document.getElementById('order-landmark');
+        const modalLandmark = document.getElementById('map-selected-landmark');
+        if (landmarkInput && modalLandmark) {
+          landmarkInput.value = modalLandmark.value.trim();
+        }
+
+        const notesInput = document.getElementById('order-delivery-notes');
+        const modalNotes = document.getElementById('map-selected-notes');
+        if (notesInput && modalNotes) {
+          notesInput.value = modalNotes.value.trim();
+        }
+
+        const verifiedInput = document.getElementById('order-location-verified');
+        if (verifiedInput) {
+          verifiedInput.value = 'true';
+        }
+
+        updateLocationBadge(true);
+        updateCartUI();
+        closeMapModal();
+      });
+    }
+
     if (mapModal) {
       mapModal.addEventListener('click', (e) => {
         if (e.target === mapModal) closeMapModal();
@@ -1203,7 +1451,7 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Please enter a valid 10-digit phone number.');
       return false;
     }
-    if (!email || !email.includes('@')) {
+    if (email && !email.includes('@')) {
       alert('Please enter a valid email address.');
       return false;
     }
@@ -1447,11 +1695,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const taxes   = getTaxesAmount();
     const payment = getSelectedPaymentMethod();
 
+    const lat     = parseFloat(document.getElementById('order-latitude')?.value) || null;
+    const lng     = parseFloat(document.getElementById('order-longitude')?.value) || null;
+    const landmark = document.getElementById('order-landmark')?.value?.trim() || null;
+    const deliveryNotes = document.getElementById('order-delivery-notes')?.value?.trim() || null;
+    const locationVerified = document.getElementById('order-location-verified')?.value === 'true';
+
     if (!name || !phone) {
       alert('Please enter your name and phone number.');
       return;
     }
-    if (!email || !email.includes('@')) {
+    if (email && !email.includes('@')) {
       alert('Please enter a valid email address.');
       return;
     }
@@ -1463,7 +1717,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const deliveryNote = isDelivery
       ? `[DELIVERY] Address: ${address} | Distance: ${km.toFixed(1)} km | Delivery charge: ₹${charge}`
       : '[SELF PICKUP]';
-    const emailNote = `[EMAIL: ${email}]`;
+    const emailNote = email ? `[EMAIL: ${email}]` : '';
     const paymentNote = `[PAYMENT: ${payment}] | [PAYMENT_STATUS: ${payment === 'upi' ? 'COMPLETED' : 'PENDING'}]`;
     const combinedNotes = [deliveryNote, emailNote, paymentNote, notes].filter(Boolean).join(' | ');
 
@@ -1483,6 +1737,11 @@ document.addEventListener('DOMContentLoaded', () => {
           customerPhone: phone,
           items: cartSnapshot,
           notes: combinedNotes,
+          latitude: lat,
+          longitude: lng,
+          landmark: landmark,
+          deliveryNotes: deliveryNotes,
+          locationVerified: locationVerified
         });
         const orderLabel = order?.order_number ? `Order #${order.order_number}` : 'Your order';
         statusEl.textContent = `${orderLabel} placed! We will confirm soon.`;
@@ -1779,11 +2038,54 @@ async function initAuthPanel() {
   const formSignin = document.getElementById('form-signin');
   const formSignup = document.getElementById('form-signup');
 
+  const signinIdentifierInput = document.getElementById('signin-identifier');
+  const signinPasswordGroup = document.getElementById('signin-password-group');
+  const signinPasswordInput = document.getElementById('signin-password');
+  const btnGotoForgot = document.getElementById('btn-goto-forgot');
+
+  const signupIdentifierInput = document.getElementById('signup-identifier');
+  const signupPasswordGroup = document.getElementById('signup-password-group');
+  const signupPasswordInput = document.getElementById('signup-password');
+
+  function resetSignupFormStep() {
+    if (formSignup) formSignup.reset();
+    signupPasswordGroup?.classList.remove('hidden');
+    signupPasswordInput?.setAttribute('required', '');
+    signupIdentifierInput?.dispatchEvent(new Event('input'));
+  }
+
+  signinIdentifierInput?.addEventListener('input', () => {
+    const val = signinIdentifierInput.value.trim();
+    const detected = detectInputType(val);
+    if (detected && detected.type === 'phone') {
+      signinPasswordGroup?.classList.add('hidden');
+      signinPasswordInput?.removeAttribute('required');
+      btnGotoForgot?.classList.add('hidden');
+    } else {
+      signinPasswordGroup?.classList.remove('hidden');
+      signinPasswordInput?.setAttribute('required', '');
+      btnGotoForgot?.classList.remove('hidden');
+    }
+  });
+
+  signupIdentifierInput?.addEventListener('input', () => {
+    const val = signupIdentifierInput.value.trim();
+    const detected = detectInputType(val);
+    if (detected && detected.type === 'phone') {
+      signupPasswordGroup?.classList.add('hidden');
+      signupPasswordInput?.removeAttribute('required');
+    } else {
+      signupPasswordGroup?.classList.remove('hidden');
+      signupPasswordInput?.setAttribute('required', '');
+    }
+  });
+
   tabSignin?.addEventListener('click', () => {
     tabSignin.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-800 bg-white shadow-sm';
     tabSignup.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500';
     formSignin.classList.remove('hidden');
     formSignup.classList.add('hidden');
+    resetSignupFormStep();
   });
 
   tabSignup?.addEventListener('click', () => {
@@ -1791,7 +2093,102 @@ async function initAuthPanel() {
     tabSignin.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500';
     formSignup.classList.remove('hidden');
     formSignin.classList.add('hidden');
+    resetSignupFormStep();
   });
+
+  // Signup method toggle (Email vs Phone)
+  let signupIdentifier = '';
+  let signupPassword = '';
+  let signupMethod = ''; // 'email' or 'phone'
+  let signupOtpCode = '';
+
+  let forgotIdentifier = '';
+  let forgotMethod = '';
+  let forgotOtpCode = '';
+
+  function showAuthView(viewName) {
+    formSignin.classList.add('hidden');
+    formSignup.classList.add('hidden');
+    document.getElementById('auth-verification-view')?.classList.add('hidden');
+    document.getElementById('auth-forgot-view')?.classList.add('hidden');
+    document.getElementById('auth-error-msg')?.classList.add('hidden');
+
+    if (viewName === 'signin') {
+      formSignin.classList.remove('hidden');
+      tabSignin.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-800 bg-white shadow-sm';
+      tabSignup.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500';
+    } else if (viewName === 'signup') {
+      formSignup.classList.remove('hidden');
+      tabSignup.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-800 bg-white shadow-sm';
+      tabSignin.className = 'flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-slate-500';
+    } else if (viewName === 'verification') {
+      document.getElementById('auth-verification-view')?.classList.remove('hidden');
+    } else if (viewName === 'forgot') {
+      document.getElementById('auth-forgot-view')?.classList.remove('hidden');
+    }
+  }
+
+  // Override top tabs click handlers
+  tabSignin?.addEventListener('click', () => {
+    showAuthView('signin');
+  });
+
+  tabSignup?.addEventListener('click', () => {
+    showAuthView('signup');
+  });
+
+  // Password Show/Hide toggles
+  const btnSigninTogglePassword = document.getElementById('btn-signin-toggle-password');
+  btnSigninTogglePassword?.addEventListener('click', () => {
+    const isPass = signinPasswordInput.type === 'password';
+    signinPasswordInput.type = isPass ? 'text' : 'password';
+    btnSigninTogglePassword.textContent = isPass ? 'Hide' : 'Show';
+  });
+
+  const btnSignupTogglePassword = document.getElementById('btn-signup-toggle-password');
+  btnSignupTogglePassword?.addEventListener('click', () => {
+    const isPass = signupPasswordInput.type === 'password';
+    signupPasswordInput.type = isPass ? 'text' : 'password';
+    btnSignupTogglePassword.textContent = isPass ? 'Hide' : 'Show';
+  });
+
+  const forgotNewPasswordInput = document.getElementById('forgot-new-password');
+  const btnForgotTogglePassword = document.getElementById('btn-forgot-toggle-password');
+  btnForgotTogglePassword?.addEventListener('click', () => {
+    const isPass = forgotNewPasswordInput.type === 'password';
+    forgotNewPasswordInput.type = isPass ? 'text' : 'password';
+    btnForgotTogglePassword.textContent = isPass ? 'Hide' : 'Show';
+  });
+
+  // Navigation handlers between auth sub-views
+  document.getElementById('btn-goto-forgot')?.addEventListener('click', () => {
+    showAuthView('forgot');
+    document.getElementById('form-forgot-step1').classList.remove('hidden');
+    document.getElementById('form-forgot-step2').classList.add('hidden');
+  });
+
+  document.getElementById('btn-back-to-login')?.addEventListener('click', () => {
+    showAuthView('signin');
+  });
+
+  document.getElementById('btn-back-to-signup')?.addEventListener('click', () => {
+    showAuthView('signup');
+  });
+
+  // Input Type Detection helper
+  function detectInputType(val) {
+    const trimmed = val.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (emailRegex.test(trimmed)) {
+      return { type: 'email', value: trimmed };
+    }
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length >= 10 && digits.length <= 15) {
+      const cleanPhone = digits.slice(-10);
+      return { type: 'phone', value: cleanPhone };
+    }
+    return null;
+  }
 
   // Display Errors helper
   const errorMsg = document.getElementById('auth-error-msg');
@@ -1808,72 +2205,419 @@ async function initAuthPanel() {
   // 1. Sign Up Handler
   document.getElementById('form-signup')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = document.getElementById('signup-name').value.trim();
-    const phone = document.getElementById('signup-phone').value.trim();
-    const email = document.getElementById('signup-email').value.trim();
-    const password = document.getElementById('signup-password').value;
+    const rawVal = document.getElementById('signup-identifier').value.trim();
 
-    if (!name || !phone || !email || !password) return;
+    const detected = detectInputType(rawVal);
+    if (!detected) {
+      alert('Please enter a valid email address or 10-digit mobile number.');
+      return;
+    }
 
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating account...';
+    signupMethod = detected.type;
+    signupIdentifier = detected.value;
 
-    try {
-      const { data, error } = await insforge.auth.signUp({
-        email,
-        password,
-        name,
-        redirectTo: window.location.origin
-      });
-
-      if (error) throw error;
-
-      // Auto-create profile row in custom table
-      const profileData = {
-        id: data.user.id,
-        name,
-        phone,
-        email,
-        address: ''
-      };
-      
-      const { error: dbError } = await insforge.database
-        .from('customer_profiles')
-        .insert([profileData]);
-        
-      if (dbError) {
-        console.warn('Profile database row setup failed:', dbError.message);
+    if (signupMethod === 'phone') {
+      signupPassword = signupIdentifier;
+    } else {
+      signupPassword = document.getElementById('signup-password').value;
+      if (signupPassword.length < 8) {
+        alert('Password must be at least 8 characters long.');
+        return;
       }
+    }
 
-      alert('Account created successfully! A verification link has been sent to your email. Please check it and Sign In.');
-      tabSignin?.click();
-    } catch (err) {
-      displayError(err.message || 'Registration failed.');
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Register Account ➔';
+    const submitBtn = document.getElementById('btn-signup-action');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+
+    if (signupMethod === 'email') {
+      try {
+        const { data, error } = await insforge.auth.signUp({
+          email: signupIdentifier,
+          password: signupPassword,
+          name: 'Customer'
+        });
+
+        if (error) {
+          if (error.message && error.message.toLowerCase().includes('already exists')) {
+            throw new Error('An account with this email or phone number already exists.');
+          }
+          throw error;
+        }
+
+        document.getElementById('verification-msg').textContent = 'We have sent a verification code to your email address.';
+        showAuthView('verification');
+        document.getElementById('verification-otp').focus();
+      } catch (err) {
+        displayError(err.message || 'Signup failed.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Register Account ➔';
+      }
+    } else {
+      try {
+        const { data: code, error } = await insforge.database.rpc('send_phone_signup_code', {
+          p_phone: signupIdentifier
+        });
+
+        if (error) {
+          if (error.message && error.message.toLowerCase().includes('already exists')) {
+            throw new Error('An account with this email or phone number already exists.');
+          }
+          throw error;
+        }
+
+        signupOtpCode = code;
+        console.log(`[LIMRA-SMS-Mock] Verification code for ${signupIdentifier}: ${signupOtpCode}`);
+
+        alert(`💬 SMS Message • +91 ${signupIdentifier}\n\n[LIMRA Restaurant] Your verification OTP code is ${signupOtpCode}. This code expires in 5 minutes.`);
+
+        document.getElementById('verification-msg').textContent = 'We have sent a verification code to your mobile number.';
+        showAuthView('verification');
+        document.getElementById('verification-otp').focus();
+      } catch (err) {
+        displayError(err.message || 'Signup failed.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Register Account ➔';
+      }
     }
   });
 
-  // 2. Sign In Handler
+  // 2. OTP Verification Handler
+  document.getElementById('form-verify')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const enteredOtp = document.getElementById('verification-otp').value.trim();
+    if (enteredOtp.length !== 6) {
+      alert('Please enter a 6-digit verification code.');
+      return;
+    }
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Verifying...';
+
+    if (signupMethod === 'email') {
+      try {
+        const { data, error } = await insforge.auth.verifyEmail({
+          email: signupIdentifier,
+          otp: enteredOtp
+        });
+
+        if (error) {
+          if (error.message && error.message.toLowerCase().includes('expired')) {
+            throw new Error('Verification code expired. Please request a new code.');
+          } else {
+            throw new Error('Incorrect verification code.');
+          }
+        }
+
+        const { data: existingProfile } = await insforge.database
+          .from('customer_profiles')
+          .select('id')
+          .eq('id', data.user.id);
+
+        if (!existingProfile || existingProfile.length === 0) {
+          const profileData = {
+            id: data.user.id,
+            name: 'Customer',
+            phone: '',
+            email: signupIdentifier,
+            email_verified: true,
+            address: ''
+          };
+          await insforge.database.from('customer_profiles').insert([profileData]);
+        }
+
+        alert('Registration Successful\n\nYou are now registered and signed in.');
+        await checkAuthStatus();
+        closeDrawer();
+      } catch (err) {
+        alert(err.message || 'Verification failed.');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    } else {
+      if (enteredOtp !== signupOtpCode) {
+        alert('Incorrect verification code.');
+        submitBtn.disabled = false;
+        return;
+      }
+
+      const mockEmail = `${signupIdentifier}@limraresturent.in`;
+      const mockPassword = signupPassword;
+
+      try {
+        const regRes = await insforge.auth.signUp({
+          email: mockEmail,
+          password: mockPassword,
+          name: 'Customer'
+        });
+        if (regRes.error) throw regRes.error;
+
+        const loginRes = await insforge.auth.signInWithPassword({
+          email: mockEmail,
+          password: mockPassword
+        });
+        if (loginRes.error) throw loginRes.error;
+
+        const { data: existingProfile } = await insforge.database
+          .from('customer_profiles')
+          .select('id')
+          .eq('id', loginRes.data.user.id);
+
+        if (!existingProfile || existingProfile.length === 0) {
+          const profileData = {
+            id: loginRes.data.user.id,
+            name: 'Customer',
+            phone: signupIdentifier,
+            email: null,
+            phone_verified: true,
+            address: ''
+          };
+          await insforge.database.from('customer_profiles').insert([profileData]);
+        }
+
+        // Clean up temporary phone verification row
+        try {
+          await insforge.database.query("DELETE FROM public.phone_verifications WHERE phone = $1", [signupIdentifier]);
+        } catch (e) {}
+
+        alert('Registration Successful\n\nYou are now registered and signed in.');
+        await checkAuthStatus();
+        closeDrawer();
+      } catch (err) {
+        alert('Registration failed: ' + (err.message || err));
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+  });
+
+  // 3. Resend OTP Handler
+  document.getElementById('btn-resend-otp')?.addEventListener('click', async () => {
+    const resendBtn = document.getElementById('btn-resend-otp');
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Sending...';
+
+    if (signupMethod === 'email') {
+      try {
+        await insforge.auth.resendVerificationEmail({
+          email: signupIdentifier,
+          redirectTo: window.location.origin
+        });
+        alert('A new verification code has been sent to your email address.');
+      } catch (err) {
+        alert(err.message || 'Resend failed.');
+      } finally {
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend Code';
+      }
+    } else {
+      try {
+        const { data: code, error } = await insforge.database.rpc('send_phone_signup_code', {
+          p_phone: signupIdentifier
+        });
+        if (error) throw error;
+
+        signupOtpCode = code;
+        alert(`💬 SMS Message • +91 ${signupIdentifier}\n\n[LIMRA Restaurant] Your verification OTP code is ${signupOtpCode}. This code expires in 5 minutes.`);
+      } catch (err) {
+        alert(err.message || 'Resend failed.');
+      } finally {
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend Code';
+      }
+    }
+  });
+
+  // 4. Forgot Password - Send Code Handler
+  document.getElementById('form-forgot-step1')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rawVal = document.getElementById('forgot-identifier').value.trim();
+
+    const detected = detectInputType(rawVal);
+    if (!detected) {
+      alert('Please enter a valid email address or 10-digit mobile number.');
+      return;
+    }
+
+    forgotMethod = detected.type;
+    forgotIdentifier = detected.value;
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    if (forgotMethod === 'email') {
+      try {
+        const { error } = await insforge.auth.sendResetPasswordEmail({
+          email: forgotIdentifier,
+          redirectTo: window.location.origin
+        });
+        if (error) throw error;
+
+        document.getElementById('forgot-step2-msg').textContent = 'We have sent a verification code to your email address.';
+        document.getElementById('form-forgot-step1').classList.add('hidden');
+        document.getElementById('form-forgot-step2').classList.remove('hidden');
+        document.getElementById('forgot-otp').focus();
+      } catch (err) {
+        alert(err.message || 'Failed to send reset code.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Reset Code';
+      }
+    } else {
+      try {
+        const { data: code, error } = await insforge.database.rpc('send_phone_reset_code', {
+          p_phone: forgotIdentifier
+        });
+        if (error) {
+          if (error.message && error.message.toLowerCase().includes('does not exist')) {
+            throw new Error('Account with this phone number does not exist.');
+          }
+          throw error;
+        }
+
+        forgotOtpCode = code;
+        alert(`💬 SMS Message • +91 ${forgotIdentifier}\n\n[LIMRA Restaurant] Your password reset verification OTP is ${forgotOtpCode}. Expires in 5 minutes.`);
+
+        document.getElementById('forgot-step2-msg').textContent = 'We have sent a verification code to your mobile number.';
+        document.getElementById('form-forgot-step1').classList.add('hidden');
+        document.getElementById('form-forgot-step2').classList.remove('hidden');
+        document.getElementById('forgot-otp').focus();
+      } catch (err) {
+        alert(err.message || 'Failed to send reset code.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Reset Code';
+      }
+    }
+  });
+
+  // 5. Forgot Password - Verify and Update Handler
+  document.getElementById('form-forgot-step2')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const enteredOtp = document.getElementById('forgot-otp').value.trim();
+    const newPassword = document.getElementById('forgot-new-password').value;
+
+    if (enteredOtp.length !== 6) {
+      alert('Please enter a 6-digit verification code.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      alert('Password must be at least 8 characters long.');
+      return;
+    }
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Resetting...';
+
+    if (forgotMethod === 'email') {
+      try {
+        const exRes = await insforge.auth.exchangeResetPasswordToken({
+          email: forgotIdentifier,
+          code: enteredOtp
+        });
+        if (exRes.error) {
+          if (exRes.error.message && exRes.error.message.toLowerCase().includes('expired')) {
+            throw new Error('Verification code expired. Please request a new code.');
+          } else {
+            throw new Error('Incorrect verification code.');
+          }
+        }
+
+        const token = exRes.data.token;
+
+        const resetRes = await insforge.auth.resetPassword({
+          newPassword: newPassword,
+          otp: token
+        });
+        if (resetRes.error) throw resetRes.error;
+
+        alert('Password updated successfully.');
+        await checkAuthStatus();
+        closeDrawer();
+      } catch (err) {
+        alert(err.message || 'Password reset failed.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Reset Password & Sign In';
+      }
+    } else {
+      try {
+        const { data: success, error } = await insforge.database.rpc('verify_phone_reset_password', {
+          p_phone: forgotIdentifier,
+          p_code: enteredOtp,
+          p_new_password: newPassword
+        });
+
+        if (error) {
+          if (error.message && error.message.toLowerCase().includes('expired')) {
+            throw new Error('Verification code expired. Please request a new code.');
+          } else {
+            throw new Error('Incorrect verification code.');
+          }
+        }
+
+        alert('Password updated successfully.');
+
+        const mockEmail = `${forgotIdentifier}@limraresturent.in`;
+        await insforge.auth.signInWithPassword({
+          email: mockEmail,
+          password: newPassword
+        });
+
+        await checkAuthStatus();
+        closeDrawer();
+      } catch (err) {
+        alert(err.message || 'Password reset failed.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Reset Password & Sign In';
+      }
+    }
+  });
+
+  // 6. Sign In Handler
   document.getElementById('form-signin')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('signin-email').value.trim();
-    const password = document.getElementById('signin-password').value;
+    const rawVal = document.getElementById('signin-identifier').value.trim();
 
-    if (!email || !password) return;
+    const detected = detectInputType(rawVal);
+    if (!detected) {
+      alert('Please enter a valid email address or 10-digit mobile number.');
+      return;
+    }
+
+    const password = detected.type === 'phone' ? detected.value : document.getElementById('signin-password').value;
+    if (!password) {
+      alert('Password is required.');
+      return;
+    }
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Signing in...';
 
+    let email = detected.value;
+    if (detected.type === 'phone') {
+      email = `${detected.value}@limraresturent.in`;
+    }
+
     try {
       const { data, error } = await insforge.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        if (error.message && (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('incorrect'))) {
+          throw new Error('Incorrect password.');
+        }
+        throw error;
+      }
       
       await checkAuthStatus();
       alert('Welcome to LIMRA Restaurant! You are now signed in.');
+      closeDrawer();
     } catch (err) {
       displayError(err.message || 'Login failed. Please verify email/password.');
     } finally {
@@ -1938,7 +2682,12 @@ async function initAuthPanel() {
         name: currentUser.name || userProfile?.name || 'Guest Client',
         phone,
         address,
-        email: currentUser.email
+        email: (currentUser.email && currentUser.email.endsWith('@limraresturent.in')) ? null : (currentUser.email || null),
+        latitude: mapSelectedLat || userProfile?.latitude || null,
+        longitude: mapSelectedLng || userProfile?.longitude || null,
+        landmark: document.getElementById('order-landmark')?.value || userProfile?.landmark || null,
+        delivery_notes: document.getElementById('order-delivery-notes')?.value || userProfile?.delivery_notes || null,
+        location_verified: (document.getElementById('order-location-verified')?.value === 'true') || userProfile?.location_verified || false
       };
 
       const { error } = await insforge.database
@@ -1986,22 +2735,48 @@ async function checkAuthStatus() {
         
       if (!error && profiles && profiles.length > 0) {
         userProfile = profiles[0];
+        if (userProfile.email && userProfile.email.endsWith('@limraresturent.in')) {
+          userProfile.email = null;
+        }
       } else {
+        const isMockEmail = user.email && user.email.endsWith('@limraresturent.in');
         userProfile = {
           id: user.id,
           name: user.name || 'Guest Client',
-          phone: '',
+          phone: isMockEmail ? user.email.split('@')[0] : '',
           address: '',
-          email: user.email
+          email: isMockEmail ? null : user.email
         };
       }
       
       // Auto-fill checkout fields immediately
       if (userProfile.name) document.getElementById('order-customer-name').value = userProfile.name;
       if (userProfile.phone) document.getElementById('order-customer-phone').value = userProfile.phone;
-      if (userProfile.email) document.getElementById('order-customer-email').value = userProfile.email;
+      if (userProfile.email) {
+        document.getElementById('order-customer-email').value = userProfile.email;
+      } else {
+        document.getElementById('order-customer-email').value = '';
+      }
       if (userProfile.address && document.getElementById('order-address')) {
         document.getElementById('order-address').value = userProfile.address;
+      }
+      if (userProfile.landmark && document.getElementById('order-landmark')) {
+        document.getElementById('order-landmark').value = userProfile.landmark;
+      }
+      if (userProfile.delivery_notes && document.getElementById('order-delivery-notes')) {
+        document.getElementById('order-delivery-notes').value = userProfile.delivery_notes;
+      }
+      if (userProfile.latitude && document.getElementById('order-latitude')) {
+        document.getElementById('order-latitude').value = userProfile.latitude;
+        mapSelectedLat = parseFloat(userProfile.latitude);
+      }
+      if (userProfile.longitude && document.getElementById('order-longitude')) {
+        document.getElementById('order-longitude').value = userProfile.longitude;
+        mapSelectedLng = parseFloat(userProfile.longitude);
+      }
+      if (userProfile.location_verified !== undefined && document.getElementById('order-location-verified')) {
+        document.getElementById('order-location-verified').value = userProfile.location_verified ? 'true' : 'false';
+        updateLocationBadge(userProfile.location_verified);
       }
       updateCartUI();
 
@@ -2031,7 +2806,13 @@ function renderAuthUI() {
     const profileAddress = document.getElementById('profile-address');
 
     if (displayName) displayName.textContent = currentUser.name || userProfile?.name || 'Guest Client';
-    if (displayEmail) displayEmail.textContent = currentUser.email;
+    if (displayEmail) {
+      if (currentUser.email && currentUser.email.endsWith('@limraresturent.in')) {
+        displayEmail.textContent = userProfile?.phone || currentUser.email.split('@')[0];
+      } else {
+        displayEmail.textContent = currentUser.email;
+      }
+    }
     if (profilePhone) profilePhone.value = userProfile?.phone || '';
     if (profileAddress) profileAddress.value = userProfile?.address || '';
   } else {

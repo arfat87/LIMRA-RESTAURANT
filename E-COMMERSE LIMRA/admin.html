@@ -181,6 +181,21 @@
           </div>
         </div>
 
+        <!-- Active Deliveries Map Card -->
+        <div class="adm-card mb-6">
+          <div class="adm-card-head" style="flex-wrap: wrap; gap: 0.75rem;">
+            <h3 class="adm-card-title">📍 Live Delivery Tracker</h3>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button id="map-filter-all" class="adm-pill active" style="border: 1px solid var(--adm-border); cursor:pointer; background:var(--adm-green); color:#fff; font-family: inherit;">All Active</button>
+              <button id="map-filter-pending" class="adm-pill" style="border: 1px solid var(--adm-border); cursor:pointer; background:#f5f7fa; color:var(--adm-text); font-family: inherit;">New Orders</button>
+              <button id="map-filter-preparing" class="adm-pill" style="border: 1px solid var(--adm-border); cursor:pointer; background:#f5f7fa; color:var(--adm-text); font-family: inherit;">Preparing / Ready</button>
+            </div>
+          </div>
+          <div class="adm-detail-map-wrap" style="height: 380px;">
+            <div id="dashboard-deliveries-map" style="height: 100%; width: 100%;"></div>
+          </div>
+        </div>
+
         <div class="adm-grid-2 mb-6">
           <div class="adm-card">
             <div class="adm-card-head">
