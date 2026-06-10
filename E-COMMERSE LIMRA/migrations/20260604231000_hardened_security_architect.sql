@@ -538,11 +538,19 @@ BEGIN
   VALUES (
     NEW.id,
     COALESCE(NEW.metadata->>'name', NEW.profile->>'name', 'Limra Foodie'),
-    COALESCE(NEW.metadata->>'phone', NEW.profile->>'phone', '9876543210'),
+    COALESCE(NEW.metadata->>'phone', NEW.profile->>'phone'),
     NEW.email,
     '[]'
   )
   ON CONFLICT (id) DO NOTHING;
+
+  -- Automatically grant admin rights to specified owner emails
+  IF NEW.email IN ('arfatalis451@gmail.com', 'limrarestaurant99@gmail.com') THEN
+    INSERT INTO public.admin_users (user_id, email)
+    VALUES (NEW.id, NEW.email)
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';

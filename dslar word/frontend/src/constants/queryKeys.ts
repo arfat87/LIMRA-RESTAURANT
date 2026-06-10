@@ -1,0 +1,18 @@
+export const QUERY_KEYS = {
+  PRODUCTS: 'products',
+  PRODUCT: (slug: string) => ['product', slug] as const,
+  FEATURED_PRODUCTS: 'featured-products',
+  CATEGORIES: 'categories',
+  CART: 'cart',
+  ORDERS: 'orders',
+  ORDER: (id: string) => ['order', id] as const,
+  WISHLIST: 'wishlist',
+  REVIEWS: (productId: string) => ['reviews', productId] as const,
+  ME: 'me',
+  ADDRESSES: 'addresses',
+  ADMIN_DASHBOARD: 'admin-dashboard',
+  ADMIN_USERS: 'admin-users',
+  ADMIN_ALL_ORDERS: 'admin-all-orders',
+  ADMIN_ALL_REVIEWS: 'admin-all-reviews',
+  SERVICEABILITY: (pincode: string) => ['serviceability', pincode] as const,
+} as const;

@@ -1846,8 +1846,24 @@ async function refreshDashboard(isManual = false) {
 
 // ── Auth flow ───────────────────────────────────────────
 
+function cleanAuthParams() {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('insforge_code') || url.searchParams.has('insforge_status')) {
+      url.searchParams.delete('insforge_code');
+      url.searchParams.delete('insforge_status');
+      url.searchParams.delete('insforge_type');
+      url.searchParams.delete('insforge_error');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  } catch (e) {
+    console.warn('Failed to clean auth URL params:', e);
+  }
+}
+
 async function initAuth() {
   const { data } = await insforge.auth.getCurrentUser();
+  cleanAuthParams();
   if (!data?.user) {
     redirectToLogin();
     return;

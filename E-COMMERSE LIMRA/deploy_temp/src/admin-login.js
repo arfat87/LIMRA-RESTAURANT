@@ -38,6 +38,7 @@ function hideAuthForms() {
   hide($('auth-tabs'));
   hide($('login-form'));
   hide($('signup-form'));
+  hide($('google-auth-container'));
   show($('verify-email-panel'));
 }
 
@@ -45,6 +46,7 @@ function showAuthForms() {
   show($('auth-tabs'));
   show($('login-form'));
   hide($('signup-form'));
+  show($('google-auth-container'));
   hide($('verify-email-panel'));
   hide($('verify-error'));
   hide($('verify-success'));
@@ -52,6 +54,8 @@ function showAuthForms() {
   pendingVerifyEmail = '';
   document.querySelector('[data-auth-tab="login"]')?.classList.add('active');
   document.querySelector('[data-auth-tab="signup"]')?.classList.remove('active');
+  const btnText = $('google-btn-text');
+  if (btnText) btnText.textContent = 'Sign in with Google';
 }
 
 function showVerifyEmail(email) {
@@ -115,8 +119,11 @@ function initAuthUI() {
       const isLogin = tab.dataset.authTab === 'login';
       hide($('verify-email-panel'));
       show($('auth-tabs'));
+      show($('google-auth-container'));
       isLogin ? show($('login-form')) : hide($('login-form'));
       isLogin ? hide($('signup-form')) : show($('signup-form'));
+      const btnText = $('google-btn-text');
+      if (btnText) btnText.textContent = isLogin ? 'Sign in with Google' : 'Sign up with Google';
     });
   });
 
@@ -251,17 +258,74 @@ function initAuthUI() {
     }
     showVerifyEmail(email);
   });
+
+  $('google-signin-btn')?.addEventListener('click', async () => {
+    hide($('login-error'));
+    hide($('signup-error'));
+    const redirectTo = window.location.origin + '/admin-login.html';
+    const { error } = await insforge.auth.signInWithOAuth({
+      provider: 'google',
+      redirectTo
+    });
+    if (error) {
+      $('login-error').textContent = error.message;
+      show($('login-error'));
+    }
+  });
+}
+
+function handleOAuthCallback() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('insforge_status');
+    const errorMsg = params.get('insforge_error');
+
+    if (status === 'error' && errorMsg) {
+      $('login-error').textContent = `Google Sign-in failed: ${errorMsg}`;
+      show($('login-error'));
+      const url = new URL(window.location.href);
+      url.searchParams.delete('insforge_status');
+      url.searchParams.delete('insforge_error');
+      window.history.replaceState({}, '', url.pathname + url.search);
+      return true;
+    }
+  } catch (e) {
+    console.warn('Failed to handle OAuth callback params:', e);
+  }
+  return false;
+}
+
+function cleanAuthParams() {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('insforge_code') || url.searchParams.has('insforge_status')) {
+      url.searchParams.delete('insforge_code');
+      url.searchParams.delete('insforge_status');
+      url.searchParams.delete('insforge_type');
+      url.searchParams.delete('insforge_error');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
+  } catch (e) {
+    console.warn('Failed to clean auth URL params:', e);
+  }
 }
 
 async function init() {
   handleEmailVerifyCallback();
+  handleOAuthCallback();
 
   const { data } = await insforge.auth.getCurrentUser();
+  cleanAuthParams();
+
   if (data?.user) {
     const isAdmin = await checkAdminAccess(data.user);
     if (isAdmin) {
       goToDashboard();
       return;
+    } else {
+      await insforge.auth.signOut();
+      $('login-error').textContent = 'Your account is authenticated, but admin access has not been granted. Contact the owner.';
+      show($('login-error'));
     }
   }
 
@@ -269,3 +333,4 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+

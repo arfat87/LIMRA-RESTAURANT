@@ -98,7 +98,11 @@ DROP POLICY IF EXISTS "Admins can read admin_users" ON public.admin_users;
 CREATE POLICY "Admins can read admin_users"
   ON public.admin_users FOR SELECT
   TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = (SELECT auth.uid())));
+  USING (user_id = auth.uid() OR public.is_admin());
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, anon;
+
+
 
 -- notifications policies
 DROP POLICY IF EXISTS "Allow select for admins" ON public.notifications;
