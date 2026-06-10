@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Order Status — LIMRA Restaurant</title>
+  <meta name="theme-color" content="#c8860a"/>
+  <link rel="icon" href="/images/logo.png" type="image/png"/>
+  <link rel="stylesheet" href="/src/style.css"/>
+</head>
+<body style="min-height:100vh; background:var(--black); display:flex; flex-direction:column;">
+
+  <!-- Header -->
+  <header style="background:var(--dark-1); border-bottom:1px solid var(--border); padding:1rem 1.25rem; display:flex; align-items:center; gap:0.75rem; position:sticky; top:0; z-index:50;">
+    <div style="width:2rem; height:2rem; background:linear-gradient(135deg,var(--gold),var(--gold-dark)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:800; font-size:1rem; color:#000;">L</div>
+    <span style="font-family:var(--font-display); font-weight:700; font-size:1.1rem; color:var(--text-primary);">LIMRA</span>
+    <span style="font-size:0.75rem; color:var(--text-muted); margin-left:auto;">Order Tracker</span>
+  </header>
+
+  <!-- Main -->
+  <main style="flex:1; padding:1.5rem 1rem; max-width:600px; margin:0 auto; width:100%;">
+
+    <!-- Order Info Card -->
+    <div id="order-info-card" class="card card-gold hidden" style="margin-bottom:1.5rem;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;">
+        <div>
+          <p style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.25rem;">Order Number</p>
+          <p id="order-num-display" style="font-family:var(--font-display); font-size:1.4rem; font-weight:700; color:var(--gold);"></p>
+        </div>
+        <div id="order-status-badge" class="badge badge-yellow">Pending</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; font-size:0.8rem;">
+        <div>
+          <p style="color:var(--text-muted); margin-bottom:0.15rem;">Table</p>
+          <p id="order-table-display" style="color:var(--text-primary); font-weight:600;"></p>
+        </div>
+        <div>
+          <p style="color:var(--text-muted); margin-bottom:0.15rem;">Time</p>
+          <p id="order-time-display" style="color:var(--text-primary); font-weight:600;"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Tracker -->
+    <div id="status-tracker-card" class="card hidden" style="margin-bottom:1.5rem;">
+      <h2 style="font-family:var(--font-display); font-size:1.1rem; font-weight:700; color:var(--text-primary); margin-bottom:1.25rem;">Live Order Status</h2>
+      <div class="status-track" id="status-track">
+        <div class="status-step" data-step="pending">
+          <div class="status-step-dot">📋</div>
+          <span class="status-step-label">Received</span>
+        </div>
+        <div class="status-step" data-step="accepted">
+          <div class="status-step-dot">✅</div>
+          <span class="status-step-label">Accepted</span>
+        </div>
+        <div class="status-step" data-step="preparing">
+          <div class="status-step-dot">🍳</div>
+          <span class="status-step-label">Preparing</span>
+        </div>
+        <div class="status-step" data-step="ready">
+          <div class="status-step-dot">🔔</div>
+          <span class="status-step-label">Ready</span>
+        </div>
+        <div class="status-step" data-step="served">
+          <div class="status-step-dot">🍽️</div>
+          <span class="status-step-label">Served</span>
+        </div>
+      </div>
+      <p id="status-msg" style="text-align:center; font-size:0.875rem; color:var(--text-muted); margin-top:1rem;"></p>
+    </div>
+
+    <!-- Order Items -->
+    <div id="order-items-card" class="card hidden">
+      <h2 style="font-family:var(--font-display); font-size:1.1rem; font-weight:700; color:var(--text-primary); margin-bottom:1rem;">Your Order</h2>
+      <div id="order-items-list" style="display:flex; flex-direction:column; gap:0.75rem;"></div>
+      <div style="border-top:1px solid var(--border); margin-top:1rem; padding-top:1rem;">
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.4rem;">
+          <span>Subtotal</span><span id="os-subtotal">₹0</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted); margin-bottom:0.4rem;">
+          <span>GST (5%)</span><span id="os-tax">₹0</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:700; color:var(--gold); border-top:1px solid var(--border); padding-top:0.5rem; margin-top:0.5rem;">
+          <span>Grand Total</span><span id="os-total">₹0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading state -->
+    <div id="status-loading" style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4rem 1rem; gap:1rem;">
+      <div class="spinner spinner-lg"></div>
+      <p style="color:var(--text-muted); font-size:0.9rem;">Loading order details...</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="status-error" class="card hidden" style="text-align:center; padding:3rem 1rem;">
+      <div style="font-size:3rem; margin-bottom:1rem;">❌</div>
+      <h2 style="color:var(--text-primary); font-size:1.1rem; margin-bottom:0.5rem;">Order Not Found</h2>
+      <p style="color:var(--text-muted); font-size:0.85rem;">Please check your order link or scan the QR code again.</p>
+    </div>
+
+  </main>
+
+  <!-- Toast -->
+  <div id="toast-container"></div>
+
+  <script type="module" src="/src/pages/order-status.js"></script>
+</body>
+</html>

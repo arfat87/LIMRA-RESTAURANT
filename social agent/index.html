@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Life More Studio | Multi-Agent Geo-Science Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.53c-.26-.81-1-1.4-1.9-1.4h-1v-3c0-.55-.45-1-1-1h-6v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>Real Life More</h1>
+                    <span>Studio Dashboard</span>
+                </div>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- API Setup -->
+                <div class="config-group">
+                    <label for="api-key">
+                        Gemini API Key
+                        <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Get Key</a>
+                    </label>
+                    <div class="input-wrapper">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                        </svg>
+                        <input type="password" id="api-key" class="input-field" placeholder="Enter Gemini Key...">
+                    </div>
+                </div>
+
+                <!-- Topic Input -->
+                <div class="config-group">
+                    <label for="topic-input">Mystery/Geo Topic</label>
+                    <textarea id="topic-input" class="input-field" placeholder="E.g., Mariana Trench, Why Sahara was green, Bermuda Triangle geography..."></textarea>
+                </div>
+
+                <!-- Control Buttons -->
+                <button id="btn-run" class="btn btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    Run 3-Agent Workflow
+                </button>
+
+                <button id="btn-demo" class="btn btn-secondary">
+                    Use Demo Mode
+                </button>
+
+                <!-- History -->
+                <div class="history-section">
+                    <h3 class="history-title">Recent Topics</h3>
+                    <ul id="history-list" class="history-list">
+                        <!-- Loaded dynamically -->
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <header class="workspace-header">
+                <div class="header-title">
+                    <h2 id="active-topic-title">No Topic Selected</h2>
+                </div>
+                <div class="header-actions" id="workspace-header-actions" style="display: none;">
+                    <button id="btn-teleprompter" class="btn btn-secondary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 15H5c-.55 0-1-.45-1-1s.45-1 1-1h7c.55 0 1 .45 1 1s-.45 1-1 1zm7-4H5c-.55 0-1-.45-1-1s.45-1 1-1h14c.55 0 1 .45 1 1s-.45 1-1 1zm0-4H5c-.55 0-1-.45-1-1s.45-1 1-1h14c.55 0 1 .45 1 1s-.45 1-1 1z"/>
+                        </svg>
+                        Launch Teleprompter
+                    </button>
+                    <button id="btn-export" class="btn btn-secondary">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+                    </svg>
+                    Export Script
+                    </button>
+                </div>
+            </header>
+
+            <div class="workspace-body">
+                <!-- Empty State -->
+                <div id="empty-state" class="empty-state">
+                    <div class="empty-state-icon">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v-2H7v-2h7v-2H7V7h7v10zm3 0h-2V7h2v10z"/>
+                        </svg>
+                    </div>
+                    <h3>Launch Your Next Masterpiece</h3>
+                    <p>Apna geography ya science mystery topic select kijiye aur Gemini API key daaliye. Teeno Specialist Agents sequence mein research, scripting, aur SEO templates generate karenge.</p>
+                </div>
+
+                <!-- Agent Status Overlay (Hidden by default) -->
+                <div id="pipeline-status" class="pipeline-overlay" style="display: none;">
+                    <div class="pipeline-steps">
+                        <div class="pipeline-step" id="step-1">
+                            <div class="step-indicator">1</div>
+                            <div class="step-label">Geo-Director</div>
+                        </div>
+                        <div class="pipeline-step" id="step-2">
+                            <div class="step-indicator">2</div>
+                            <div class="step-label">Scriptwriter</div>
+                        </div>
+                        <div class="pipeline-step" id="step-3">
+                            <div class="step-indicator">3</div>
+                            <div class="step-label">SEO Manager</div>
+                        </div>
+                    </div>
+                    <div class="pipeline-logs" id="pipeline-logs">
+                        <div class="log-line">System initialization complete...</div>
+                    </div>
+                </div>
+
+                <!-- Tabs & Results (Hidden by default) -->
+                <div id="results-workspace" class="results-container" style="display: none;">
+                    <nav class="tab-nav">
+                        <button class="tab-btn active" onclick="switchTab('tab-research')">🤖 Agent 1: Research & Visuals</button>
+                        <button class="tab-btn" onclick="switchTab('tab-scripts')">🤖 Agent 2: Documentary Scripts</button>
+                        <button class="tab-btn" onclick="switchTab('tab-seo')">🤖 Agent 3: SEO & Growth</button>
+                    </nav>
+
+                    <!-- Tab 1: Research & Visual Blueprint -->
+                    <div id="tab-research" class="tab-pane active">
+                        <div class="card">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                                Scientific & Geographical Analysis (Hinglish)
+                            </div>
+                            <p id="geo-analysis-text" style="white-space: pre-wrap; line-height: 1.6; color: var(--text-secondary);"></p>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+                                Visual Blueprint Table
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="blueprint-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 45%;">Narrative Point</th>
+                                            <th style="width: 55%;">Visual Clip / Animation Suggestion</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="blueprint-table-body">
+                                        <!-- Loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Documentary Scriptwriter -->
+                    <div id="tab-scripts" class="tab-pane">
+                        <div class="script-grid">
+                            <!-- YouTube Script -->
+                            <div class="card">
+                                <div class="card-title">
+                                    <svg viewBox="0 0 24 24"><path d="M21.58 7.19c-.23-.86-.91-1.54-1.77-1.78C18.25 5 12 5 12 5s-6.25 0-7.81.41c-.86.24-1.54.92-1.77 1.78C2 8.75 2 12 2 12s0 3.25.42 4.81c.23.86.91 1.54 1.77 1.78C5.75 19 12 19 12 19s6.25 0 7.81-.41c.86-.24 1.54-.92 1.77-1.78C22 15.25 22 12 22 12s0-3.25-.42-4.81zM10 15V9l5.2 3-5.2 3z"/></svg>
+                                    YouTube Script (Long-form, 3-5 mins)
+                                    <button class="btn btn-secondary copy-badge" onclick="copyText('yt-script-raw')" style="margin-left: auto; padding: 4px 8px; font-size: 0.75rem;">Copy</button>
+                                </div>
+                                <div id="yt-script-content" class="script-content-wrapper">
+                                    <!-- Dynamic text -->
+                                </div>
+                            </div>
+                            <!-- Instagram Reels Script -->
+                            <div class="card">
+                                <div class="card-title">
+                                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                                    Instagram Reels Script (50-60 secs)
+                                    <button class="btn btn-secondary copy-badge" onclick="copyText('reel-script-raw')" style="margin-left: auto; padding: 4px 8px; font-size: 0.75rem;">Copy</button>
+                                </div>
+                                <div id="reel-script-content" class="script-content-wrapper">
+                                    <!-- Dynamic text -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: SEO & Growth -->
+                    <div id="tab-seo" class="tab-pane">
+                        <div class="card">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24"><path d="M12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-18C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2z"/></svg>
+                                YouTube Titles (High CTR)
+                            </div>
+                            <div id="yt-titles-container" style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Loaded dynamically -->
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                                SEO Description (YouTube)
+                                <button class="btn btn-secondary copy-badge" onclick="copyText('yt-desc')" style="margin-left: auto; padding: 4px 8px; font-size: 0.75rem;">Copy</button>
+                            </div>
+                            <p id="yt-desc" style="white-space: pre-wrap; line-height: 1.6; color: var(--text-secondary);"></p>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 8.25c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25z"/></svg>
+                                YouTube Tags
+                                <button class="btn btn-secondary copy-badge" onclick="copyTags('yt-tags')" style="margin-left: auto; padding: 4px 8px; font-size: 0.75rem;">Copy All</button>
+                            </div>
+                            <div id="yt-tags" class="tag-chip-container">
+                                <!-- Tags dynamically loaded -->
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title">
+                                <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+                                Instagram Reel Caption
+                                <button class="btn btn-secondary copy-badge" onclick="copyText('reel-caption')" style="margin-left: auto; padding: 4px 8px; font-size: 0.75rem;">Copy</button>
+                            </div>
+                            <p id="reel-caption" style="white-space: pre-wrap; line-height: 1.6; color: var(--text-secondary);"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Teleprompter Modal Overlay -->
+    <div id="teleprompter-overlay" class="teleprompter-modal">
+        <div class="teleprompter-header">
+            <h3>Teleprompter</h3>
+            <div class="teleprompter-controls">
+                <!-- Text type selection -->
+                <div class="control-item">
+                    <label for="prompt-text-select">Script:</label>
+                    <select id="prompt-text-select" class="input-field" style="padding: 6px 12px; width: 130px;">
+                        <option value="reel">Reel Script</option>
+                        <option value="yt">YouTube Script</option>
+                    </select>
+                </div>
+                <!-- Speed control -->
+                <div class="control-item">
+                    <span>Speed:</span>
+                    <input type="range" id="tele-speed" min="1" max="10" value="3">
+                </div>
+                <!-- Font size control -->
+                <div class="control-item">
+                    <span>Font Size:</span>
+                    <input type="range" id="tele-size" min="20" max="60" value="36">
+                </div>
+                <button id="btn-tele-play" class="btn btn-primary" style="padding: 6px 16px;">Play</button>
+                <button id="btn-tele-close" class="btn btn-secondary" style="padding: 6px 16px;">Close</button>
+            </div>
+        </div>
+        <div class="teleprompter-body">
+            <div class="teleprompter-focus-line"></div>
+            <div id="tele-scroll-container" class="teleprompter-scroll-container">
+                <div id="tele-text" class="teleprompter-text">
+                    <!-- Script loaded dynamic -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Raw Elements for Copy Logic -->
+    <div id="yt-script-raw" style="display: none;"></div>
+    <div id="reel-script-raw" style="display: none;"></div>
+
+    <!-- Notification Toast -->
+    <div id="copy-toast" class="toast">Text copied to clipboard!</div>
+
+    <!-- Application Script -->
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Floor Map — LIMRA Management System</title>
+  <meta name="description" content="Interactive floor map and table management system for LIMRA Restaurant.">
+  <link rel="stylesheet" href="../src/style.css">
+  <style>
+    /* ── Floor Map Specific ── */
+    .floors-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+    @media (min-width: 1200px) {
+      .floors-container {
+        grid-template-columns: 1.2fr 0.8fr;
+        align-items: start;
+      }
+    }
+
+    .map-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    .map-tab-btn {
+      padding: 0.5rem 1.25rem;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.15s;
+    }
+    .map-tab-btn.active { color: var(--gold); }
+    .map-tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -0.5rem; left: 0; right: 0;
+      height: 2px;
+      background: var(--gold);
+    }
+
+    .floor-layout-card {
+      background: var(--dark-3);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      padding: 1.5rem;
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .floor-canvas {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      height: 400px;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px dashed var(--border);
+      border-radius: var(--r-lg);
+    }
+
+    /* ── Graphical Tables ── */
+    .floor-table-node {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-radius: var(--r-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 0.8rem;
+      border: 2px solid;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease-in-out;
+      user-select: none;
+      transform: translate(-50%, -50%);
+    }
+    .floor-table-node:hover {
+      transform: translate(-50%, -55%) scale(1.1);
+      box-shadow: var(--shadow-md);
+      z-index: 10;
+    }
+    .floor-table-node.selected {
+      box-shadow: 0 0 12px var(--gold);
+      z-index: 11;
+    }
+
+    /* Status Colors matching layout */
+    .floor-table-node.available        { background: rgba(34,197,94,0.1);   border-color: rgba(34,197,94,0.45);  color: var(--status-available); }
+    .floor-table-node.occupied,
+    .floor-table-node.ordering         { background: rgba(234,179,8,0.12);  border-color: rgba(234,179,8,0.5);   color: var(--status-ordering); animation: goldGlow 3s ease infinite; }
+    .floor-table-node.preparing        { background: rgba(249,115,22,0.12); border-color: rgba(249,115,22,0.45); color: var(--status-preparing); }
+    .floor-table-node.served           { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.45); color: var(--status-served); }
+    .floor-table-node.billing_requested  { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.6);  color: var(--status-billing); animation: pulse 1.5s ease infinite; }
+    .floor-table-node.closed           { background: rgba(107,114,128,0.08);border-color: rgba(107,114,128,0.25); color: var(--status-closed); }
+
+    .table-cap { font-size: 0.55rem; color: var(--text-muted); font-weight: 500; margin-top: 0.15rem; }
+    .floor-table-node.available .table-cap { color: rgba(34,197,94,0.7); }
+    .floor-table-node.occupied .table-cap,
+    .floor-table-node.ordering .table-cap  { color: rgba(234,179,8,0.7); }
+    .floor-table-node.preparing .table-cap { color: rgba(249,115,22,0.7); }
+    .floor-table-node.served .table-cap    { color: rgba(59,130,246,0.7); }
+    .floor-table-node.billing_requested .table-cap { color: rgba(239,68,68,0.7); }
+
+    /* Doors / Markers */
+    .door-marker {
+      position: absolute;
+      background: var(--dark-4);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 0.7rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--r-sm);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-weight: 600;
+      transform: translate(-50%, -50%);
+    }
+
+    /* ── Sidebar Details Pane ── */
+    .detail-panel {
+      background: var(--dark-3);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      padding: 1.5rem;
+      position: sticky;
+      top: 5.5rem;
+    }
+    .panel-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1rem;
+    }
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .panel-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .status-pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.25rem 0.6rem;
+      border-radius: var(--r-full);
+      background: var(--dark-4);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .status-pill.available        { background: rgba(34,197,94,0.1);   color: var(--status-available); border-color: rgba(34,197,94,0.2); }
+    .status-pill.occupied,
+    .status-pill.ordering         { background: rgba(234,179,8,0.1);   color: var(--status-ordering);  border-color: rgba(234,179,8,0.25); }
+    .status-pill.preparing        { background: rgba(249,115,22,0.1);  color: var(--status-preparing); border-color: rgba(249,115,22,0.2); }
+    .status-pill.served           { background: rgba(59,130,246,0.1);  color: var(--status-served);    border-color: rgba(59,130,246,0.2); }
+    .status-pill.billing_requested  { background: rgba(239,68,68,0.1);  color: var(--status-billing);   border-color: rgba(239,68,68,0.2); }
+    .status-pill.closed           { background: rgba(107,114,128,0.1); color: var(--status-closed);    border-color: rgba(107,114,128,0.2); }
+
+    .order-summary-box {
+      background: var(--dark-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .summary-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .summary-item-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.825rem;
+      padding: 0.35rem 0;
+      border-bottom: 1px dashed var(--border);
+    }
+    .summary-item-row:last-child { border-bottom: none; }
+
+    .status-select-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .status-btn {
+      padding: 0.6rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-align: center;
+      background: var(--dark-4);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .status-btn:hover { border-color: var(--gold-border); color: var(--gold); background: var(--gold-bg); }
+    .status-btn.active.available        { background: var(--status-available); color: #000; border-color: var(--status-available); }
+    .status-btn.active.occupied,
+    .status-btn.active.ordering         { background: var(--status-ordering);  color: #000; border-color: var(--status-ordering); }
+    .status-btn.active.preparing        { background: var(--status-preparing); color: #000; border-color: var(--status-preparing); }
+    .status-btn.active.served           { background: var(--status-served);    color: #fff; border-color: var(--status-served); }
+    .status-btn.active.billing_requested  { background: var(--status-billing);   color: #fff; border-color: var(--status-billing); }
+    .status-btn.active.closed           { background: var(--status-closed);    color: #fff; border-color: var(--status-closed); }
+
+    .action-btn-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1.25rem;
+    }
+
+    .legend-card {
+      background: var(--dark-3);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 1rem;
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-layout" id="admin-app">
+
+    <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
+    <aside class="admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon">🍽</div>
+        <div>
+          <div class="sidebar-logo-text">LIMRA</div>
+          <div class="sidebar-logo-sub">Management System</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" role="navigation" aria-label="Admin navigation">
+        <div class="sidebar-nav-section">Overview</div>
+
+        <a href="./dashboard.html" class="sidebar-nav-link" data-page="dashboard.html">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+          </svg>
+          Dashboard
+        </a>
+
+        <a href="./orders.html" class="sidebar-nav-link" data-page="orders.html">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/>
+            <path d="M9 12h6M9 16h4"/>
+          </svg>
+          Orders
+        </a>
+
+        <a href="./tables.html" class="sidebar-nav-link" data-page="tables.html">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 3h18v4H3zM5 7v14M19 7v14M3 12h18"/>
+          </svg>
+          Tables & Floor Map
+        </a>
+
+        <a href="./kitchen.html" class="sidebar-nav-link" data-page="kitchen.html">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 2v20M18 2v20M6 12h12M9 6c0-1.5 6-1.5 6 0M9 18c0 1.5 6 1.5 6 0"/>
+          </svg>
+          Kitchen Display
+        </a>
+
+        <a href="./billing.html" class="sidebar-nav-link" data-page="billing.html">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+          Billing & Payments
+        </a>
+
+        <div class="sidebar-nav-section" style="margin-top:0.5rem">Management</div>
+
+        <a href="./menu.html" class="sidebar-nav-link" data-page="menu.html">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a10 10 0 110 20 10 10 0 010-20zM12 8v4l3 3"/>
+          </svg>
+          Menu Management
+        </a>
+
+        <a href="./reports.html" class="sidebar-nav-link" data-page="reports.html">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 20V10M12 20V4M6 20v-6"/>
+          </svg>
+          Reports & Analytics
+        </a>
+
+        <a href="./settings.html" class="sidebar-nav-link" data-page="settings.html">
+          <svg class="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+          Settings
+        </a>
+      </nav>
+
+      <div style="padding:1rem;border-top:1px solid var(--border)">
+        <button id="logout-btn" class="btn btn-outline btn-full" style="gap:0.5rem">Sign Out</button>
+        <div id="sidebar-role-chip" style="margin-top:0.5rem;text-align:center;font-size:0.65rem;color:var(--text-muted)"></div>
+      </div>
+    </aside>
+
+    <div id="sidebar-overlay"></div>
+
+    <!-- ═══════════════════ MAIN ═══════════════════ -->
+    <main class="admin-main">
+      <header class="admin-topbar" role="banner">
+        <div class="topbar-left">
+          <button class="hamburger-btn" id="hamburger-btn" aria-label="Toggle sidebar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12h18M3 6h18M3 18h18"/>
+            </svg>
+          </button>
+          <div>
+            <div class="page-title">Floor Map & Tables</div>
+            <div class="live-dot" style="margin-top:0.15rem">Realtime Status</div>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="clock-display">
+            <span>🕐</span>
+            <span id="live-clock">--:--:--</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="admin-content">
+        <div class="map-tabs" role="tablist">
+          <button class="map-tab-btn active" id="tab-indoor" role="tab" aria-selected="true" aria-controls="indoor-pane">Indoor Area (Tables 1-9)</button>
+          <button class="map-tab-btn" id="tab-outdoor" role="tab" aria-selected="false" aria-controls="outdoor-pane">Outdoor Area (Tables 10-19)</button>
+        </div>
+
+        <div class="floors-container">
+          <!-- LEFT: Map Canvas -->
+          <div>
+            <!-- Indoor Map -->
+            <div class="floor-layout-card" id="indoor-pane">
+              <div class="floor-canvas" id="canvas-indoor">
+                <!-- Graphical Tables absolute positioned by JS -->
+                
+                <!-- Door Marker -->
+                <div class="door-marker" style="bottom: 0%; left: 50%; transform: translate(-50%, 50%);">
+                  🚪 Door (To Kitchen)
+                </div>
+              </div>
+            </div>
+
+            <!-- Outdoor Map (Hidden initially) -->
+            <div class="floor-layout-card" id="outdoor-pane" style="display:none;">
+              <div class="floor-canvas" id="canvas-outdoor">
+                <!-- Graphical Tables absolute positioned by JS -->
+                
+                <!-- Entrance Marker -->
+                <div class="door-marker" style="bottom: 0%; left: 50%; transform: translate(-50%, 50%);">
+                  🌳 Entrance
+                </div>
+              </div>
+            </div>
+
+            <!-- Colors Legend -->
+            <div class="legend-card">
+              <div class="legend-item"><div class="legend-dot" style="background:var(--status-available)"></div> Available</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--status-ordering)"></div> Ordering</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--status-preparing)"></div> Preparing</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--status-served)"></div> Served</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--status-billing)"></div> Bill Req.</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--status-closed)"></div> Closed</div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Detail Panel -->
+          <div class="detail-panel" id="detail-panel">
+            <div id="panel-empty-state" style="text-align:center;padding:3rem 1rem;color:var(--text-muted)">
+              <div style="font-size:2.5rem;margin-bottom:1rem;">🪑</div>
+              <h3>No Table Selected</h3>
+              <p style="font-size:0.85rem;margin-top:0.5rem">Click on any table in the floor map to manage status or view active orders.</p>
+            </div>
+
+            <div id="panel-content" class="hidden">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <span id="detail-table-title">Table —</span>
+                  <span class="status-pill" id="detail-status-pill">Available</span>
+                </div>
+                <div class="panel-subtitle" id="detail-area-subtitle">Indoor • Capacity: —</div>
+              </div>
+
+              <!-- Active Order Summary Box -->
+              <div class="order-summary-box" id="detail-order-box">
+                <div class="summary-title">
+                  <span>Active Order</span>
+                  <span id="detail-order-number" style="color:var(--gold)">#—</span>
+                </div>
+                <div id="detail-order-items-list" style="max-height:150px;overflow-y:auto;margin-bottom:0.75rem;">
+                  <!-- order items -->
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:0.9rem;font-weight:700;color:var(--text-primary);border-top:1px solid var(--border);padding-top:0.5rem;">
+                  <span>Grand Total</span>
+                  <span id="detail-order-total">₹0.00</span>
+                </div>
+              </div>
+
+              <!-- Status Change Controller -->
+              <h4 style="font-size:0.8rem;text-transform:uppercase;color:var(--text-muted);letter-spacing:0.05em;">Update Table Status</h4>
+              <div class="status-select-grid">
+                <button class="status-btn available" data-status="available">Available</button>
+                <button class="status-btn occupied" data-status="occupied">Occupied</button>
+                <button class="status-btn ordering" data-status="ordering">Ordering</button>
+                <button class="status-btn preparing" data-status="preparing">Preparing</button>
+                <button class="status-btn served" data-status="served">Served</button>
+                <button class="status-btn billing_requested" data-status="billing_requested">Bill Req.</button>
+                <button class="status-btn closed" data-status="closed">Closed</button>
+              </div>
+
+              <!-- Action buttons -->
+              <div class="action-btn-row">
+                <button class="btn btn-outline btn-full" id="btn-call-waiter" style="gap:0.4rem;font-size:0.8rem;">
+                  🔔 Call Waiter
+                </button>
+                <button class="btn btn-full" id="btn-view-invoice" style="gap:0.4rem;font-size:0.8rem;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:#000;border:none;">
+                  🧾 View Invoice
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast-container"></div>
+  <script type="module" src="./tables.js"></script>
+</body>
+</html>
