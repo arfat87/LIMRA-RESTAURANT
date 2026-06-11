@@ -332,5 +332,4 @@ async function init() {
   initAuthUI();
 }
 
-document.addEventListener('DOMContentLoaded', init);
-
+init();

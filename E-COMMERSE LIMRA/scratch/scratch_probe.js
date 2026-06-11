@@ -1,28 +1,29 @@
-const BASE_URL = 'https://vb9ucr22.us-east.insforge.app';
-const API_KEY  = 'ik_799af068e8f4fb05944d04497229fe7d';
+import http from 'http';
 
-async function main() {
-  console.log('Probing available SQL endpoints...');
-  const probeEndpoints = [
-    '/api/database/sql',
-    '/api/migrations/run',
-    '/api/sql',
-    '/api/v1/database/sql',
-  ];
-
-  for (const ep of probeEndpoints) {
-    try {
-      const r = await fetch(`${BASE_URL}${ep}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY },
-        body: JSON.stringify({ sql: 'SELECT 1;' }),
+function probe(url) {
+  return new Promise((resolve) => {
+    http.get(url, (res) => {
+      console.log(`URL: ${url} | STATUS: ${res.statusCode}`);
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode !== 200) {
+          console.log('ERROR BODY:', body.slice(0, 300));
+        } else {
+          console.log('OK (length:', body.length, ')');
+        }
+        resolve(res.statusCode);
       });
-      const body = await r.text();
-      console.log(`  ${ep} → ${r.status} ${body.slice(0, 100)}`);
-    } catch (e) {
-      console.log(`  ${ep} → ERROR: ${e.message}`);
-    }
-  }
+    }).on('error', (err) => {
+      console.error(`URL: ${url} | ERROR: ${err.message}`);
+      resolve(500);
+    });
+  });
 }
 
-main().catch(console.error);
+async function run() {
+  await probe('http://localhost:5173/table/index.html');
+  await probe('http://localhost:5173/src/table/table.js');
+}
+
+run();

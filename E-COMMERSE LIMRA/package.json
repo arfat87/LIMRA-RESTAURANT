@@ -16,6 +16,7 @@
     "@insforge/sdk": "^1.3.0",
     "@tailwindcss/vite": "^4.3.0",
     "chart.js": "^4.5.1",
+    "qrcode": "^1.5.4",
     "tailwindcss": "^4.3.0"
   }
 }

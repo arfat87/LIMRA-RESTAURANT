@@ -1,13 +1,16 @@
 import { createClient } from '@insforge/sdk';
 
-const baseUrl = import.meta.env.VITE_INSFORGE_URL;
-const anonKey = import.meta.env.VITE_INSFORGE_ANON_KEY;
+const baseUrl = import.meta.env.VITE_INSFORGE_URL || '';
+const anonKey = import.meta.env.VITE_INSFORGE_ANON_KEY || '';
 
 if (!baseUrl || !anonKey) {
   console.warn('InsForge env vars missing. Set VITE_INSFORGE_URL and VITE_INSFORGE_ANON_KEY in .env');
 }
 
-export const insforge = createClient({ baseUrl, anonKey });
+export const insforge = createClient({ 
+  baseUrl: baseUrl || 'https://placeholder-app.region.insforge.app', 
+  anonKey: anonKey || 'placeholder-anon-key' 
+});
 
 function formatInsforgeError(error) {
   if (!error) return 'Unknown error';
@@ -24,7 +27,10 @@ export async function saveOrder({
   longitude = null,
   landmark = null,
   deliveryNotes = null,
-  locationVerified = false
+  locationVerified = false,
+  orderType = 'delivery',
+  tableNumber = null,
+  tableZone = null
 }) {
   if (!items || !items.length) {
     throw new Error('Your cart is empty');
@@ -34,9 +40,9 @@ export async function saveOrder({
     return {
       menu_item_id: Number(item.id),
       item_name: String(item.name),
-      quantity: Math.max(1, Number(item.qty) || 1),
+      quantity: Math.max(1, Number(item.qty || item.quantity) || 1),
       unit_price: Number(item.price) || 0,
-      line_total: (Number(item.price) || 0) * (Number(item.qty) || 1),
+      line_total: (Number(item.price) || 0) * (Number(item.qty || item.quantity) || 1),
     };
   });
 
@@ -49,7 +55,10 @@ export async function saveOrder({
     p_longitude: longitude,
     p_landmark: landmark,
     p_delivery_notes: deliveryNotes,
-    p_location_verified: locationVerified
+    p_location_verified: locationVerified,
+    p_order_type: orderType,
+    p_table_number: tableNumber,
+    p_table_zone: tableZone
   });
 
   if (!result.error) return result.data;

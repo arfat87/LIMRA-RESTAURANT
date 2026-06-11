@@ -11,6 +11,8 @@ export default defineConfig({
         main: 'index.html',
         admin: 'admin.html',
         adminLogin: 'admin-login.html',
+        table: 'table/index.html',
+        qrAdmin: 'table/qr-admin.html',
       },
     },
   },

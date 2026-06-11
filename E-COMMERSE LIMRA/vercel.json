@@ -11,7 +11,11 @@
 
     { "source": "/admin/", "destination": "/admin.html" },
 
-    { "source": "/((?!assets/|images/|favicon\\.svg|icons\\.svg|robots\\.txt|sitemap\\.xml|admin\\.html|admin-login\\.html).*)", "destination": "/index.html" }
+    { "source": "/table/qr-admin", "destination": "/table/qr-admin.html" },
+    { "source": "/table/qr-admin/", "destination": "/table/qr-admin.html" },
+    { "source": "/table", "destination": "/table/index.html" },
+    { "source": "/table/", "destination": "/table/index.html" },
+    { "source": "/((?!assets/|images/|favicon\\.svg|icons\\.svg|robots\\.txt|sitemap\\.xml|admin\\.html|admin-login\\.html|table/|table$).*)", "destination": "/index.html" }
 
   ]
 

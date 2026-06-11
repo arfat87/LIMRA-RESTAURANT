@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Table Self-Ordering — LIMRA Restaurant Egra | Scan QR Code</title>
+  <meta name="description" content="Browse the authentic menu and place food orders directly from your table at LIMRA Restaurant, Egra. Scan your table QR code, choose your dishes, and customize cooking instructions." />
+  <meta name="keywords" content="LIMRA Restaurant table ordering, QR code dining, self-ordering menu, Egra biryani order, contact-free restaurant ordering" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#f59e0b" />
+  <link rel="canonical" href="https://limraresturent.in/table/" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LIMRA Restaurant" />
+  <meta property="og:title" content="Table Self-Ordering — LIMRA Restaurant Egra" />
+  <meta property="og:description" content="Browse our authentic menu and order food directly from your table. Scan the table QR code to start dining." />
+  <meta property="og:url" content="https://limraresturent.in/table/" />
+  <meta property="og:image" content="https://limraresturent.in/images/logo.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Table Self-Ordering — LIMRA Restaurant Egra" />
+  <meta name="twitter:description" content="Scan the QR code on your table to browse the menu and send your order straight to our kitchen." />
+  <meta name="twitter:image" content="https://limraresturent.in/images/logo.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+  <link rel="stylesheet" href="/src/admin.css" />
+  <link rel="icon" href="/images/logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/images/logo.png" />
+  <style>
+    /* Custom premium styling for table ordering */
+    :root {
+      --tbl-bg: #0f172a;
+      --tbl-card: rgba(30, 41, 59, 0.7);
+      --tbl-border: rgba(255, 255, 255, 0.08);
+      --tbl-text: #f1f5f9;
+      --tbl-muted: #94a3b8;
+      --tbl-accent: #f59e0b; /* Golden accent */
+      --tbl-accent-rgb: 245, 158, 11;
+      --tbl-accent-hover: #d97706;
+    }
+
+    body.table-ordering-app {
+      background: var(--tbl-bg);
+      color: var(--tbl-text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Glassmorphic Cards */
+    .glass-card {
+      background: var(--tbl-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--tbl-border);
+      border-radius: 20px;
+    }
+
+    /* Header Styling */
+    .tbl-header {
+      border-bottom: 1px solid var(--tbl-border);
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* Category scroll */
+    .category-chip-container {
+      scrollbar-width: none; /* Firefox */
+    }
+    .category-chip-container::-webkit-scrollbar {
+      display: none; /* Chrome/Safari */
+    }
+
+    .category-chip {
+      white-space: nowrap;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .category-chip.active {
+      background: var(--tbl-accent);
+      color: #0f172a;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(var(--tbl-accent-rgb), 0.3);
+    }
+
+    /* Food Item Grid */
+    .food-card {
+      transition: all 0.3s ease;
+    }
+    .food-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(var(--tbl-accent-rgb), 0.3);
+    }
+
+    /* Cart FAB */
+    .cart-fab {
+      box-shadow: 0 10px 25px -5px rgba(var(--tbl-accent-rgb), 0.4);
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    /* Table Map Generator Layout */
+    .tbl-map-container {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 2rem;
+    }
+    @media (max-width: 1024px) {
+      .tbl-map-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Interactive Layout Grid */
+    .restaurant-layout {
+      border: 2px dashed rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.4);
+      min-height: 500px;
+      position: relative;
+    }
+    .layout-area-title {
+      font-family: 'Outfit', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--tbl-muted);
+      font-weight: 700;
+    }
+
+    /* Table nodes */
+    .layout-table-node {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .layout-table-node:hover {
+      border-color: var(--tbl-accent);
+      color: var(--tbl-accent);
+      transform: scale(1.08);
+      box-shadow: 0 0 15px rgba(var(--tbl-accent-rgb), 0.2);
+    }
+    .layout-table-node.active {
+      background: var(--tbl-accent);
+      border-color: var(--tbl-accent);
+      color: #0f172a;
+      box-shadow: 0 0 20px rgba(var(--tbl-accent-rgb), 0.4);
+    }
+
+    /* Door visual */
+    .layout-door {
+      background: #dc2626;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 2px 12px;
+      border-radius: 4px;
+      position: absolute;
+    }
+
+    /* Custom Input */
+    .glass-input {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--tbl-border);
+      color: var(--tbl-text);
+      transition: all 0.3s ease;
+    }
+    .glass-input:focus {
+      border-color: var(--tbl-accent);
+      outline: none;
+      box-shadow: 0 0 10px rgba(var(--tbl-accent-rgb), 0.15);
+    }
+  </style>
+</head>
+<body class="table-ordering-app">
+
+  <!-- ==================================================== -->
+  <!-- INVALID TABLE ERROR VIEW -->
+  <!-- ==================================================== -->
+  <div id="error-view" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md glass-card p-8 text-center space-y-6">
+      <div class="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto text-4xl text-red-500">
+        ⚠️
+      </div>
+      <div class="space-y-2">
+        <h2 class="text-xl font-bold font-outfit text-red-500" style="font-family:'Outfit', sans-serif;">Invalid Table Number</h2>
+        <p class="text-sm text-slate-300">Please scan the QR code located on your dining table to access the ordering menu.</p>
+      </div>
+      <div class="pt-4">
+        <a href="/" class="inline-block px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-sm shadow-lg shadow-amber-500/20">
+          Go to LIMRA Home
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- CUSTOMER ORDERING VIEW -->
+  <!-- ==================================================== -->
+  <div id="customer-view" class="hidden min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="tbl-header sticky top-0 z-40 px-4 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+          <span class="text-xl">🍽️</span>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold font-outfit text-amber-500 flex items-center gap-1.5" style="font-family:'Outfit', sans-serif;">
+            LIMRA <span class="text-white">RESTAURANT</span>
+          </h1>
+          <p class="text-xs text-slate-400 font-semibold" id="customer-table-number-label">Loading Table...</p>
+        </div>
+      </div>
+      <div class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        Table Ordering Active
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 flex flex-col md:flex-row gap-6">
+      
+      <!-- Left side: Categories & Menu -->
+      <div class="flex-1 flex flex-col min-w-0">
+        <!-- Search bar -->
+        <div class="relative mb-6">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+          <input type="text" id="food-search-input" placeholder="Search dishes, drinks, desserts..." class="w-full pl-11 pr-4 py-3 rounded-2xl glass-input text-sm">
+        </div>
+
+        <!-- Horizontal Scrollable Categories -->
+        <div class="category-chip-container flex gap-2.5 overflow-x-auto pb-4 mb-6" id="categories-scroll-container">
+          <!-- JS generated chips -->
+        </div>
+
+        <!-- Menu Title -->
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold font-outfit flex items-center gap-2" style="font-family:'Outfit', sans-serif;" id="menu-category-title">
+            All Items
+          </h2>
+          <span class="text-xs text-slate-400 font-medium" id="menu-count-badge">0 items</span>
+        </div>
+
+        <!-- Menu Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="food-cards-grid">
+          <!-- JS generated cards -->
+        </div>
+      </div>
+
+      <!-- Right side: Desktop Cart Panel -->
+      <div class="w-full md:w-[360px] lg:w-[400px] shrink-0 hidden md:block">
+        <div class="glass-card p-5 sticky top-24" style="max-height: calc(100vh - 120px); display: flex; flex-col; height: 100%;">
+          <h3 class="text-base font-bold font-outfit mb-4 pb-3 border-b border-white/5 flex items-center justify-between" style="font-family:'Outfit', sans-serif;">
+            <span>🛒 Your Order Tray</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-300" id="cart-count-desktop">0 items</span>
+          </h3>
+
+          <!-- Cart items container -->
+          <div class="flex-1 overflow-y-auto space-y-3 pr-1" id="cart-items-desktop-container" style="max-height: calc(100vh - 380px);">
+            <!-- JS items -->
+          </div>
+
+          <!-- Totals & Place Order -->
+          <div class="mt-4 pt-4 border-t border-white/5 space-y-4">
+            <div class="flex justify-between items-center text-sm font-semibold">
+              <span class="text-slate-400">Total Amount</span>
+              <span class="text-lg text-amber-500 font-bold" id="cart-total-desktop">₹0.00</span>
+            </div>
+            <button id="btn-checkout-desktop" class="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-sm shadow-lg shadow-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
+              Place Table Order
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mobile Floating Cart FAB -->
+    <div class="fixed bottom-6 right-6 md:hidden z-40">
+      <button id="cart-fab-btn" class="cart-fab w-14 h-14 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center relative shadow-xl">
+        <span class="text-xl">🛒</span>
+        <span class="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-red-500 text-white font-bold text-xs flex items-center justify-center border border-slate-950" id="cart-badge-mobile">0</span>
+      </button>
+    </div>
+
+    <!-- Mobile Cart Drawer Overlay -->
+    <div id="cart-drawer-overlay" class="fixed inset-0 bg-slate-950/80 z-50 backdrop-blur-sm hidden flex items-end justify-center">
+      <div class="w-full max-w-lg glass-card rounded-t-3xl p-5 space-y-4 max-h-[85vh] flex flex-col animate-slide-up">
+        <div class="flex items-center justify-between pb-2 border-b border-white/5">
+          <h3 class="text-base font-bold font-outfit" style="font-family:'Outfit', sans-serif;">🛒 Your Cart Tray</h3>
+          <button id="cart-drawer-close" class="text-slate-400 hover:text-slate-200 text-xl font-bold p-1">✕</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto space-y-3" id="cart-items-mobile-container">
+          <!-- items -->
+        </div>
+
+        <div class="pt-4 border-t border-white/5 space-y-4">
+          <div class="flex justify-between items-center text-sm font-semibold">
+            <span class="text-slate-400">Total Amount</span>
+            <span class="text-lg text-amber-500 font-bold" id="cart-total-mobile">₹0.00</span>
+          </div>
+          <button id="btn-checkout-mobile" class="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-sm shadow-lg">
+            Place Table Order
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- MODAL: PLACE ORDER INFORMATION -->
+  <!-- ==================================================== -->
+  <div id="checkout-modal" class="fixed inset-0 bg-slate-950/80 z-50 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-md glass-card p-6 space-y-5 animate-scale-up">
+      <div class="flex items-center justify-between pb-3 border-b border-white/5">
+        <h3 class="text-base font-bold font-outfit flex items-center gap-2" style="font-family:'Outfit', sans-serif;">
+          <span>📝 Confirm Table Order</span>
+        </h3>
+        <button id="checkout-modal-close" class="text-slate-400 hover:text-slate-200 text-sm font-bold">✕</button>
+      </div>
+
+      <form id="checkout-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Your Name (Optional)</label>
+          <input type="text" name="name" placeholder="Guest" class="w-full px-4 py-3 rounded-xl glass-input text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Phone Number (Optional)</label>
+          <input type="tel" name="phone" placeholder="Enter 10-digit mobile number" class="w-full px-4 py-3 rounded-xl glass-input text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Cooking Instructions (Optional)</label>
+          <textarea name="notes" placeholder="E.g., Make it spicy, No onions, etc." rows="2" class="w-full px-4 py-3 rounded-xl glass-input text-sm resize-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Payment Method</label>
+          <div class="flex gap-3">
+            <label class="flex-1 flex items-center justify-between p-3 rounded-xl border border-white/10 bg-slate-900/40 cursor-pointer hover:border-amber-500/40 transition-all">
+              <span class="text-sm font-semibold text-slate-200">💵 Cash</span>
+              <input type="radio" name="payment_method" value="cash" checked class="w-4 h-4 accent-amber-500">
+            </label>
+            <label class="flex-1 flex items-center justify-between p-3 rounded-xl border border-white/10 bg-slate-900/40 cursor-pointer hover:border-amber-500/40 transition-all">
+              <span class="text-sm font-semibold text-slate-200">📱 UPI</span>
+              <input type="radio" name="payment_method" value="upi" class="w-4 h-4 accent-amber-500">
+            </label>
+          </div>
+        </div>
+
+        <div class="rounded-xl p-4 space-y-2 bg-slate-900/60 border border-white/5 text-xs text-left">
+          <div class="flex justify-between text-slate-400">
+            <span>Subtotal</span>
+            <span class="font-semibold text-slate-200" id="modal-subtotal">₹0.00</span>
+          </div>
+          <div class="flex justify-between text-slate-400">
+            <span>5% GST</span>
+            <span class="font-semibold text-slate-200" id="modal-gst">₹0.00</span>
+          </div>
+          <hr class="border-white/5 my-1">
+          <div class="flex justify-between text-sm font-bold text-slate-200">
+            <span>Total Payable</span>
+            <span class="text-amber-500" id="modal-total">₹0.00</span>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 leading-relaxed flex gap-2">
+          <span class="text-lg shrink-0">⚡</span>
+          <p>This order will be automatically linked to <strong>Table <span id="checkout-table-display">X</span></strong> (Zone: <span id="checkout-zone-display">Indoor</span>) and immediately sent to the kitchen. You can pay after dining.</p>
+        </div>
+
+        <button type="submit" id="btn-submit-order" class="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-sm shadow-lg shadow-amber-500/20">
+          Confirm & Send to Kitchen
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- VIEW: SUCCESS ORDER VIEW -->
+  <!-- ==================================================== -->
+  <div id="success-view" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md glass-card p-8 text-center space-y-6">
+      <div class="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto text-4xl text-emerald-400 animate-bounce">
+        ✓
+      </div>
+      <div class="space-y-2">
+        <h2 class="text-2xl font-bold font-outfit text-emerald-400" style="font-family:'Outfit', sans-serif;">Order Sent to Kitchen!</h2>
+        <p class="text-sm text-slate-300">Your order has been received. Our chefs are preparing your food now.</p>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-900/60 border border-white/5 text-left text-xs space-y-2.5">
+        <p class="flex justify-between">
+          <span class="text-slate-400">Order Number:</span>
+          <strong class="text-slate-200" id="success-order-number">#1024</strong>
+        </p>
+        <p class="flex justify-between">
+          <span class="text-slate-400">Serving Table:</span>
+          <strong class="text-amber-500" id="success-table-number">Table X</strong>
+        </p>
+        <p class="flex justify-between">
+          <span class="text-slate-400">Diner Name:</span>
+          <strong class="text-slate-200" id="success-diner-name">John Doe</strong>
+        </p>
+      </div>
+
+      <button id="btn-order-more" class="w-full py-3.5 rounded-xl border border-white/10 hover:border-amber-500/30 text-slate-200 hover:text-amber-500 font-semibold transition-all text-sm">
+        Order More Items
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- OWNER/ADMIN QR CODE GENERATOR PORTAL -->
+  <!-- ==================================================== -->
+  <div id="owner-view" class="hidden min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="tbl-header px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <p class="adm-brand text-2xl font-bold" style="margin:0;">LIMRA<span>.</span></p>
+        <div class="h-6 w-px bg-white/10"></div>
+        <p class="text-sm text-slate-400 font-semibold">QR Code & Table Manager</p>
+      </div>
+      <a href="/admin.html" class="adm-btn adm-btn-secondary adm-btn-sm">
+        Go to Admin Dashboard
+      </a>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-8">
+      
+      <!-- Welcome Intro -->
+      <div class="space-y-2">
+        <h2 class="text-2xl font-bold font-outfit text-white" style="font-family:'Outfit', sans-serif;">Table QR Code Generator</h2>
+        <p class="text-sm text-slate-400">Manage your table layout, select a table, and view/download its unique QR code link for customers to place self-orders.</p>
+      </div>
+
+      <div class="tbl-map-container">
+        
+        <!-- Left Side: Interactive Map -->
+        <div class="glass-card p-6 flex flex-col">
+          <h3 class="text-lg font-bold font-outfit mb-4 flex items-center gap-2" style="font-family:'Outfit', sans-serif;">
+            <span>🗺️ Restaurant Table Map</span>
+          </h3>
+
+          <div class="flex-1 rounded-2xl border border-white/5 overflow-hidden flex flex-col lg:flex-row min-h-[500px]">
+            
+            <!-- Outdoor Section -->
+            <div class="flex-1 p-5 border-r border-white/5 flex flex-col">
+              <p class="layout-area-title text-xs text-amber-500 mb-6 text-center">🌳 Outdoor Area (10 Tables)</p>
+              
+              <!-- Map Layout grid -->
+              <div class="flex-1 relative flex flex-col justify-between items-center gap-6 py-4">
+                <!-- Row 1: 12 -->
+                <div class="flex justify-center w-full">
+                  <div class="layout-table-node" data-table-id="12">12</div>
+                </div>
+
+                <!-- Row 2: 11, 13 -->
+                <div class="flex justify-between w-full px-12">
+                  <div class="layout-table-node" data-table-id="11">11</div>
+                  <div class="layout-table-node" data-table-id="13">13</div>
+                </div>
+
+                <!-- Row 3: 10, 14 -->
+                <div class="flex justify-between w-full px-12">
+                  <div class="layout-table-node" data-table-id="10">10</div>
+                  <div class="layout-table-node" data-table-id="14">14</div>
+                </div>
+
+                <!-- Row 4: 16, 15 -->
+                <div class="flex justify-between w-full px-12">
+                  <div class="layout-table-node" data-table-id="16">16</div>
+                  <div class="layout-table-node" data-table-id="15">15</div>
+                </div>
+
+                <!-- Row 5: 17, 18, 19 -->
+                <div class="flex justify-around w-full px-4 mt-2">
+                  <div class="layout-table-node" data-table-id="17">17</div>
+                  <div class="layout-table-node" data-table-id="18">18</div>
+                  <div class="layout-table-node" data-table-id="19">19</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Indoor Section -->
+            <div class="flex-1 p-5 flex flex-col relative" style="background: rgba(30, 41, 59, 0.1);">
+              <p class="layout-area-title text-xs text-blue-400 mb-6 text-center">🏠 Indoor Area (9 Tables)</p>
+              
+              <!-- Map Layout grid -->
+              <div class="flex-1 relative flex flex-col justify-between items-center gap-6 py-4">
+                <!-- Row 1: 4, 5, 9 -->
+                <div class="flex justify-between w-full px-4">
+                  <div class="layout-table-node" data-table-id="4">4</div>
+                  <div class="layout-table-node" data-table-id="5">5</div>
+                  <div class="layout-table-node" data-table-id="9">9</div>
+                </div>
+
+                <!-- Row 2: 3, 6, 8 -->
+                <div class="flex justify-between w-full px-4">
+                  <div class="layout-table-node" data-table-id="3">3</div>
+                  <div class="layout-table-node" data-table-id="6">6</div>
+                  <div class="layout-table-node" data-table-id="8">8</div>
+                </div>
+
+                <!-- Row 3: 2, 7 -->
+                <div class="flex justify-between w-full px-12">
+                  <div class="layout-table-node" data-table-id="2">2</div>
+                  <div class="layout-table-node" data-table-id="7">7</div>
+                </div>
+
+                <!-- Row 4: 1 -->
+                <div class="flex justify-center w-full">
+                  <div class="layout-table-node" data-table-id="1">1</div>
+                </div>
+              </div>
+
+              <!-- Indoor Door Visual -->
+              <div class="layout-door" style="bottom: 0px; left: 50%; transform: translateX(-50%); z-index: 10;">
+                door
+              </div>
+            </div>
+          </div>
+          
+          <!-- Main Restaurant Entry visual at the very bottom center -->
+          <div class="mt-4 flex justify-center w-full">
+            <span class="px-5 py-1.5 rounded-full bg-slate-800 text-white font-bold text-xs uppercase tracking-wider border border-white/5">
+              🚪 Main Restaurant Entrance
+            </span>
+          </div>
+        </div>
+
+        <!-- Right Side: Selected Table Info & QR Generator -->
+        <div class="glass-card p-6 flex flex-col justify-center items-center text-center space-y-6 min-h-[500px]">
+          
+          <!-- Placeholder when no table is active -->
+          <div id="qr-placeholder" class="space-y-4 py-12">
+            <span class="text-6xl block">📱</span>
+            <h4 class="text-base font-bold font-outfit text-slate-200">Select a Table to Generate</h4>
+            <p class="text-xs text-slate-400 max-w-xs mx-auto">Click on any table in the layout map to view its unique ordering URL and generate its high-quality QR code.</p>
+          </div>
+
+          <!-- Active QR Card -->
+          <div id="qr-card" class="hidden w-full space-y-6">
+            <div class="space-y-1">
+              <h4 class="text-xl font-bold font-outfit text-amber-500" style="font-family:'Outfit', sans-serif;" id="qr-table-title">Table 5</h4>
+              <p class="text-xs text-slate-400 uppercase tracking-wider" id="qr-table-subtitle">Indoor Area</p>
+            </div>
+
+            <!-- QR code image container (glass background) -->
+            <div class="w-56 h-56 rounded-2xl bg-white p-3 mx-auto flex items-center justify-center shadow-xl">
+              <img id="qr-code-image" src="" alt="Table QR Code" class="w-full h-full object-contain">
+            </div>
+
+            <!-- Table URL link box -->
+            <div class="space-y-2">
+              <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider text-left">Scan Link URL</label>
+              <div class="flex gap-2">
+                <input type="text" id="qr-url-input" readonly class="flex-1 px-3.5 py-2.5 rounded-xl glass-input text-xs font-mono select-all">
+                <button id="btn-copy-url" class="px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-xs">
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3 justify-center">
+              <button id="btn-print-qr" class="px-5 py-3 rounded-xl border border-white/10 hover:border-amber-500/30 text-slate-200 hover:text-amber-500 font-semibold transition-all text-xs flex items-center gap-1.5">
+                🖨️ Print QR Label
+              </button>
+              <a id="btn-download-qr" download="table_qr.png" href="#" class="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-xs flex items-center gap-1.5">
+                📥 Download PNG
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/src/table/table.js"></script>
+</body>
+</html>

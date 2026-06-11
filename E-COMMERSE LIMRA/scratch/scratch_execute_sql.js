@@ -1,12 +1,12 @@
 import { spawn } from 'child_process';
 
 const query = `
-SELECT table_name, column_name, data_type 
+SELECT column_name, data_type 
 FROM information_schema.columns 
 WHERE table_schema = 'public' 
-  AND table_name IN ('orders', 'bookings', 'order_items', 'notifications')
-ORDER BY table_name, column_name;
+  AND table_name = 'orders';
 `;
+
 
 const proc = spawn('npx', [
   '-y',

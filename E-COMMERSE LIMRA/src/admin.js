@@ -33,6 +33,7 @@ let activeMapFilter = 'all';
 let currentUser = null;
 let selectedOrderId = null;
 let ordersPage = 1;
+let activeOrderTypeFilter = 'all';
 const ORDERS_PER_PAGE = 10;
 const charts = {};
 
@@ -259,7 +260,7 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-function parseNotesMetadata(notes) {
+function parseNotesMetadata(notes, order = null) {
   const result = {
     email: '',
     type: 'pickup',
@@ -269,8 +270,20 @@ function parseNotesMetadata(notes) {
     charge: '',
     payment: '',
     paymentStatus: '',
-    customNote: ''
+    customNote: '',
+    tableNumber: ''
   };
+  
+  if (order) {
+    if (order.order_type === 'table') {
+      result.type = 'table';
+      result.tableNumber = String(order.table_number || '');
+    } else if (order.order_type === 'delivery') {
+      result.type = 'delivery';
+    } else if (order.order_type === 'pickup') {
+      result.type = 'pickup';
+    }
+  }
   
   if (!notes) return result;
   
@@ -279,7 +292,11 @@ function parseNotesMetadata(notes) {
     result.email = emailMatch[1].trim();
   }
   
-  if (notes.includes('[DELIVERY]')) {
+  const tableMatch = notes.match(/\[TABLE:\s*([^\]|]+)\]/i);
+  if (tableMatch) {
+    result.tableNumber = tableMatch[1].trim();
+    result.type = 'table';
+  } else if (notes.includes('[DELIVERY]')) {
     result.type = 'delivery';
   } else if (notes.includes('[SELF PICKUP]')) {
     result.type = 'pickup';
@@ -308,6 +325,7 @@ function parseNotesMetadata(notes) {
   
   let cleanNote = notes
     .replace(/\[EMAIL:[^\]]+\]/gi, '')
+    .replace(/\[TABLE:[^\]]+\]/gi, '')
     .replace(/\[DELIVERY\] Address:[^|]+/gi, '')
     .replace(/Selected Area:[^|]+/gi, '')
     .replace(/Distance:[^|]+/gi, '')
@@ -340,9 +358,16 @@ function fmtMoney(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN')}`;
 }
 
-function statusPill(status) {
+function statusPill(status, isTable = false) {
   const cls = status === 'pending' ? 'new' : status;
-  return `<span class="adm-pill ${cls}">${STATUS_LABEL[status] || status}</span>`;
+  let label = STATUS_LABEL[status] || status;
+  if (isTable) {
+    if (status === 'ready') label = 'Served';
+    else if (status === 'delivered') label = 'Completed';
+    else if (status === 'preparing') label = 'Preparing';
+    else if (status === 'pending') label = 'Pending';
+  }
+  return `<span class="adm-pill ${cls}">${label}</span>`;
 }
 
 function paymentStatusPill(status) {
@@ -505,7 +530,7 @@ function buildCustomerStats() {
     const c = ensure(order.customer_phone, order.customer_name);
     c.orderCount += 1;
     c.totalSpent += Number(order.total_amount);
-    const meta = parseNotesMetadata(order.notes);
+    const meta = parseNotesMetadata(order.notes, order);
     if (meta.email) c.email = meta.email;
     if (!c.lastOrder || new Date(order.created_at) > new Date(c.lastOrder)) {
       c.lastOrder = order.created_at;
@@ -913,7 +938,7 @@ function renderDashboardMapMarkers() {
 
   // Filter orders matching activeMapFilter & has coordinates
   const activeOrders = orders.filter(o => {
-    const meta = parseNotesMetadata(o.notes);
+    const meta = parseNotesMetadata(o.notes, o);
     if (meta.type !== 'delivery') return false;
     if (o.latitude === null || o.longitude === null) return false;
 
@@ -989,6 +1014,11 @@ function getFilteredOrders() {
   const search = ($('orders-search')?.value || getGlobalSearch()).toLowerCase().trim();
   let filtered = [...orders];
   if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
+  if (activeOrderTypeFilter === 'online') {
+    filtered = filtered.filter(o => o.order_type !== 'table');
+  } else if (activeOrderTypeFilter === 'table') {
+    filtered = filtered.filter(o => o.order_type === 'table');
+  }
   if (search) {
     filtered = filtered.filter(o =>
       o.customer_name.toLowerCase().includes(search) ||
@@ -1010,17 +1040,31 @@ function renderOrdersTable() {
   if (page.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="adm-empty">No orders found</td></tr>`;
   } else {
-    tbody.innerHTML = page.map(order => `
-      <tr data-order-id="${order.id}">
-        <td><strong>#${order.order_number}</strong></td>
-        <td>${fmtDateShort(order.created_at)}</td>
-        <td>${order.customer_name}</td>
-        <td><a href="tel:${order.customer_phone}" style="color:var(--adm-green)">${order.customer_phone}</a></td>
-        <td><strong>${fmtMoney(order.total_amount)}</strong></td>
-        <td>${statusPill(order.status)}</td>
-        <td><button class="adm-btn adm-btn-primary adm-btn-sm view-order-btn" data-order-id="${order.id}">View</button></td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = page.map(order => {
+      const parsedMeta = parseNotesMetadata(order.notes, order);
+      let typeText = '🥡 Pickup';
+      if (parsedMeta.type === 'delivery') {
+        typeText = '🚗 Delivery';
+      } else if (parsedMeta.type === 'table') {
+        typeText = `🍽️ Table ${parsedMeta.tableNumber}`;
+      }
+      return `
+        <tr data-order-id="${order.id}">
+          <td><strong>#${order.order_number}</strong></td>
+          <td>${fmtDateShort(order.created_at)}</td>
+          <td>
+            ${escapeHtml(order.customer_name)}
+            <div class="adm-info-muted" style="margin-top: 2px; font-size: 11px;">
+              ${typeText}
+            </div>
+          </td>
+          <td><a href="tel:${order.customer_phone}" style="color:var(--adm-green)">${order.customer_phone}</a></td>
+          <td><strong>${fmtMoney(order.total_amount)}</strong></td>
+          <td>${statusPill(order.status, parsedMeta.type === 'table')}</td>
+          <td><button class="adm-btn adm-btn-primary adm-btn-sm view-order-btn" data-order-id="${order.id}">View</button></td>
+        </tr>
+      `;
+    }).join('');
   }
 
   tbody.querySelectorAll('tr[data-order-id], .view-order-btn').forEach(el => {
@@ -1048,7 +1092,7 @@ async function updateOrderStatus(orderId, newStatus) {
     order.status = newStatus;
     
     // Send Email Notification on Confirmation or Cancellation
-    const meta = parseNotesMetadata(order.notes);
+    const meta = parseNotesMetadata(order.notes, order);
     if (meta.email) {
       try {
         if (newStatus === 'confirmed') {
@@ -1111,9 +1155,18 @@ function renderOrderDetail(orderId) {
   selectedOrderId = order.id;
   $('order-detail-title').textContent = `Order #${order.order_number}`;
   $('order-detail-sub').textContent = `Placed ${fmtDate(order.created_at)}`;
-  show(statusSelect);
+  const isTable = order.order_type === 'table' || (order.notes && order.notes.includes('[TABLE:'));
+  const DINEIN_STATUS_LABEL = {
+    pending: 'Pending',
+    confirmed: 'Confirmed',
+    preparing: 'Preparing',
+    ready: 'Served',
+    delivered: 'Completed',
+    cancelled: 'Cancelled'
+  };
+  const labelsToUse = isTable ? DINEIN_STATUS_LABEL : STATUS_LABEL;
   statusSelect.innerHTML = ORDER_STATUSES.map(s =>
-    `<option value="${s}" ${s === order.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`
+    `<option value="${s}" ${s === order.status ? 'selected' : ''}>${labelsToUse[s] || s}</option>`
   ).join('');
   statusSelect.onchange = () => updateOrderStatus(order.id, statusSelect.value);
 
@@ -1139,7 +1192,7 @@ function renderOrderDetail(orderId) {
         </tr>
       `).join('');
 
-  const parsedMeta = parseNotesMetadata(order.notes);
+  const parsedMeta = parseNotesMetadata(order.notes, order);
 
   const digits = order.customer_phone.replace(/\D/g, '');
   const formattedPhone = digits.length === 10 ? '91' : '';
@@ -1160,7 +1213,7 @@ function renderOrderDetail(orderId) {
             <div class="adm-customer-avatar">${initials(order.customer_name)}</div>
             <div>
               <p class="adm-customer-name">${escapeHtml(order.customer_name)}</p>
-              <span class="adm-pill confirmed">${parsedMeta.type === 'delivery' ? '🚗 Delivery' : '🥡 Pickup'}</span>
+              <span class="adm-pill confirmed">${parsedMeta.type === 'delivery' ? '🚗 Delivery' : (parsedMeta.type === 'table' ? `🍽️ Table ${parsedMeta.tableNumber}` : '🥡 Pickup')}</span>
               <p class="adm-customer-phone"><a href="tel:${order.customer_phone}">${escapeHtml(order.customer_phone)}</a></p>
               ${parsedMeta.email ? `<span class="adm-email-badge">${escapeHtml(parsedMeta.email)}</span>` : ''}
             </div>
@@ -1171,9 +1224,9 @@ function renderOrderDetail(orderId) {
           <h3 class="adm-card-title">Order Information</h3>
           <div class="adm-info-grid">
             <div class="adm-info-item"><label>Order Number</label><p>#${order.order_number}</p></div>
-            <div class="adm-info-item"><label>Status</label><p>${statusPill(order.status)}</p></div>
+            <div class="adm-info-item"><label>Status</label><p>${statusPill(order.status, parsedMeta.type === 'table')}</p></div>
             <div class="adm-info-item"><label>Total Amount</label><p style="color:var(--adm-green)">${fmtMoney(order.total_amount)}</p></div>
-            <div class="adm-info-item"><label>Payment Method</label><p class="font-semibold text-slate-800">${parsedMeta.payment ? parsedMeta.payment.toUpperCase() : 'COD'}</p></div>
+            <div class="adm-info-item"><label>Payment Method</label><p class="font-semibold text-slate-800">${parsedMeta.payment ? parsedMeta.payment.toUpperCase() : (parsedMeta.type === 'table' ? 'Pay at Restaurant' : 'COD')}</p></div>
             <div class="adm-info-item"><label>Payment Status</label><p>${paymentStatusPill(parsedMeta.paymentStatus || 'PENDING')}</p></div>
             <div class="adm-info-item"><label>Items Count</label><p>${items.length} item(s) · ${items.reduce((s, i) => s + i.quantity, 0)} qty</p></div>
             <div class="adm-info-item"><label>Placed At</label><p>${fmtDate(order.created_at)}</p></div>
@@ -1187,6 +1240,20 @@ function renderOrderDetail(orderId) {
             </div>
           ` : ''}
         </div>
+
+        ${parsedMeta.type === 'table' ? `
+          <div class="adm-card" style="border: 2px solid var(--adm-green); background: rgba(0, 176, 116, 0.02);">
+            <div class="flex items-center justify-between mb-3" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+              <h3 class="adm-card-title" style="margin:0; color:var(--adm-green)">🪑 Dine-in Table Info</h3>
+              <span class="adm-pill confirmed">Table ${parsedMeta.tableNumber}</span>
+            </div>
+            <div class="adm-info-grid">
+              <div class="adm-info-item"><label>Table Number</label><p class="text-sm font-bold">Table ${parsedMeta.tableNumber}</p></div>
+              <div class="adm-info-item"><label>Zone / Section</label><p class="text-sm font-bold capitalize">${order.table_zone || 'Indoor'}</p></div>
+              <div class="adm-info-item"><label>Order Type</label><p class="text-sm font-semibold">Dine-In Self-Order</p></div>
+            </div>
+          </div>
+        ` : ''}
 
         ${parsedMeta.type === 'delivery' ? `
           <div class="adm-card">
@@ -1959,6 +2026,24 @@ function initDashboardUI() {
   document.addEventListener('keydown', warmUpAudio, { once: true });
 
   $('orders-status-filter')?.addEventListener('change', () => { ordersPage = 1; renderOrdersTable(); });
+  
+  const typePills = document.querySelectorAll('#order-type-pills .adm-pill');
+  typePills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      typePills.forEach(p => {
+        p.classList.remove('active');
+        p.style.background = '#f5f7fa';
+        p.style.color = 'var(--adm-text)';
+      });
+      pill.classList.add('active');
+      pill.style.background = 'var(--adm-green)';
+      pill.style.color = '#fff';
+      activeOrderTypeFilter = pill.dataset.type;
+      ordersPage = 1;
+      renderOrdersTable();
+    });
+  });
+
   $('orders-search')?.addEventListener('input', () => { ordersPage = 1; renderOrdersTable(); });
   $('customers-search')?.addEventListener('input', renderCustomers);
   $('bookings-type-filter')?.addEventListener('change', () => { renderBookingsList(); renderBookingCalendar(); });
@@ -2008,8 +2093,6 @@ function initDashboardUI() {
   setInterval(() => refreshDashboard(false), 10000);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  initDashboardAuth();
-  initDashboardUI();
-  initAuth();
-});
+initDashboardAuth();
+initDashboardUI();
+initAuth();
