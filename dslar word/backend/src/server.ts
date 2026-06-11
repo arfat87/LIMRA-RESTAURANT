@@ -1,12 +1,12 @@
 import 'dotenv/config';
 import app from './app';
-import { connectDB } from './config/db';
+import { connectDB, disconnectDB } from './config/db';
 import { logger } from './utils/logger';
 
 const PORT = Number(process.env.PORT) || 5000;
 
 const startServer = async (): Promise<void> => {
-  // Connect to PostgreSQL
+  // Connect to MongoDB Atlas
   await connectDB();
 
   const server = app.listen(PORT, () => {
@@ -16,6 +16,7 @@ const startServer = async (): Promise<void> => {
     logger.info(`  📍 Health: http://localhost:${PORT}/health`);
     logger.info(`  🌍 Env: ${process.env.NODE_ENV || 'development'}`);
     logger.info('  📦 Store: DSLR WORLD, Ranchi, Jharkhand');
+    logger.info('  🍃 DB: MongoDB Atlas');
     logger.info('═══════════════════════════════════════════════');
   });
 
@@ -25,11 +26,7 @@ const startServer = async (): Promise<void> => {
 
     server.close(async () => {
       logger.info('✅ HTTP server closed');
-
-      const { default: prisma } = await import('./config/db');
-      await prisma.$disconnect();
-      logger.info('✅ Database disconnected');
-
+      await disconnectDB();
       process.exit(0);
     });
 
@@ -41,15 +38,13 @@ const startServer = async (): Promise<void> => {
   };
 
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
-  // Unhandled rejections
   process.on('unhandledRejection', (reason: Error) => {
     logger.error('❌ Unhandled Promise Rejection:', reason);
     gracefulShutdown('unhandledRejection');
   });
 
-  // Uncaught exceptions
   process.on('uncaughtException', (error: Error) => {
     logger.error('❌ Uncaught Exception:', error);
     gracefulShutdown('uncaughtException');

@@ -1,31 +1,21 @@
-import { Prisma } from '@prisma/client';
-import prisma from '../../config/db';
+import { Product } from '../../models/Product.model';
+import { Category } from '../../models/Category.model';
 import { ApiError } from '../../utils/ApiError';
 import type { CreateProductInput, UpdateProductInput, ProductQuery } from './product.schema';
 
-/**
- * Slugify a product name
- */
-const slugify = (name: string): string => {
-  return name
-    .toLowerCase()
-    .trim()
+const slugify = (name: string): string =>
+  name.toLowerCase().trim()
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
-};
 
-/**
- * Ensure slug is unique — append a counter if needed
- */
 const generateUniqueSlug = async (name: string, excludeId?: string): Promise<string> => {
   let slug = slugify(name);
   let counter = 0;
-
   while (true) {
     const candidate = counter === 0 ? slug : `${slug}-${counter}`;
-    const existing = await prisma.product.findUnique({ where: { slug: candidate } });
-    if (!existing || existing.id === excludeId) return candidate;
+    const existing = await Product.findOne({ slug: candidate });
+    if (!existing || existing._id.toString() === excludeId) return candidate;
     counter++;
   }
 };
@@ -34,46 +24,51 @@ export const getProducts = async (query: ProductQuery) => {
   const { page, limit, category, condition, minPrice, maxPrice, sort, brand } = query;
   const skip = (page - 1) * limit;
 
-  const where: Prisma.ProductWhereInput = { isActive: true };
+  // Build filter
+  const filter: Record<string, unknown> = { isActive: true };
 
   if (category) {
-    where.category = { slug: category };
+    const cat = await Category.findOne({ slug: category });
+    if (cat) filter.categoryId = cat._id;
   }
-  if (condition) where.condition = condition;
-  if (brand) where.brand = { contains: brand, mode: 'insensitive' };
+  if (condition) filter.condition = condition;
+  if (brand) filter.brand = { $regex: brand, $options: 'i' };
   if (minPrice !== undefined || maxPrice !== undefined) {
-    where.price = {};
-    if (minPrice !== undefined) where.price.gte = minPrice;
-    if (maxPrice !== undefined) where.price.lte = maxPrice;
+    filter.price = {};
+    if (minPrice !== undefined) (filter.price as Record<string, number>).$gte = minPrice;
+    if (maxPrice !== undefined) (filter.price as Record<string, number>).$lte = maxPrice;
   }
 
-  const orderBy: Prisma.ProductOrderByWithRelationInput =
-    sort === 'price_asc'
-      ? { price: 'asc' }
-      : sort === 'price_desc'
-      ? { price: 'desc' }
-      : { createdAt: 'desc' };
+  const sortMap: Record<string, Record<string, number>> = {
+    price_asc:  { price: 1 },
+    price_desc: { price: -1 },
+    popular:    { createdAt: -1 },
+    newest:     { createdAt: -1 },
+  };
+  const sortObj = sortMap[sort || 'newest'] || { createdAt: -1 };
 
   const [products, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      orderBy,
-      skip,
-      take: limit,
-      include: {
-        category: { select: { name: true, slug: true } },
-        _count: { select: { reviews: true } },
-      },
-    }),
-    prisma.product.count({ where }),
+    Product.find(filter)
+      .populate('categoryId', 'name slug')
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Product.countDocuments(filter),
   ]);
 
+  // Normalise categoryId → category field for API parity
+  const normalised = products.map((p) => ({
+    ...p,
+    id: p._id.toString(),
+    category: p.categoryId,
+    categoryId: undefined,
+  }));
+
   return {
-    products,
+    products: normalised,
     pagination: {
-      page,
-      limit,
-      total,
+      page, limit, total,
       totalPages: Math.ceil(total / limit),
       hasNext: page * limit < total,
       hasPrev: page > 1,
@@ -82,70 +77,56 @@ export const getProducts = async (query: ProductQuery) => {
 };
 
 export const getProductBySlug = async (slug: string) => {
-  const product = await prisma.product.findUnique({
-    where: { slug, isActive: true },
-    include: {
-      category: { select: { name: true, slug: true } },
-      reviews: {
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: { user: { select: { name: true, avatar: true } } },
-      },
-      _count: { select: { reviews: true } },
-    },
-  });
+  const product = await Product.findOne({ slug, isActive: true })
+    .populate('categoryId', 'name slug')
+    .lean();
   if (!product) throw new ApiError(404, 'Product not found.');
-  return product;
+  return { ...product, id: product._id.toString(), category: product.categoryId };
 };
 
 export const getFeaturedProducts = async (limit = 8) => {
-  return prisma.product.findMany({
-    where: { isFeatured: true, isActive: true },
-    take: limit,
-    include: { category: { select: { name: true, slug: true } } },
-    orderBy: { createdAt: 'desc' },
-  });
+  const products = await Product.find({ isFeatured: true, isActive: true })
+    .populate('categoryId', 'name slug')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  return products.map((p) => ({ ...p, id: p._id.toString(), category: p.categoryId }));
 };
 
 export const searchProducts = async (q: string, page = 1, limit = 12) => {
   const skip = (page - 1) * limit;
-  const where: Prisma.ProductWhereInput = {
+  const filter = {
     isActive: true,
-    OR: [
-      { name: { contains: q, mode: 'insensitive' } },
-      { description: { contains: q, mode: 'insensitive' } },
-      { brand: { contains: q, mode: 'insensitive' } },
-      { model: { contains: q, mode: 'insensitive' } },
+    $or: [
+      { name: { $regex: q, $options: 'i' } },
+      { description: { $regex: q, $options: 'i' } },
+      { brand: { $regex: q, $options: 'i' } },
+      { model: { $regex: q, $options: 'i' } },
     ],
   };
 
   const [products, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      include: { category: { select: { name: true, slug: true } } },
-    }),
-    prisma.product.count({ where }),
+    Product.find(filter)
+      .populate('categoryId', 'name slug')
+      .skip(skip).limit(limit).lean(),
+    Product.countDocuments(filter),
   ]);
 
   return {
-    products,
+    products: products.map((p) => ({ ...p, id: p._id.toString(), category: p.categoryId })),
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
   };
 };
 
-export const createProduct = async (data: CreateProductInput): Promise<typeof product> => {
+export const createProduct = async (data: CreateProductInput) => {
   const slug = await generateUniqueSlug(data.name);
-  const product = await prisma.product.create({
-    data: { ...data, slug },
-    include: { category: { select: { name: true, slug: true } } },
-  });
-  return product;
+  const product = await Product.create({ ...data, slug });
+  const populated = await product.populate('categoryId', 'name slug');
+  return { ...populated.toObject(), id: product._id.toString(), category: populated.categoryId };
 };
 
 export const updateProduct = async (id: string, data: UpdateProductInput) => {
-  const existing = await prisma.product.findUnique({ where: { id } });
+  const existing = await Product.findById(id);
   if (!existing) throw new ApiError(404, 'Product not found.');
 
   let slug = existing.slug;
@@ -153,26 +134,22 @@ export const updateProduct = async (id: string, data: UpdateProductInput) => {
     slug = await generateUniqueSlug(data.name, id);
   }
 
-  return prisma.product.update({
-    where: { id },
-    data: { ...data, slug },
-    include: { category: { select: { name: true, slug: true } } },
-  });
+  const updated = await Product.findByIdAndUpdate(id, { ...data, slug }, { new: true })
+    .populate('categoryId', 'name slug')
+    .lean();
+  return { ...updated, id: updated!._id.toString(), category: updated!.categoryId };
 };
 
 export const deleteProduct = async (id: string) => {
-  const existing = await prisma.product.findUnique({ where: { id } });
+  const existing = await Product.findById(id);
   if (!existing) throw new ApiError(404, 'Product not found.');
-  // Soft delete
-  await prisma.product.update({ where: { id }, data: { isActive: false } });
+  await Product.findByIdAndUpdate(id, { isActive: false });
 };
 
 export const addProductImages = async (id: string, imageUrls: string[]) => {
-  const product = await prisma.product.findUnique({ where: { id } });
+  const product = await Product.findById(id);
   if (!product) throw new ApiError(404, 'Product not found.');
-
-  return prisma.product.update({
-    where: { id },
-    data: { images: [...product.images, ...imageUrls] },
-  });
+  product.images.push(...imageUrls);
+  await product.save();
+  return product;
 };

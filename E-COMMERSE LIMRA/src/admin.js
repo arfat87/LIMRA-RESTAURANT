@@ -2,6 +2,7 @@ import './style.css';
 import './admin.css';
 import { Chart, registerables } from 'chart.js';
 import { insforge } from './lib/insforge.js';
+import { PaymentService } from './lib/payments.js';
 import { menuItems, categoryImages, categoryLabels } from './data/menu.js';
 import { getAdminLoginUrl } from './lib/admin-routes.js';
 import { sendEmailNotification, generateOrderConfirmedHtml, generateOrderCancelledHtml } from './lib/email-service.js';
@@ -192,6 +193,49 @@ function initToastContainer() {
   }
 }
 
+function showAdminToast(message, type = 'success') {
+  initToastContainer();
+  const container = document.getElementById('dashboard-toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'p-4 rounded-2xl border shadow-xl flex items-center justify-between gap-3 transition-all duration-500 translate-x-80 opacity-0 pointer-events-auto cursor-pointer backdrop-blur-md';
+  
+  toast.style.background = 'rgba(255, 255, 255, 0.95)';
+  toast.style.borderColor = type === 'success' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)';
+  toast.style.color = 'var(--adm-text)';
+  toast.style.fontSize = '0.85rem';
+  toast.style.fontWeight = '600';
+  
+  const icon = type === 'success' ? '✅' : '❌';
+  toast.innerHTML = `
+    <div style="display:flex; align-items:center; gap:0.5rem;">
+      <span style="font-size:1.2rem;">${icon}</span>
+      <span>${escapeHtml(message)}</span>
+    </div>
+    <button style="background:none; border:none; color:#999; cursor:pointer; font-weight:bold; font-size:1rem;">✕</button>
+  `;
+  
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.classList.remove('translate-x-80', 'opacity-0');
+  }, 50);
+  
+  const close = () => {
+    toast.classList.add('translate-x-80', 'opacity-0');
+    setTimeout(() => toast.remove(), 500);
+  };
+  
+  toast.addEventListener('click', close);
+  toast.querySelector('button').addEventListener('click', (e) => {
+    e.stopPropagation();
+    close();
+  });
+  
+  setTimeout(close, 4000);
+}
+
 function showDashboardToast(title, msg, type = 'info', orderId = null) {
   initToastContainer();
   const container = document.getElementById('dashboard-toast-container');
@@ -371,11 +415,11 @@ function statusPill(status, isTable = false) {
 }
 
 function paymentStatusPill(status) {
-  const s = String(status).toUpperCase();
-  if (s === 'COMPLETED') {
-    return `<span class="adm-pill confirmed">✓ Paid</span>`;
+  const s = String(status || 'unpaid').toLowerCase();
+  if (s === 'paid' || s === 'completed') {
+    return `<span class="adm-pill completed" style="text-transform: uppercase;">PAID</span>`;
   }
-  return `<span class="adm-pill new">⏳ Unpaid</span>`;
+  return `<span class="adm-pill cancelled" style="text-transform: uppercase;">UNPAID</span>`;
 }
 
 function initials(name) {
@@ -608,11 +652,51 @@ function renderStats() {
   const delivered = orders.filter(o => o.status === 'delivered').length;
   const revenue = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total_amount), 0);
 
+  // New payment stats calculations
+  const paidCount = orders.filter(o => o.payment_status === 'paid').length;
+  const unpaidCount = orders.filter(o => o.payment_status === 'unpaid' || !o.payment_status).length;
+  
+  const todayStr = new Date().toDateString();
+  const todayPaidRev = orders
+    .filter(o => o.payment_status === 'paid' && new Date(o.created_at).toDateString() === todayStr)
+    .reduce((s, o) => s + Number(o.total_amount), 0);
+
+  const pendingPayments = orders
+    .filter(o => o.payment_status === 'unpaid' || !o.payment_status)
+    .reduce((s, o) => s + Number(o.total_amount), 0);
+
+  const collectedRev = orders
+    .filter(o => o.payment_status === 'paid' && o.status !== 'cancelled')
+    .reduce((s, o) => s + Number(o.total_amount), 0);
+
+  const outstandingRev = orders
+    .filter(o => (o.payment_status === 'unpaid' || !o.payment_status) && o.status !== 'cancelled')
+    .reduce((s, o) => s + Number(o.total_amount), 0);
+
+  // Render standard stats
   $('stat-total-orders').textContent = orders.length;
-  $('stat-delivered').textContent = delivered;
-  $('stat-pending-orders').textContent = pending;
   $('stat-revenue').textContent = fmtMoney(revenue);
 
+  // Render new payment stats
+  const elPaid = $('stat-paid-orders');
+  if (elPaid) elPaid.textContent = paidCount;
+
+  const elUnpaid = $('stat-unpaid-orders');
+  if (elUnpaid) elUnpaid.textContent = unpaidCount;
+
+  const elTodayPayments = $('stat-today-payments');
+  if (elTodayPayments) elTodayPayments.textContent = fmtMoney(todayPaidRev);
+
+  const elPendingPayments = $('stat-pending-payments');
+  if (elPendingPayments) elPendingPayments.textContent = fmtMoney(pendingPayments);
+
+  const elCollected = $('stat-collected-revenue');
+  if (elCollected) elCollected.textContent = fmtMoney(collectedRev);
+
+  const elOutstanding = $('stat-outstanding-revenue');
+  if (elOutstanding) elOutstanding.textContent = fmtMoney(outstandingRev);
+
+  // Sidebar badges
   const orderBadge = $('pending-orders-badge');
   if (pending > 0) { orderBadge.textContent = pending; show(orderBadge); }
   else hide(orderBadge);
@@ -1011,14 +1095,30 @@ function getMarkerIconForStatus(status) {
 
 function getFilteredOrders() {
   const statusFilter = $('orders-status-filter')?.value || 'all';
+  const paymentFilter = $('orders-payment-filter')?.value || 'all';
   const search = ($('orders-search')?.value || getGlobalSearch()).toLowerCase().trim();
   let filtered = [...orders];
+  
   if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
+  
+  if (paymentFilter === 'paid') {
+    filtered = filtered.filter(o => o.payment_status === 'paid');
+  } else if (paymentFilter === 'unpaid') {
+    filtered = filtered.filter(o => o.payment_status === 'unpaid' || !o.payment_status);
+  } else if (paymentFilter === 'today_paid') {
+    const todayStr = new Date().toDateString();
+    filtered = filtered.filter(o => o.payment_status === 'paid' && new Date(o.created_at).toDateString() === todayStr);
+  } else if (paymentFilter === 'today_unpaid') {
+    const todayStr = new Date().toDateString();
+    filtered = filtered.filter(o => (o.payment_status === 'unpaid' || !o.payment_status) && new Date(o.created_at).toDateString() === todayStr);
+  }
+
   if (activeOrderTypeFilter === 'online') {
     filtered = filtered.filter(o => o.order_type !== 'table');
   } else if (activeOrderTypeFilter === 'table') {
     filtered = filtered.filter(o => o.order_type === 'table');
   }
+  
   if (search) {
     filtered = filtered.filter(o =>
       o.customer_name.toLowerCase().includes(search) ||
@@ -1038,7 +1138,7 @@ function renderOrdersTable() {
 
   const tbody = $('orders-table-body');
   if (page.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="adm-empty">No orders found</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="adm-empty">No orders found</td></tr>`;
   } else {
     tbody.innerHTML = page.map(order => {
       const parsedMeta = parseNotesMetadata(order.notes, order);
@@ -1051,7 +1151,6 @@ function renderOrdersTable() {
       return `
         <tr data-order-id="${order.id}">
           <td><strong>#${order.order_number}</strong></td>
-          <td>${fmtDateShort(order.created_at)}</td>
           <td>
             ${escapeHtml(order.customer_name)}
             <div class="adm-info-muted" style="margin-top: 2px; font-size: 11px;">
@@ -1061,11 +1160,28 @@ function renderOrdersTable() {
           <td><a href="tel:${order.customer_phone}" style="color:var(--adm-green)">${order.customer_phone}</a></td>
           <td><strong>${fmtMoney(order.total_amount)}</strong></td>
           <td>${statusPill(order.status, parsedMeta.type === 'table')}</td>
-          <td><button class="adm-btn adm-btn-primary adm-btn-sm view-order-btn" data-order-id="${order.id}">View</button></td>
+          <td>${paymentStatusPill(order.payment_status || 'unpaid')}</td>
+          <td>${fmtDateShort(order.created_at)}</td>
+          <td>
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <button class="adm-btn adm-btn-primary adm-btn-sm view-order-btn" data-order-id="${order.id}">View</button>
+              ${(order.payment_status || 'unpaid') === 'unpaid' ? `<button class="adm-btn adm-btn-outline adm-btn-sm inline-mark-paid-btn" data-order-id="${order.id}" style="padding:0.4rem 0.6rem; font-size:0.75rem; border-color:var(--adm-green); color:var(--adm-green)">✓ Mark Paid</button>` : ''}
+            </div>
+          </td>
         </tr>
       `;
     }).join('');
   }
+
+  tbody.querySelectorAll('.inline-mark-paid-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const orderId = btn.dataset.orderId;
+      if (confirm('Are you sure you want to mark this order as paid?')) {
+        updateOrderPaymentStatus(orderId, 'paid');
+      }
+    });
+  });
 
   tbody.querySelectorAll('tr[data-order-id], .view-order-btn').forEach(el => {
     el.addEventListener('click', e => {
@@ -1106,12 +1222,130 @@ async function updateOrderStatus(orderId, newStatus) {
         console.warn('[Admin] Background email status notification failed:', emailErr);
       }
     }
+
+    // Broadcast real-time order status update to client channel
+    try {
+      const cleanPhone = String(order.customer_phone).replace(/\D/g, '').slice(-10);
+      if (cleanPhone.length >= 10) {
+        let title = 'Order Update';
+        let message = `Your order #${order.order_number} status is now ${newStatus}.`;
+        let notifType = `order_${newStatus}`;
+        
+        switch (newStatus) {
+          case 'confirmed':
+            title = 'Order Confirmed';
+            message = `Your order #${order.order_number} has been confirmed and is now being prepared.`;
+            notifType = 'order_confirmed';
+            break;
+          case 'preparing':
+            title = 'Order Preparing';
+            message = `Your order #${order.order_number} is being prepared in the kitchen.`;
+            notifType = 'order_preparing';
+            break;
+          case 'ready':
+            title = 'Out For Delivery';
+            message = `Your order #${order.order_number} is ready and out for delivery.`;
+            notifType = 'out_for_delivery';
+            break;
+          case 'delivered':
+            title = 'Order Delivered';
+            message = `Your order #${order.order_number} has been delivered. Enjoy your meal!`;
+            notifType = 'delivered';
+            break;
+          case 'cancelled':
+            title = 'Order Rejected';
+            message = `Your order #${order.order_number} has been cancelled.`;
+            notifType = 'order_rejected';
+            break;
+        }
+
+        await insforge.realtime.publish(`customer-notifications:${cleanPhone}`, 'notification_created', {
+          title,
+          message,
+          order_id: orderId,
+          type: notifType,
+          created_at: new Date().toISOString()
+        });
+        console.log(`[Admin] Realtime status update broadcasted to customer channel: customer-notifications:${cleanPhone}`);
+
+        // Also publish to specific order tracking channel
+        try {
+          await insforge.realtime.publish(`order-updates:${orderId}`, 'order_status_updated', {
+            order_id: orderId,
+            status: newStatus
+          });
+          console.log(`[Admin] Realtime status update broadcasted to order channel: order-updates:${orderId}`);
+        } catch (orderRtErr) {
+          console.warn('[Admin] Realtime order channel broadcast failed:', orderRtErr);
+        }
+      }
+    } catch (rtErr) {
+      console.warn('[Admin] Realtime status update broadcast failed:', rtErr);
+    }
   }
   renderOverview();
   renderOrdersTable();
   renderOrderDetailPicker();
   if (selectedOrderId === orderId) renderOrderDetail(orderId);
   return true;
+}
+
+async function updateOrderPaymentStatus(orderId, newStatus) {
+  try {
+    const result = await PaymentService.updatePaymentStatus(orderId, newStatus);
+    showAdminToast('Payment status updated successfully.', 'success');
+
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      order.payment_status = newStatus;
+      try {
+        await PaymentService.sendPaymentNotification(order.customer_phone, order);
+      } catch (err) {
+        console.warn('[Admin] Realtime payment notification broadcast failed:', err);
+      }
+    }
+
+    renderOverview();
+    renderOrdersTable();
+    renderOrderDetailPicker();
+    if (selectedOrderId === orderId) renderOrderDetail(orderId);
+    return true;
+  } catch (err) {
+    console.error('Failed to update payment status:', err);
+    showAdminToast('Unable to update payment status. Please try again.', 'error');
+    return false;
+  }
+}
+
+async function loadAndRenderPaymentHistory(orderId) {
+  const container = document.getElementById('detail-payment-history-container');
+  if (!container) return;
+  try {
+    const historyList = await PaymentService.getPaymentHistory(orderId);
+    if (!historyList || historyList.length === 0) {
+      container.innerHTML = '<p class="text-xs text-slate-400 italic">No payment history events recorded.</p>';
+      return;
+    }
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        ${historyList.map(h => `
+          <div style="padding: 0.65rem; border-radius: 8px; border: 1px solid var(--adm-border); background: #fafbfc; font-size: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 0.25rem;">
+              <span style="color: ${h.new_status === 'paid' ? 'var(--adm-green)' : '#ff5b5b'}">
+                ${h.previous_status.toUpperCase()} → ${h.new_status.toUpperCase()}
+              </span>
+              <span style="color: var(--adm-muted); font-weight: normal; font-size: 0.7rem;">${fmtDate(h.created_at)}</span>
+            </div>
+            <p style="margin: 0 0 0.25rem 0; color: var(--adm-text); font-weight: 500;">${escapeHtml(h.notes || 'No description provided.')}</p>
+            <div style="font-size: 0.675rem; color: var(--adm-muted);">Operator: ${escapeHtml(h.changed_by)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (err) {
+    console.error('Failed to load payment history:', err);
+    container.innerHTML = '<p class="text-xs text-red-500 italic">Failed to load payment logs.</p>';
+  }
 }
 
 function openOrderDetail(orderId) {
@@ -1227,7 +1461,7 @@ function renderOrderDetail(orderId) {
             <div class="adm-info-item"><label>Status</label><p>${statusPill(order.status, parsedMeta.type === 'table')}</p></div>
             <div class="adm-info-item"><label>Total Amount</label><p style="color:var(--adm-green)">${fmtMoney(order.total_amount)}</p></div>
             <div class="adm-info-item"><label>Payment Method</label><p class="font-semibold text-slate-800">${parsedMeta.payment ? parsedMeta.payment.toUpperCase() : (parsedMeta.type === 'table' ? 'Pay at Restaurant' : 'COD')}</p></div>
-            <div class="adm-info-item"><label>Payment Status</label><p>${paymentStatusPill(parsedMeta.paymentStatus || 'PENDING')}</p></div>
+            <div class="adm-info-item"><label>Payment Status</label><p>${paymentStatusPill(order.payment_status || 'unpaid')}</p></div>
             <div class="adm-info-item"><label>Items Count</label><p>${items.length} item(s) · ${items.reduce((s, i) => s + i.quantity, 0)} qty</p></div>
             <div class="adm-info-item"><label>Placed At</label><p>${fmtDate(order.created_at)}</p></div>
             <div class="adm-info-item"><label>Last Updated</label><p>${fmtDate(order.updated_at)}</p></div>
@@ -1381,6 +1615,7 @@ function renderOrderDetail(orderId) {
             ${order.status === 'preparing' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm ready-order">✓ Mark Ready</button>` : ''}
             ${order.status === 'ready' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm deliver-order">✓ Mark Delivered</button>` : ''}
             ${order.status !== 'cancelled' && order.status !== 'delivered' ? `<button type="button" class="adm-btn adm-btn-danger adm-btn-sm cancel-order">✕ Cancel</button>` : ''}
+            ${(order.payment_status || 'unpaid') === 'unpaid' ? `<button type="button" class="adm-btn adm-btn-success adm-btn-sm mark-paid-btn">💵 Mark As Paid</button>` : ''}
           </div>
 
           <h3 class="adm-card-title" style="margin-top: 1.5rem; margin-bottom: 0.75rem;">Customer Shortcuts</h3>
@@ -1396,6 +1631,13 @@ function renderOrderDetail(orderId) {
             </a>
           </div>
         </div>
+
+        <div class="adm-card mt-6">
+          <h3 class="adm-card-title">💳 Payment Audit Log</h3>
+          <div id="detail-payment-history-container">
+            <div class="adm-spinner adm-spinner-sm" style="margin: 1rem auto;" aria-hidden="true"></div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -1407,6 +1649,11 @@ function renderOrderDetail(orderId) {
   content.querySelector('.cancel-order')?.addEventListener('click', () => {
     if (confirm('Cancel this order?')) updateOrderStatus(order.id, 'cancelled');
   });
+  content.querySelector('.mark-paid-btn')?.addEventListener('click', () => {
+    if (confirm('Are you sure you want to mark this order as paid?')) {
+      updateOrderPaymentStatus(order.id, 'paid');
+    }
+  });
 
   content.querySelector('#comm-email-btn')?.addEventListener('click', (e) => {
     if (!parsedMeta.email) {
@@ -1414,6 +1661,9 @@ function renderOrderDetail(orderId) {
       alert('No email address provided by this customer.');
     }
   });
+
+  // Load payment history asynchronously
+  loadAndRenderPaymentHistory(order.id);
 
   // Map cleanup and initialization
   if (window.orderDetailMap) {
@@ -2026,6 +2276,7 @@ function initDashboardUI() {
   document.addEventListener('keydown', warmUpAudio, { once: true });
 
   $('orders-status-filter')?.addEventListener('change', () => { ordersPage = 1; renderOrdersTable(); });
+  $('orders-payment-filter')?.addEventListener('change', () => { ordersPage = 1; renderOrdersTable(); });
   
   const typePills = document.querySelectorAll('#order-type-pills .adm-pill');
   typePills.forEach(pill => {

@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import prisma from '../../config/db';
+import { User } from '../../models/User.model';
 import { ApiError } from '../../utils/ApiError';
 import {
   generateAccessToken,
@@ -30,57 +30,52 @@ const resetStore = new Map<string, ResetEntry>();
 export const registerUser = async (data: RegisterInput) => {
   const { name, email, phone, password } = data;
 
-  // Check duplicates
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ email }, { phone }] },
-  });
+  const existing = await User.findOne({ $or: [{ email }, { phone }] });
   if (existing) {
     if (existing.email === email) throw new ApiError(409, 'Email already in use.');
     throw new ApiError(409, 'Phone number already in use.');
   }
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+  const user = await User.create({ name, email, phone, password: hashedPassword });
 
-  const user = await prisma.user.create({
-    data: { name, email, phone, password: hashedPassword },
-    select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true },
-  });
-
-  // Send welcome email (non-blocking)
   sendEmail({
     to: email,
     subject: 'Welcome to DSLR WORLD! 📷',
     html: welcomeEmailTemplate(name),
-  }).catch(() => {}); // Silently fail
+  }).catch(() => {});
 
-  return user;
+  return {
+    id: user._id.toString(),
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    createdAt: user.createdAt,
+  };
 };
 
 export const loginUser = async (data: LoginInput) => {
   const { email, password } = data;
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await User.findOne({ email }).select('+password');
   if (!user) throw new ApiError(401, 'Invalid email or password.');
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new ApiError(401, 'Invalid email or password.');
 
-  const payload = { id: user.id, email: user.email, role: user.role };
+  const payload = { id: user._id.toString(), email: user.email, role: user.role };
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
 
-  // Store hashed refresh token
   const hashedRefresh = crypto.createHash('sha256').update(refreshToken).digest('hex');
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { refreshToken: hashedRefresh },
-  });
+  await User.findByIdAndUpdate(user._id, { refreshToken: hashedRefresh });
 
   return {
     accessToken,
     refreshToken,
     user: {
-      id: user.id,
+      id: user._id.toString(),
       name: user.name,
       email: user.email,
       phone: user.phone,
@@ -91,21 +86,18 @@ export const loginUser = async (data: LoginInput) => {
 };
 
 export const logoutUser = async (userId: string) => {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { refreshToken: null },
-  });
+  await User.findByIdAndUpdate(userId, { refreshToken: null });
 };
 
 export const refreshAccessToken = async (refreshToken: string) => {
-  let decoded;
+  let decoded: { id: string; email: string; role: string };
   try {
-    decoded = verifyRefreshToken(refreshToken);
+    decoded = verifyRefreshToken(refreshToken) as typeof decoded;
   } catch {
     throw new ApiError(401, 'Invalid or expired refresh token. Please login again.');
   }
 
-  const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+  const user = await User.findById(decoded.id);
   if (!user || !user.refreshToken) {
     throw new ApiError(401, 'Session expired. Please login again.');
   }
@@ -115,15 +107,12 @@ export const refreshAccessToken = async (refreshToken: string) => {
     throw new ApiError(401, 'Token mismatch. Please login again.');
   }
 
-  const payload = { id: user.id, email: user.email, role: user.role };
+  const payload = { id: user._id.toString(), email: user.email, role: user.role };
   const newAccessToken = generateAccessToken(payload);
   const newRefreshToken = generateRefreshToken(payload);
 
   const hashedNewRefresh = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { refreshToken: hashedNewRefresh },
-  });
+  await User.findByIdAndUpdate(user._id, { refreshToken: hashedNewRefresh });
 
   return { accessToken: newAccessToken, refreshToken: newRefreshToken };
 };
@@ -136,24 +125,22 @@ export const verifyOtpService = async (phone: string, otp: string) => {
   const result = verifyOTPFromStore(phone, otp);
   if (!result.valid) throw new ApiError(400, result.message);
 
-  // Mark user as verified if they exist
-  const user = await prisma.user.findUnique({ where: { phone } });
+  const user = await User.findOne({ phone });
   if (user) {
-    await prisma.user.update({ where: { id: user.id }, data: { isVerified: true } });
+    await User.findByIdAndUpdate(user._id, { isVerified: true });
   }
   return result.message;
 };
 
 export const forgotPasswordService = async (email: string) => {
-  const user = await prisma.user.findUnique({ where: { email } });
-  // Always return success to prevent email enumeration
-  if (!user) return;
+  const user = await User.findOne({ email });
+  if (!user) return; // Silent — prevent email enumeration
 
   const rawToken = crypto.randomBytes(32).toString('hex');
   const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
   const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  resetStore.set(hashedToken, { hashedToken, expiry, userId: user.id });
+  resetStore.set(hashedToken, { hashedToken, expiry, userId: user._id.toString() });
 
   const resetUrl = `${process.env.CLIENT_URL}/reset-password/${rawToken}`;
   await sendEmail({
@@ -172,10 +159,7 @@ export const resetPasswordService = async (token: string, newPassword: string) =
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  await prisma.user.update({
-    where: { id: entry.userId },
-    data: { password: hashedPassword, refreshToken: null },
-  });
+  await User.findByIdAndUpdate(entry.userId, { password: hashedPassword, refreshToken: null });
 
   resetStore.delete(hashedToken);
 };

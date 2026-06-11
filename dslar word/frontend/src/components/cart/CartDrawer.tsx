@@ -8,7 +8,7 @@ import { ROUTES } from '../../constants/routes';
 import { Button } from '../ui/Button';
 
 export const CartDrawer: React.FC = () => {
-  const { items, isOpen, closeCart, removeItem, updateQty, subtotal, clearCart } = useCartStore();
+  const { items, isOpen, closeCart, removeItem, updateQty, subtotal } = useCartStore();
   const sub = subtotal();
   const FREE_SHIPPING_THRESHOLD = 50000; // ₹500 in paise
   const shippingFee = sub >= FREE_SHIPPING_THRESHOLD ? 0 : 4900; // ₹49

@@ -10,7 +10,24 @@ const $ = selector => {
 const show = el => { if (el) el.classList.remove('hidden'); };
 const hide = el => { if (el) el.classList.add('hidden'); };
 
-let cart = []; // Cart state: [{ item: menuItem, quantity: number }]
+function loadTableCart() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return [];
+    const raw = localStorage.getItem('limra-table-cart');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(c => {
+      const item = menuItems.find(i => i.id === c.item.id);
+      return item ? { item, quantity: c.quantity } : null;
+    }).filter(Boolean);
+  } catch (e) {
+    console.warn('[TableCart] Hydration failed:', e);
+    return [];
+  }
+}
+
+let cart = loadTableCart(); // Hydrate dine-in cart from localStorage
 let currentTable = null;
 
 // ====================================================
@@ -120,6 +137,20 @@ function renderMenu() {
     return matchesCategory && matchesSearch;
   });
 
+  // Sort menu items by price in descending order (High to Lower)
+  filtered.sort((a, b) => {
+    const parsePrice = (val) => {
+      if (typeof val === 'number') return val;
+      if (typeof val === 'string') {
+        const clean = val.replace(/[₹\s,]/g, '');
+        const num = parseInt(clean, 10);
+        return isNaN(num) ? 0 : num;
+      }
+      return 0;
+    };
+    return parsePrice(b.price) - parsePrice(a.price);
+  });
+
   $('#menu-count-badge').textContent = `${filtered.length} item${filtered.length === 1 ? '' : 's'}`;
 
   if (filtered.length === 0) {
@@ -141,8 +172,8 @@ function renderMenu() {
     return `
       <div class="glass-card food-card p-4 flex flex-col justify-between space-y-4" data-item-id="${item.id}">
         <div class="flex gap-3">
-          <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-white/5 bg-slate-950 flex items-center justify-center relative">
-            <img src="${itemImage}" alt="" class="w-full h-full object-cover error-fallback" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-white/5 bg-neutral-800 animate-pulse flex items-center justify-center relative">
+            <img src="${itemImage}" alt="" class="w-full h-full object-cover error-fallback" onload="this.parentElement.classList.remove('animate-pulse', 'bg-neutral-800');" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.parentElement.classList.remove('animate-pulse', 'bg-neutral-800');">
             <span class="text-3xl hidden absolute inset-0 flex items-center justify-center" style="display:none;">${emojiStr}</span>
           </div>
           <div class="flex-1 min-w-0">
@@ -216,6 +247,11 @@ function removeFromCart(itemId) {
 }
 
 function updateCartState() {
+  try {
+    localStorage.setItem('limra-table-cart', JSON.stringify(cart));
+  } catch (e) {
+    console.warn('[TableCart] Failed to save cart:', e);
+  }
   renderMenu();
   updateCartUI();
 }

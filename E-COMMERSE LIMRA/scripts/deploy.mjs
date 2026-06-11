@@ -133,13 +133,14 @@ async function run() {
       break;
     } else {
       const statusResult = await statusRes.json();
-      console.log(`Status: ${statusResult.status || statusResult.state}`);
-      if (statusResult.status === 'ready' || statusResult.status === 'success' || statusResult.status === 'ready_for_promotion') {
+      const status = String(statusResult.status || statusResult.state || '').toLowerCase();
+      console.log(`Status: ${statusResult.status || statusResult.state} (normalized: ${status})`);
+      if (status === 'ready' || status === 'success' || status === 'ready_for_promotion') {
         console.log(`Deployment SUCCESSFUL!`);
         console.log(`Live URL: ${statusResult.deploymentUrl || statusResult.url}`);
         break;
       }
-      if (statusResult.status === 'failed' || statusResult.status === 'canceled') {
+      if (status === 'failed' || status === 'canceled') {
         throw new Error(`Deployment failed with status: ${statusResult.status}`);
       }
     }

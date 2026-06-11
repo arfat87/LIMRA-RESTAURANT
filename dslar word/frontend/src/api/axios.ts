@@ -1,4 +1,4 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
@@ -16,12 +16,28 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Request interceptor — attach access token
+// Dynamic import helper to avoid circular deps
+const getAuthState = async () => {
+  const { useAuthStore } = await import('../store/authStore');
+  return useAuthStore.getState();
+};
+
+// Request interceptor — attach access token synchronously from Zustand
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  // Lazy import to avoid circular dependency
-  const { useAuthStore } = require('../store/authStore');
-  const token = useAuthStore.getState().accessToken;
-  if (token && config.headers) {
+  // Access zustand store synchronously (it's already loaded by the time requests fire)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const authModule = (window as any).__authStore__;
+  const token = authModule ? authModule.getState().accessToken : null;
+  if (!token) {
+    // Try to get from localStorage directly as fallback
+    try {
+      const stored = JSON.parse(localStorage.getItem('dslrworld-auth') || '{}');
+      const storedToken = stored?.state?.accessToken;
+      if (storedToken && config.headers) {
+        config.headers.Authorization = `Bearer ${storedToken}`;
+      }
+    } catch { /* ignore */ }
+  } else if (config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -47,8 +63,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { useAuthStore } = require('../store/authStore');
-        const { refreshToken, setTokens, logout } = useAuthStore.getState();
+        const authState = await getAuthState();
+        const { refreshToken, setTokens } = authState;
 
         if (!refreshToken) throw new Error('No refresh token');
 
@@ -60,8 +76,8 @@ api.interceptors.response.use(
         if (originalRequest.headers) originalRequest.headers.Authorization = `Bearer ${newAccess}`;
         return api(originalRequest);
       } catch (refreshError) {
-        const { useAuthStore } = require('../store/authStore');
-        useAuthStore.getState().logout();
+        const authState = await getAuthState();
+        authState.logout();
         processQueue(refreshError, null);
         return Promise.reject(refreshError);
       } finally {

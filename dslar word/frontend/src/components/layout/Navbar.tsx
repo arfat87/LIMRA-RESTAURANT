@@ -14,7 +14,7 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { itemCount, toggleCart } = useCartStore();
+  const { toggleCart } = useCartStore();
   const { productIds } = useWishlistStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,7 +24,7 @@ export const Navbar: React.FC = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -42,7 +42,7 @@ export const Navbar: React.FC = () => {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(async () => {
       try {
-        const { data } = await productApi.search(searchQuery, 1, 5);
+        const { data } = await productApi.search(searchQuery);
         setSearchResults(data.data?.products || []);
       } catch { setSearchResults([]); }
     }, 350);

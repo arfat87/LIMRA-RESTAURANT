@@ -2,10 +2,57 @@ import './style.css';
 import { insforge, saveOrder, saveBooking, getCustomerBookings, getCustomerOrders } from './lib/insforge.js';
 import { menuItems, categoryImages, categoryLabels, categoryEmojis, categoryTabOrder } from './data/menu.js';
 import { sendEmailNotification, generateOrderPlacedHtml } from './lib/email-service.js';
+import { NotificationService } from './lib/notifications.js';
 
 
 // ═══════════════════════════════════════
-// CART STATE
+// ANTIGRAVITY REACTIVE STORE SYSTEM
+// ═══════════════════════════════════════
+class AntigravityStore {
+  constructor(initialState = {}, storageKey = null) {
+    this._state = initialState;
+    this._listeners = [];
+    this._storageKey = storageKey;
+
+    if (this._storageKey) {
+      try {
+        const persisted = localStorage.getItem(this._storageKey);
+        if (persisted) {
+          const parsed = JSON.parse(persisted);
+          this._state = { ...this._state, ...parsed };
+        }
+      } catch (err) {
+        console.warn('[Antigravity] Hydration failed:', err);
+      }
+    }
+  }
+
+  get state() {
+    return this._state;
+  }
+
+  set state(newState) {
+    this._state = newState;
+    if (this._storageKey) {
+      try {
+        localStorage.setItem(this._storageKey, JSON.stringify(this._state));
+      } catch (err) {
+        console.warn('[Antigravity] LocalStorage mirror failed:', err);
+      }
+    }
+    this._listeners.forEach(listener => listener(this._state));
+  }
+
+  subscribe(listener) {
+    this._listeners.push(listener);
+    return () => {
+      this._listeners = this._listeners.filter(l => l !== listener);
+    };
+  }
+}
+
+// ═══════════════════════════════════════
+// CART STATE & ANTIGRAVITY STORE SYNC
 // ═══════════════════════════════════════
 function loadCartFromStorage() {
   try {
@@ -22,8 +69,31 @@ function loadCartFromStorage() {
   }
 }
 
-let cart = loadCartFromStorage();
+const antigravityCartStore = new AntigravityStore({
+  items: loadCartFromStorage()
+}, 'limra-cart-state');
+
+let cart = antigravityCartStore.state.items;
+
+antigravityCartStore.subscribe((state) => {
+  cart = state.items;
+  localStorage.setItem('limra-cart', JSON.stringify(cart));
+});
+
 let currentMenuCategory = 'all';
+
+// Global Location Badge helper (defined at top level for scope availability)
+function updateLocationBadge(verified) {
+  const badge = document.getElementById('order-location-badge');
+  if (!badge) return;
+  if (verified) {
+    badge.textContent = '🟢 Location Verified';
+    badge.className = 'text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1';
+  } else {
+    badge.textContent = '🔴 Location Unverified';
+    badge.className = 'text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full flex items-center gap-1';
+  }
+}
 
 // ═══════════════════════════════════════
 // DELIVERY STATE
@@ -79,6 +149,15 @@ function getCartTotal() {
   return getCartSubtotal() + getDeliveryCharge() + getTaxesAmount();
 }
 
+// Micro-interactions & spring animations
+function animateBadgePop() {
+  const badge = document.getElementById('cart-badge');
+  if (!badge) return;
+  badge.classList.remove('animate-badge-pop');
+  void badge.offsetWidth; // trigger reflow
+  badge.classList.add('animate-badge-pop');
+}
+
 function getCartCount() {
   return cart.reduce((sum, item) => sum + item.qty, 0);
 }
@@ -86,39 +165,65 @@ function getCartCount() {
 function addToCart(id) {
   const item = menuItems.find(m => m.id === id);
   if (!item) return;
-  const existing = cart.find(c => c.id === id);
+  
+  const currentItems = [...antigravityCartStore.state.items];
+  const existing = currentItems.find(c => c.id === id);
   if (existing) {
     existing.qty += 1;
   } else {
-    cart.push({ id: item.id, name: item.name, price: item.price, qty: 1 });
+    currentItems.push({ id: item.id, name: item.name, price: item.price, qty: 1 });
   }
-  saveCart();
+  antigravityCartStore.state = { items: currentItems };
   updateCartUI();
-  animateBadge();
+  animateBadgePop();
+
+  // Trigger targeted menu card and button spring bounce micro-interaction
+  const btn = document.querySelector(`.add-btn[data-id="${id}"]`);
+  if (btn) {
+    btn.classList.remove('animate-btn-spring');
+    void btn.offsetWidth; // trigger reflow
+    btn.classList.add('animate-btn-spring');
+    btn.addEventListener('animationend', () => {
+      btn.classList.remove('animate-btn-spring');
+    }, { once: true });
+
+    const card = btn.closest('.menu-card');
+    if (card) {
+      card.classList.remove('animate-card-spring');
+      void card.offsetWidth; // trigger reflow
+      card.classList.add('animate-card-spring');
+      card.addEventListener('animationend', () => {
+        card.classList.remove('animate-card-spring');
+      }, { once: true });
+    }
+  }
 }
 
 function removeFromCart(id) {
-  cart = cart.filter(c => c.id !== id);
-  saveCart();
+  const currentItems = antigravityCartStore.state.items.filter(c => c.id !== id);
+  antigravityCartStore.state = { items: currentItems };
   updateCartUI();
+  animateBadgePop();
 }
 
 function updateQty(id, delta) {
-  const item = cart.find(c => c.id === id);
+  const currentItems = [...antigravityCartStore.state.items];
+  const item = currentItems.find(c => c.id === id);
   if (!item) return;
   item.qty += delta;
   if (item.qty <= 0) {
     removeFromCart(id);
     return;
   }
-  saveCart();
+  antigravityCartStore.state = { items: currentItems };
   updateCartUI();
+  animateBadgePop();
 }
 
 function clearCart() {
-  cart = [];
-  saveCart();
+  antigravityCartStore.state = { items: [] };
   updateCartUI();
+  animateBadgePop();
 }
 
 function updateCartUI() {
@@ -299,8 +404,8 @@ function createMenuCard(item) {
     : '';
 
   card.innerHTML = `
-    <div class="relative overflow-hidden" style="border-radius:12px 12px 0 0">
-      <img src="${imgSrc}" alt="${item.name} — LIMRA Restaurant Egra menu" class="card-img" loading="lazy" width="400" height="300" />
+    <div class="relative overflow-hidden aspect-[4/3] bg-neutral-100 animate-pulse" style="border-radius:12px 12px 0 0">
+      <img src="${imgSrc}" alt="${item.name} — LIMRA Restaurant Egra menu" class="card-img w-full h-full object-cover" loading="lazy" width="400" height="300" onload="this.parentElement.classList.remove('animate-pulse', 'bg-neutral-100')" />
       ${discountBadge}
     </div>
     <div class="flex flex-col gap-2 p-3 flex-1">
@@ -345,6 +450,20 @@ function renderMenuGrid(containerId, category = 'all', searchQuery = '') {
       (item.category || '').toLowerCase().includes(q)
     );
   }
+
+  // Sort menu items by price in descending order (High to Lower)
+  filtered = [...filtered].sort((a, b) => {
+    const parsePrice = (val) => {
+      if (typeof val === 'number') return val;
+      if (typeof val === 'string') {
+        const clean = val.replace(/[₹\s,]/g, '');
+        const num = parseInt(clean, 10);
+        return isNaN(num) ? 0 : num;
+      }
+      return 0;
+    };
+    return parsePrice(b.price) - parsePrice(a.price);
+  });
 
   if (filtered.length === 0) {
     grid.innerHTML = '<p class="col-span-full text-center py-12 text-sm" style="color:var(--color-text-muted)">No dishes in this category.</p>';
@@ -1027,18 +1146,6 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.classList.add('opacity-0', 'pointer-events-none');
     content.classList.remove('scale-100');
     content.classList.add('scale-95');
-  }
-
-  function updateLocationBadge(verified) {
-    const badge = document.getElementById('order-location-badge');
-    if (!badge) return;
-    if (verified) {
-      badge.textContent = '🟢 Location Verified';
-      badge.className = 'text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1';
-    } else {
-      badge.textContent = '🔴 Location Unverified';
-      badge.className = 'text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full flex items-center gap-1';
-    }
   }
 
   function initDeliveryMap() {
@@ -1769,6 +1876,346 @@ document.addEventListener('DOMContentLoaded', () => {
   initDelivery();
   initStepperNavigation();
 
+  // ── Antigravity UPI Verification & Order Tracking Stores ──────────────────
+  const upiVerificationStore = new AntigravityStore({
+    isVerifying: false,
+    status: 'idle', // 'idle' | 'verifying' | 'success' | 'pending' | 'failed'
+    message: ''
+  });
+
+  const orderTrackingStore = new AntigravityStore({
+    activeOrderId: null,
+    orderNumber: '',
+    status: 'pending',
+    isTracking: false
+  });
+
+  let orderRealtimeChannel = null;
+  let orderTrackingPollId = null;
+
+  async function subscribeToOrderUpdates(orderId, orderNumber) {
+    // Gracefully handle null or placeholder IDs to prevent websocket failures
+    if (!orderId || orderId === '#N/A' || orderId === 'null' || orderId === 'undefined') {
+      console.warn('[RealtimeTracking] Invalid tracking reference ID:', orderId);
+      orderTrackingStore.state = {
+        activeOrderId: null,
+        orderNumber: orderNumber || 'N/A',
+        isTracking: false,
+        status: 'pending'
+      };
+      return;
+    }
+
+    if (orderRealtimeChannel) {
+      try {
+        await insforge.realtime.unsubscribe(`order-updates:${orderRealtimeChannel}`);
+      } catch (e) {}
+      orderRealtimeChannel = null;
+    }
+
+    orderRealtimeChannel = orderId;
+    const channelName = `order-updates:${orderId}`;
+
+    orderTrackingStore.state = {
+      activeOrderId: orderId,
+      orderNumber: orderNumber,
+      isTracking: true,
+      status: 'pending'
+    };
+
+    try {
+      await insforge.realtime.connect();
+      const subRes = await insforge.realtime.subscribe(channelName);
+      if (!subRes.error) {
+        console.log(`[RealtimeTracking] Subscribed to order updates: ${channelName}`);
+        
+        insforge.realtime.on('order_status_updated', (payload) => {
+          if (payload.order_id === orderId) {
+            console.log(`[RealtimeTracking] Status transition:`, payload.status);
+            orderTrackingStore.state = {
+              ...orderTrackingStore.state,
+              status: payload.status
+            };
+
+            if (payload.status === 'delivered' || payload.status === 'cancelled') {
+              setTimeout(() => {
+                unsubscribeFromOrderUpdates();
+              }, 45000);
+            }
+          }
+        });
+      } else {
+        throw new Error(subRes.error.message || 'Subscription failed');
+      }
+    } catch (err) {
+      console.warn('[RealtimeTracking] WebSocket updates unavailable. Falling back to active HTTP polling:', err);
+      startOrderTrackingPolling(orderId);
+    }
+  }
+
+  function startOrderTrackingPolling(orderId) {
+    if (orderTrackingPollId) clearInterval(orderTrackingPollId);
+    orderTrackingPollId = setInterval(async () => {
+      try {
+        const { data, error } = await insforge.database.from('orders').select('status').eq('id', orderId).maybeSingle();
+        if (!error && data) {
+          orderTrackingStore.state = {
+            ...orderTrackingStore.state,
+            status: data.status
+          };
+          if (data.status === 'delivered' || data.status === 'cancelled') {
+            unsubscribeFromOrderUpdates();
+          }
+        }
+      } catch (e) {
+        console.warn('[RealtimeTracking] Poller error:', e);
+      }
+    }, 10000); // Poll every 10 seconds
+  }
+
+  function unsubscribeFromOrderUpdates() {
+    if (orderRealtimeChannel) {
+      const channelName = `order-updates:${orderRealtimeChannel}`;
+      try {
+        insforge.realtime.unsubscribe(channelName);
+      } catch (e) {}
+      console.log(`[RealtimeTracking] Cleaned up event stream: ${channelName}`);
+      orderRealtimeChannel = null;
+    }
+    if (orderTrackingPollId) {
+      clearInterval(orderTrackingPollId);
+      orderTrackingPollId = null;
+    }
+    orderTrackingStore.state = {
+      ...orderTrackingStore.state,
+      isTracking: false
+    };
+  }
+
+  window.subscribeToOrderUpdates = subscribeToOrderUpdates;
+
+  // Subscribe reactive UIs
+  upiVerificationStore.subscribe((state) => {
+    const statusOverlay = document.getElementById('upi-status-overlay');
+    const overlayLoader = document.getElementById('upi-overlay-loader');
+    const overlaySuccess = document.getElementById('upi-overlay-success');
+    const overlayPending = document.getElementById('upi-overlay-pending');
+    const overlayFailed = document.getElementById('upi-overlay-failed');
+
+    if (!statusOverlay) return;
+
+    if (state.isVerifying) {
+      statusOverlay.classList.remove('pointer-events-none', 'opacity-0');
+    } else if (state.status === 'idle') {
+      statusOverlay.classList.add('pointer-events-none', 'opacity-0');
+    }
+
+    if (overlayLoader) overlayLoader.classList.toggle('hidden', state.status !== 'verifying');
+    if (overlaySuccess) overlaySuccess.classList.toggle('hidden', state.status !== 'success');
+    if (overlayPending) overlayPending.classList.toggle('hidden', state.status !== 'pending');
+    if (overlayFailed) overlayFailed.classList.toggle('hidden', state.status !== 'failed');
+
+    if (state.status === 'failed') {
+      const failedMsgEl = document.getElementById('upi-failed-message');
+      if (failedMsgEl) failedMsgEl.textContent = state.message || 'Payment verification failed.';
+    }
+  });
+
+  orderTrackingStore.subscribe((state) => {
+    const modal = document.getElementById('order-tracking-modal');
+    const numberEl = document.getElementById('track-order-number');
+    const statusTextEl = document.getElementById('track-status-text');
+    
+    if (!modal) return;
+
+    if (state.isTracking) {
+      modal.classList.remove('pointer-events-none', 'opacity-0');
+      modal.querySelector('#order-tracking-content').classList.remove('scale-95');
+      modal.querySelector('#order-tracking-content').classList.add('scale-100');
+    } else {
+      modal.classList.add('pointer-events-none', 'opacity-0');
+      modal.querySelector('#order-tracking-content').classList.add('scale-95');
+      modal.querySelector('#order-tracking-content').classList.remove('scale-100');
+      return;
+    }
+
+    if (numberEl) numberEl.textContent = `#${state.orderNumber}`;
+
+    const statusHierarchy = ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'];
+    let currentStatus = (state.status || 'pending').toLowerCase().replace(/_/g, ' ').trim();
+    if (currentStatus === 'placed' || currentStatus === 'pending') {
+      currentStatus = 'pending';
+    } else if (currentStatus === 'confirmed') {
+      currentStatus = 'confirmed';
+    } else if (currentStatus === 'preparing') {
+      currentStatus = 'preparing';
+    } else if (currentStatus === 'out for delivery' || currentStatus === 'out_for_delivery' || currentStatus === 'ready') {
+      currentStatus = 'out_for_delivery';
+    } else if (currentStatus === 'delivered') {
+      currentStatus = 'delivered';
+    } else if (currentStatus === 'cancelled' || currentStatus === 'rejected') {
+      currentStatus = 'cancelled';
+    }
+    
+    const currentIndex = statusHierarchy.indexOf(currentStatus);
+
+    statusHierarchy.forEach((status, idx) => {
+      const stepEl = document.getElementById(`track-step-${status}`);
+      if (!stepEl) return;
+      
+      const circle = stepEl.querySelector('.step-circle');
+      const title = stepEl.querySelector('.step-title');
+
+      if (!circle || !title) return;
+
+      if (currentStatus === 'cancelled') {
+        circle.className = 'absolute -left-7 w-7 h-7 rounded-full flex items-center justify-center border-2 border-red-500 bg-red-50 text-red-600 text-xs font-bold step-circle transition-all duration-300';
+        title.className = 'text-xs font-bold text-red-500 step-title transition-colors duration-300';
+      } else if (idx < currentIndex) {
+        circle.className = 'absolute -left-7 w-7 h-7 rounded-full flex items-center justify-center border-2 border-emerald-500 bg-emerald-500 text-white text-xs font-bold step-circle transition-all duration-300';
+        title.className = 'text-xs font-bold text-emerald-600 step-title transition-colors duration-300';
+      } else if (idx === currentIndex) {
+        circle.className = 'absolute -left-7 w-7 h-7 rounded-full flex items-center justify-center border-2 border-emerald-500 bg-emerald-50 text-emerald-600 text-xs font-bold step-circle animate-pulse transition-all duration-300';
+        title.className = 'text-xs font-bold text-emerald-600 step-title transition-colors duration-300';
+      } else {
+        circle.className = 'absolute -left-7 w-7 h-7 rounded-full flex items-center justify-center border-2 border-slate-200 bg-white text-slate-400 text-xs font-bold step-circle transition-all duration-300';
+        title.className = 'text-xs font-bold text-slate-400 step-title transition-colors duration-300';
+      }
+    });
+
+    const progressLine = document.getElementById('track-progress-line');
+    if (progressLine) {
+      if (currentStatus === 'cancelled') {
+        progressLine.style.background = '#fecaca'; // light red
+      } else {
+        const percent = currentIndex >= 0 ? (currentIndex / 4) * 100 : 0;
+        progressLine.style.background = `linear-gradient(to bottom, #10b981 ${percent}%, #e2e8f0 ${percent}%)`;
+        progressLine.style.transition = 'background 0.5s ease';
+      }
+    }
+
+    if (statusTextEl) {
+      switch (currentStatus) {
+        case 'pending':
+          statusTextEl.textContent = 'Your order is placed. Waiting for confirmation...';
+          break;
+        case 'confirmed':
+          statusTextEl.textContent = 'Order confirmed! We will start preparing it shortly.';
+          break;
+        case 'preparing':
+          statusTextEl.textContent = 'Chefs are preparing your dishes in the kitchen.';
+          break;
+        case 'ready':
+          statusTextEl.textContent = 'Order is ready and out for delivery! Please stand by.';
+          break;
+        case 'delivered':
+          statusTextEl.textContent = 'Order delivered successfully! Bon appétit!';
+          break;
+        case 'cancelled':
+          statusTextEl.textContent = 'Order cancelled or rejected by restaurant.';
+          break;
+        default:
+          statusTextEl.textContent = `Current status: ${state.status}`;
+      }
+    }
+  });
+
+  // UTR Countdown timer & verification
+  let countdownInterval = null;
+  function startPendingCountdown(utr, grandTotal) {
+    let count = 10;
+    const countEl = document.getElementById('upi-pending-countdown');
+    if (countEl) countEl.textContent = count;
+
+    if (countdownInterval) clearInterval(countdownInterval);
+    countdownInterval = setInterval(async () => {
+      count--;
+      if (countEl) countEl.textContent = count;
+
+      if (count <= 0) {
+        clearInterval(countdownInterval);
+        await executeUpiVerification(utr, grandTotal);
+      }
+    }, 1000);
+  }
+
+  async function executeUpiVerification(utr, grandTotal) {
+    upiVerificationStore.state = {
+      isVerifying: true,
+      status: 'verifying',
+      message: ''
+    };
+
+    try {
+      const res = await insforge.database.rpc('verify_upi_payment', {
+        p_amount: grandTotal,
+        p_payee: '7501299357@ybl',
+        p_utr_or_txn: utr
+      });
+
+      if (res.error) throw new Error(res.error.message || 'Verification failed');
+
+      const data = res.data;
+      if (data.status === 'success') {
+        upiVerificationStore.state = {
+          isVerifying: true,
+          status: 'success',
+          message: ''
+        };
+        
+        await new Promise(r => setTimeout(r, 1500));
+        
+        upiVerificationStore.state = {
+          isVerifying: false,
+          status: 'idle',
+          message: ''
+        };
+
+        const modal = document.getElementById('upi-payment-modal');
+        modal.classList.add('pointer-events-none', 'opacity-0');
+        modal.querySelector('#upi-modal-content').classList.add('scale-95');
+
+        await saveAndCompleteOrder(utr);
+      } else if (data.status === 'pending') {
+        upiVerificationStore.state = {
+          isVerifying: true,
+          status: 'pending',
+          message: data.message
+        };
+        startPendingCountdown(utr, grandTotal);
+      } else {
+        upiVerificationStore.state = {
+          isVerifying: true,
+          status: 'failed',
+          message: data.message || 'Payment verification failed.'
+        };
+      }
+    } catch (err) {
+      upiVerificationStore.state = {
+        isVerifying: true,
+        status: 'failed',
+        message: err.message || 'Network error verifying payment.'
+      };
+    }
+  }
+
+  // Setup failed payment retry UI binding
+  document.getElementById('upi-failed-retry-btn').addEventListener('click', () => {
+    upiVerificationStore.state = { isVerifying: false, status: 'idle', message: '' };
+  });
+
+  // Setup close tracking modal binding
+  document.getElementById('track-close-btn').addEventListener('click', () => {
+    unsubscribeFromOrderUpdates();
+  });
+
+  // Backdrop click listener to close order tracking modal and clean up streams
+  document.getElementById('order-tracking-modal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('order-tracking-modal')) {
+      unsubscribeFromOrderUpdates();
+    }
+  });
+
   // Place order (saved to admin dashboard)
   document.getElementById('place-order-btn').addEventListener('click', async () => {
     if (cart.length === 0) { alert('Your cart is empty! Add some items first.'); return; }
@@ -1788,17 +2235,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const deliveryNotes = document.getElementById('order-delivery-notes')?.value?.trim() || null;
     const locationVerified = document.getElementById('order-location-verified')?.value === 'true';
 
-    if (!name || !phone) {
-      alert('Please enter your name and phone number.');
+    if (!name) {
+      alert('Please enter your full name.');
       return;
     }
+
+    // Strict Phone Number validation (exactly 10-digit format, digits only, starting with 6-9)
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(phone)) {
+      alert('Please enter a valid 10-digit phone number (digits only, e.g. 9876543210).');
+      return;
+    }
+
     if (email && !email.includes('@')) {
       alert('Please enter a valid email address.');
       return;
     }
-    if (isDelivery && !address) {
-      alert('Please enter your delivery address.');
-      return;
+    
+    // Bounds check and sanitize coordinates for delivery to prevent layout or map injection errors
+    let validatedLat = null;
+    let validatedLng = null;
+    if (isDelivery) {
+      if (!address) {
+        alert('Please enter your delivery address.');
+        return;
+      }
+      if (lat !== null && !isNaN(lat) && lng !== null && !isNaN(lng)) {
+        if (lat < 21.0 || lat > 23.0 || lng < 86.5 || lng > 88.5) {
+          alert('Invalid delivery coordinates. Pinned location must be within Egra region (Lat: 21.0 - 23.0, Lng: 86.5 - 88.5).');
+          return;
+        }
+        validatedLat = parseFloat(lat.toFixed(6));
+        validatedLng = parseFloat(lng.toFixed(6));
+      }
     }
 
     const deliveryNote = isDelivery
@@ -1811,24 +2280,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('place-order-btn');
     const statusEl = document.getElementById('order-status-msg');
     btn.disabled = true;
-    btn.textContent = 'Placing order...';
+    btn.innerHTML = `
+      <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg> Placing order...
+    `;
 
     // Store cart before clearing it for the success notifications!
     const cartSnapshot = JSON.parse(JSON.stringify(cart));
     const subtotal = getCartSubtotal();
 
-    const saveAndCompleteOrder = async () => {
+    const saveAndCompleteOrder = async (utrVal = null) => {
       try {
         const order = await saveOrder({
           customerName: name,
           customerPhone: phone,
           items: cartSnapshot,
           notes: combinedNotes,
-          latitude: lat,
-          longitude: lng,
+          latitude: validatedLat,
+          longitude: validatedLng,
           landmark: landmark,
           deliveryNotes: deliveryNotes,
-          locationVerified: locationVerified
+          locationVerified: locationVerified,
+          txnRef: utrVal
         });
         const orderLabel = order?.order_number ? `Order #${order.order_number}` : 'Your order';
         statusEl.textContent = `${orderLabel} placed! We will confirm soon.`;
@@ -1847,23 +2322,28 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         localStorage.setItem('limra-customer-details', JSON.stringify(savedDetails));
         initSavedAddressLoading(); // Refresh loading state
+        
+        // Activate notifications listening immediately for checkout phone
+        startNotificationListening();
 
         // Send Automatic HTML Email Receipt to Customer
-        try {
-          const orderItemsMap = cartSnapshot.map(item => ({
-            item_name: item.name,
-            quantity: item.qty,
-            unit_price: item.price,
-            line_total: item.price * item.qty
-          }));
-          const emailHtml = generateOrderPlacedHtml(order, orderItemsMap);
-          await sendEmailNotification(email, `🛒 Order #${order.order_number} Received - LIMRA Restaurant`, emailHtml);
-        } catch (emailErr) {
-          console.warn('[Checkout] Background automatic email notification failed:', emailErr);
+        if (email) {
+          try {
+            const orderItemsMap = cartSnapshot.map(item => ({
+              item_name: item.name,
+              quantity: item.qty,
+              unit_price: item.price,
+              line_total: item.price * item.qty
+            }));
+            const emailHtml = generateOrderPlacedHtml(order, orderItemsMap);
+            await sendEmailNotification(email, `🛒 Order #${order.order_number} Received - LIMRA Restaurant`, emailHtml);
+          } catch (emailErr) {
+            console.warn('[Checkout] Background automatic email notification failed:', emailErr);
+          }
         }
 
         // WhatsApp Confirmation Link
-        let waMsg = `Hello! My order is placed successfully at SK Arif (Limra Restaurant).\n\n*Order Details:*\n• Name: ${name}\n• Phone: ${phone}\n• Email: ${email}\n`;
+        let waMsg = `Hello! My order is placed successfully at SK Arif (Limra Restaurant).\n\n*Order Details:*\n• Name: ${name}\n• Phone: ${phone}\n• Email: ${email || 'None'}\n`;
         let orderItemsText = '';
         cartSnapshot.forEach(item => {
           orderItemsText += `• ${item.name} x${item.qty} = ₹${item.price * item.qty}\n`;
@@ -1889,7 +2369,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Email (mailto) Link
         const emailSubject = `Order Confirmed successfully! - SK Arif (${orderLabel})`;
-        let emailBody = `Dear Restaurant Management,\n\nI have successfully placed an order on your website.\n\nOrder Details:\n---------------------------------------------\nReference: ${orderLabel}\nName: ${name}\nPhone: ${phone}\nEmail: ${email}\n`;
+        let emailBody = `Dear Restaurant Management,\n\nI have successfully placed an order on your website.\n\nOrder Details:\n---------------------------------------------\nReference: ${orderLabel}\nName: ${name}\nPhone: ${phone}\nEmail: ${email || 'None'}\n`;
         if (isDelivery) {
           emailBody += `Delivery Address: ${address}\n`;
           emailBody += `Delivery Charge: Rs ${charge}\n`;
@@ -1911,6 +2391,9 @@ document.addEventListener('DOMContentLoaded', () => {
           waUrl,
           emailUrl
         });
+
+        // Trigger active tracking view
+        subscribeToOrderUpdates(order.id, order.order_number);
 
         clearCart();
         document.getElementById('order-customer-name').value = '';
@@ -1988,28 +2471,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Confirm Paid action
       confirmBtn.onclick = async () => {
-        // Show simulated banking verifications
-        statusOverlay.classList.remove('pointer-events-none', 'opacity-0');
-        overlayLoader.classList.remove('hidden');
-        overlaySuccess.classList.add('hidden');
-
-        // Delay 2s to simulate real transaction checking
-        await new Promise(r => setTimeout(r, 2000));
-
-        // Switch to complete payment screen
-        overlayLoader.classList.add('hidden');
-        overlaySuccess.classList.remove('hidden');
-
-        // Let user see success overlay for 1.5s then complete order placement
-        await new Promise(r => setTimeout(r, 1500));
-
-        // Close UPI Modal and overlays
-        modal.classList.add('pointer-events-none', 'opacity-0');
-        modal.querySelector('#upi-modal-content').classList.add('scale-95');
-        statusOverlay.classList.add('pointer-events-none', 'opacity-0');
-
-        // Place and complete the order in DB
-        await saveAndCompleteOrder();
+        // Retrieve and validate UTR
+        const utr = document.getElementById('upi-utr-input').value.trim();
+        if (!/^\d{12}$/.test(utr)) {
+          alert('Please enter a valid 12-digit numeric UPI Ref / UTR number.');
+          return;
+        }
+        await executeUpiVerification(utr, grandTotal);
       };
 
       return; // prevent immediate COD execution
@@ -2043,6 +2511,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initBackToTop();
   initSavedAddressLoading();
   initAuthPanel();
+  initCustomerNotifications();
 
   // Sync Party Booking Budget Range Slider dynamically
   const slider = document.getElementById('party-budget-slider');
@@ -2740,6 +3209,26 @@ async function initAuthPanel() {
     await insforge.auth.signOut();
     currentUser = null;
     userProfile = null;
+    
+    // Clear notifications subscriptions and state
+    if (realtimeSubscribedPhone) {
+      try {
+        insforge.realtime.unsubscribe(`customer-notifications:${realtimeSubscribedPhone}`);
+      } catch (err) {}
+      realtimeSubscribedPhone = null;
+    }
+    if (pollingIntervalId) {
+      clearInterval(pollingIntervalId);
+      pollingIntervalId = null;
+    }
+    // Reset notification header elements
+    const badgeEl = document.getElementById('customer-notif-badge');
+    const countEl = document.getElementById('customer-notif-count');
+    const listEl = document.getElementById('customer-notif-items');
+    if (badgeEl) badgeEl.classList.add('hidden');
+    if (countEl) countEl.textContent = '';
+    if (listEl) listEl.innerHTML = `<p class="p-6 text-center text-xs text-slate-400 italic">No notifications yet</p>`;
+    
     renderAuthUI();
     
     // Clear checkout inputs
@@ -2881,6 +3370,8 @@ async function checkAuthStatus() {
     }
     
     renderAuthUI();
+    // Start notifications listener for logged-in user or active guest
+    startNotificationListening();
   } catch (err) {
     console.warn('Auth check failed:', err);
   }
@@ -2939,13 +3430,31 @@ async function loadUserHistory() {
         if (o.status === 'delivered') badgeColor = 'bg-emerald-50 text-emerald-600 border-emerald-200';
         if (o.status === 'cancelled') badgeColor = 'bg-red-50 text-red-600 border-red-200';
 
+        // Payment status badge
+        const isPaid = (o.payment_status === 'paid');
+        const payBadgeColor = isPaid 
+          ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+          : 'bg-red-50 text-red-600 border-red-200';
+        const payBadgeText = isPaid ? 'PAID' : 'UNPAID';
+
         let itemsSummary = o.items ? o.items.map(i => `${i.quantity}x ${i.item_name}`).join(', ') : '1x Dinner Special';
 
         return `
-          <div class="rounded-xl border p-3 text-[11px] space-y-1 bg-white" style="border-color:var(--color-border)">
+          <div class="order-log-card cursor-pointer hover:bg-slate-50 hover:border-slate-300 transition-all rounded-xl border p-3 text-[11px] space-y-1 bg-white" 
+               data-order-id="${o.id}" 
+               data-order-number="${o.order_number}" 
+               style="border-color:var(--color-border)">
             <div class="flex justify-between items-center font-bold">
-              <span class="text-slate-800">Order #${o.order_number}</span>
-              <span class="status-badge ${badgeColor} border px-2 py-0.5 rounded-full text-[9px]">${o.status}</span>
+              <span class="text-slate-800 flex items-center gap-1">
+                Order #${o.order_number}
+                <span class="text-[9px] text-slate-400 font-normal hover:text-slate-600 flex items-center gap-0.5">
+                  🔍 Track
+                </span>
+              </span>
+              <div class="flex items-center gap-1.5">
+                <span class="status-badge ${payBadgeColor} border px-2 py-0.5 rounded-full text-[9px]">${payBadgeText}</span>
+                <span class="status-badge ${badgeColor} border px-2 py-0.5 rounded-full text-[9px]">${o.status}</span>
+              </div>
             </div>
             <p class="text-slate-500 font-semibold truncate">${itemsSummary}</p>
             <div class="flex justify-between items-center text-slate-400 text-[10px] pt-1">
@@ -2955,9 +3464,444 @@ async function loadUserHistory() {
           </div>
         `;
       }).join('');
+
+      // Attach click listeners to cards
+      const cards = listEl.querySelectorAll('.order-log-card');
+      cards.forEach(card => {
+        card.addEventListener('click', () => {
+          const orderId = card.getAttribute('data-order-id');
+          const orderNumber = card.getAttribute('data-order-number');
+          if (orderId && orderNumber && typeof window.subscribeToOrderUpdates === 'function') {
+            window.subscribeToOrderUpdates(orderId, orderNumber);
+          } else {
+            console.warn('subscribeToOrderUpdates is not available or missing attributes');
+          }
+        });
+      });
     }
   } catch (err) {
     console.warn('Failed to load user history:', err);
     listEl.innerHTML = `<p class="text-xs text-slate-400 italic text-center">Could not load history details.</p>`;
   }
+}
+
+// ==========================================
+// CUSTOMER NOTIFICATIONS SYSTEM
+// ==========================================
+let customerNotifAudioCtx = null;
+let realtimeSubscribedPhone = null;
+let pollingIntervalId = null;
+
+function getCustomerAudioCtx() {
+  if (!customerNotifAudioCtx) {
+    customerNotifAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (customerNotifAudioCtx && customerNotifAudioCtx.state === 'suspended') {
+    customerNotifAudioCtx.resume();
+  }
+  return customerNotifAudioCtx;
+}
+
+function playCustomerNotificationChime() {
+  try {
+    const ctx = getCustomerAudioCtx();
+    if (!ctx) return;
+    
+    const playTone = (freq, startTime, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.3, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+    
+    const now = ctx.currentTime;
+    playTone(880, now, 0.25);         // A5
+    playTone(1109.73, now + 0.08, 0.45); // C#6
+  } catch (err) {
+    console.warn('Audio chime playback failed:', err);
+  }
+}
+
+// Show a floating premium screen toast for notifications
+function showCustomerNotificationToast(title, message) {
+  const container = document.getElementById('customer-toast-container') || initCustomerToastContainer();
+  const toast = document.createElement('div');
+  toast.className = 'flex items-start gap-3 p-4 rounded-2xl shadow-xl border translate-y-2 opacity-0 transition-all duration-300 pointer-events-auto max-w-sm w-full';
+  toast.style.cssText = 'background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-color: var(--color-border); box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-left: auto;';
+  
+  // Custom colors based on notification type/status
+  const accentColor = 'var(--color-accent)';
+  
+  toast.innerHTML = `
+    <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background: rgba(0, 176, 116, 0.1); color: ${accentColor}">
+      🔔
+    </div>
+    <div class="flex-1 space-y-0.5">
+      <h4 class="text-xs font-bold text-slate-800">${title}</h4>
+      <p class="text-[11px] text-slate-500 font-semibold leading-normal">${message}</p>
+    </div>
+    <button class="text-slate-400 hover:text-slate-600 transition-colors text-lg font-normal leading-none">&times;</button>
+  `;
+  
+  toast.querySelector('button').addEventListener('click', () => {
+    toast.classList.add('opacity-0', 'translate-y-2');
+    setTimeout(() => toast.remove(), 300);
+  });
+  
+  container.appendChild(toast);
+  
+  // Trigger animation
+  setTimeout(() => {
+    toast.classList.remove('opacity-0', 'translate-y-2');
+  }, 50);
+  
+  // Auto dismiss after 6 seconds
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.classList.add('opacity-0', 'translate-y-2');
+      setTimeout(() => toast.remove(), 300);
+    }
+  }, 6000);
+}
+
+function initCustomerToastContainer() {
+  let container = document.getElementById('customer-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'customer-toast-container';
+    container.className = 'fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none w-full max-w-sm px-4 md:px-0';
+    document.body.appendChild(container);
+  }
+  return container;
+}
+
+// Render dynamic notifications dropdown list
+let customerNotifications = [];
+
+async function refreshCustomerNotifications(phone) {
+  try {
+    const listEl = document.getElementById('customer-notif-items');
+    const badgeEl = document.getElementById('customer-notif-badge');
+    const countEl = document.getElementById('customer-notif-count');
+    if (!listEl) return;
+    
+    const notifs = await NotificationService.getUserNotifications(phone);
+    customerNotifications = notifs;
+    
+    const unreadCount = notifs.filter(n => !n.is_read).length;
+    
+    // Update Badge
+    if (badgeEl) {
+      if (unreadCount > 0) {
+        badgeEl.textContent = unreadCount;
+        badgeEl.classList.remove('hidden');
+      } else {
+        badgeEl.classList.add('hidden');
+      }
+    }
+    
+    if (countEl) {
+      countEl.textContent = unreadCount > 0 ? `(${unreadCount})` : '';
+    }
+    
+    if (notifs.length === 0) {
+      listEl.innerHTML = `<p class="p-6 text-center text-xs text-slate-400 italic">No notifications yet</p>`;
+      return;
+    }
+    
+    listEl.innerHTML = notifs.map(n => {
+      const isUnread = !n.is_read;
+      const bgStyle = isUnread ? 'background: #f8fafc;' : 'background: #ffffff;';
+      const indicator = isUnread ? `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 absolute top-4 right-4"></span>` : '';
+      
+      let typeIcon = '🔔';
+      let iconBg = 'rgba(100, 116, 139, 0.1)';
+      let iconColor = '#64748b';
+      
+      switch (n.type) {
+        case 'order_confirmed':
+          typeIcon = '✅';
+          iconBg = 'rgba(16, 185, 129, 0.1)';
+          iconColor = '#10b981';
+          break;
+        case 'order_preparing':
+          typeIcon = '🍳';
+          iconBg = 'rgba(245, 158, 11, 0.1)';
+          iconColor = '#f59e0b';
+          break;
+        case 'out_for_delivery':
+          typeIcon = '🛵';
+          iconBg = 'rgba(59, 130, 246, 0.1)';
+          iconColor = '#3b82f6';
+          break;
+        case 'delivered':
+          typeIcon = '🎁';
+          iconBg = 'rgba(16, 185, 129, 0.1)';
+          iconColor = '#10b981';
+          break;
+        case 'order_rejected':
+          typeIcon = '❌';
+          iconBg = 'rgba(239, 68, 68, 0.1)';
+          iconColor = '#ef4444';
+          break;
+      }
+      
+      const timeStr = formatNotifTime(n.created_at);
+      
+      return `
+        <div class="p-4 flex gap-3 relative cursor-pointer hover:bg-slate-50 transition-colors" data-notif-id="${n.id}" style="${bgStyle}">
+          <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm" style="background: ${iconBg}; color: ${iconColor};">
+            ${typeIcon}
+          </div>
+          <div class="flex-1 pr-4 space-y-0.5">
+            <h4 class="text-xs font-bold text-slate-800 leading-snug">${n.title}</h4>
+            <p class="text-[11px] text-slate-500 font-semibold leading-normal">${n.message || n.description}</p>
+            <span class="text-[9px] text-slate-400 block pt-1 font-semibold">${timeStr}</span>
+          </div>
+          ${indicator}
+        </div>
+      `;
+    }).join('');
+    
+    // Bind click events on notification items
+    listEl.querySelectorAll('[data-notif-id]').forEach(el => {
+      el.addEventListener('click', async (e) => {
+        const id = el.dataset.notifId;
+        const match = customerNotifications.find(x => x.id === id);
+        if (match && !match.is_read) {
+          try {
+            const phone = getActiveCustomerPhone();
+            if (phone) {
+              await NotificationService.markAsRead(id, phone);
+              await refreshCustomerNotifications(phone);
+            }
+          } catch (err) {
+            console.warn('Failed to mark read:', err);
+          }
+        }
+      });
+    });
+    
+  } catch (err) {
+    console.warn('Failed to refresh customer notifications:', err);
+  }
+}
+
+function formatNotifTime(timestamp) {
+  try {
+    const diffMs = new Date() - new Date(timestamp);
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.floor(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    return new Date(timestamp).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+  } catch (e) {
+    return 'Just now';
+  }
+}
+
+async function initCustomerNotifications() {
+  const bellBtn = document.getElementById('customer-notif-btn');
+  const dropdown = document.getElementById('customer-notif-dropdown');
+  const wrapper = document.getElementById('customer-notif-wrapper');
+  const markAllBtn = document.getElementById('customer-notif-mark-all');
+  const clearReadBtn = document.getElementById('customer-notif-view-history');
+  
+  if (!bellBtn || !dropdown) return;
+  
+  // Warm up audio on first click
+  bellBtn.addEventListener('click', () => {
+    getCustomerAudioCtx();
+  });
+
+  // Toggle dropdown
+  bellBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = dropdown.classList.contains('hidden');
+    if (isHidden) {
+      dropdown.classList.remove('hidden');
+      setTimeout(() => {
+        dropdown.classList.remove('opacity-0', 'scale-95');
+      }, 10);
+      
+      // Fetch latest notifications when opening
+      const phone = getActiveCustomerPhone();
+      if (phone) refreshCustomerNotifications(phone);
+    } else {
+      dropdown.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => dropdown.classList.add('hidden'), 200);
+    }
+  });
+
+  // Close when clicking outside
+  document.addEventListener('click', (e) => {
+    if (wrapper && !wrapper.contains(e.target)) {
+      dropdown.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => dropdown.classList.add('hidden'), 200);
+    }
+  });
+
+  // Mark all read action
+  markAllBtn?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const phone = getActiveCustomerPhone();
+    if (!phone) return;
+    try {
+      await NotificationService.markAllAsRead(phone);
+      await refreshCustomerNotifications(phone);
+    } catch (err) {
+      console.warn('Failed to mark all read:', err);
+    }
+  });
+
+  // Clear read notifications action
+  clearReadBtn?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const phone = getActiveCustomerPhone();
+    if (!phone) return;
+    try {
+      if (!confirm('Are you sure you want to dismiss all read notifications?')) return;
+      await NotificationService.markAllAsRead(phone);
+      await refreshCustomerNotifications(phone);
+    } catch (err) {
+       console.warn('Failed to dismiss read notifications:', err);
+    }
+  });
+  
+  // Start Listening based on resolved customer profile or details
+  startNotificationListening();
+}
+
+function getActiveCustomerPhone() {
+  // 1. Check logged in profile
+  if (userProfile && userProfile.phone) {
+    return userProfile.phone.trim();
+  }
+  // 2. Check guest local storage details
+  try {
+    const raw = localStorage.getItem('limra-customer-details');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.phone) return parsed.phone.trim();
+    }
+  } catch (e) {}
+  
+  return null;
+}
+
+async function startNotificationListening() {
+  const phone = getActiveCustomerPhone();
+  if (!phone) {
+    console.log('[NotificationCenter] No phone number identified. Waiting for checkout or login...');
+    return;
+  }
+  
+  const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+  if (cleanPhone.length < 10) return;
+  
+  // Avoid duplicate sockets for same phone
+  if (realtimeSubscribedPhone === cleanPhone) return;
+  
+  // Unsubscribe old if different
+  if (realtimeSubscribedPhone) {
+    try {
+      insforge.realtime.unsubscribe(`customer-notifications:${realtimeSubscribedPhone}`);
+    } catch (err) {}
+  }
+  
+  realtimeSubscribedPhone = cleanPhone;
+  console.log(`[NotificationCenter] Initializing listeners for clean phone number: +91 ${cleanPhone}`);
+  
+  // Fetch initial notifications
+  await refreshCustomerNotifications(phone);
+  
+  // Subscribe to Realtime Pub/Sub channel
+  try {
+    const channelName = `customer-notifications:${cleanPhone}`;
+    insforge.realtime.on('connect', () => {
+      console.log(`[NotificationCenter] Realtime WebSocket connected!`);
+    });
+    
+    insforge.realtime.on('connect_error', (err) => {
+      console.warn(`[NotificationCenter] Realtime connection error:`, err);
+      startPollingFallback(phone);
+    });
+
+    insforge.realtime.on('disconnect', () => {
+      console.log(`[NotificationCenter] Realtime disconnected.`);
+      startPollingFallback(phone);
+    });
+
+    await insforge.realtime.connect();
+    const subRes = await insforge.realtime.subscribe(channelName);
+    
+    if (subRes.error) {
+      console.warn(`[NotificationCenter] Subscription failed:`, subRes.error);
+      startPollingFallback(phone);
+    } else {
+      console.log(`[NotificationCenter] Subscribed successfully to channel: ${channelName}`);
+      
+      // Stop polling fallback if socket is active
+      if (pollingIntervalId) {
+        clearInterval(pollingIntervalId);
+        pollingIntervalId = null;
+      }
+      
+      // Listen to notification_created event
+      insforge.realtime.on('notification_created', (payload) => {
+        console.log(`[NotificationCenter] Received realtime notification:`, payload);
+        playCustomerNotificationChime();
+        showCustomerNotificationToast(payload.title, payload.message);
+        refreshCustomerNotifications(phone);
+        loadUserHistory();
+      });
+    }
+  } catch (err) {
+    console.warn(`[NotificationCenter] Realtime initialization failed:`, err);
+    startPollingFallback(phone);
+  }
+}
+
+function startPollingFallback(phone) {
+  if (pollingIntervalId) return; // Already polling
+  
+  console.log(`[NotificationCenter] Falling back to polling interval (20 seconds)...`);
+  pollingIntervalId = setInterval(async () => {
+    const activePhone = getActiveCustomerPhone();
+    if (!activePhone) {
+      clearInterval(pollingIntervalId);
+      pollingIntervalId = null;
+      return;
+    }
+    
+    try {
+      const count = await NotificationService.getUnreadCount(activePhone);
+      const currentUnread = customerNotifications.filter(n => !n.is_read).length;
+      
+      // If server unread count differs from local, refresh list and alert
+      if (count !== currentUnread) {
+        console.log(`[NotificationCenter] Poller detected count mismatch (${count} vs ${currentUnread}). Refreshing...`);
+        const oldNotifs = [...customerNotifications];
+        await refreshCustomerNotifications(activePhone);
+        
+        // Find newly added unread notification
+        const newNotifs = customerNotifications.filter(n => !n.is_read && !oldNotifs.some(o => o.id === n.id));
+        if (newNotifs.length > 0) {
+          playCustomerNotificationChime();
+          newNotifs.forEach(n => {
+            showCustomerNotificationToast(n.title, n.message || n.description);
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[NotificationCenter] Polling error:', e);
+    }
+  }, 20000);
 }

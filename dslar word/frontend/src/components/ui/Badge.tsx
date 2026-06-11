@@ -1,5 +1,6 @@
 import React from 'react';
-import type { Condition, OrderStatus, PaymentStatus } from '../../types/product.types';
+import type { Condition } from '../../types/product.types';
+import type { OrderStatus, PaymentStatus } from '../../types/order.types';
 
 // Condition Badge
 const conditionConfig: Record<Condition, { label: string; className: string }> = {

@@ -30,7 +30,8 @@ export async function saveOrder({
   locationVerified = false,
   orderType = 'delivery',
   tableNumber = null,
-  tableZone = null
+  tableZone = null,
+  txnRef = null
 }) {
   if (!items || !items.length) {
     throw new Error('Your cart is empty');
@@ -58,7 +59,8 @@ export async function saveOrder({
     p_location_verified: locationVerified,
     p_order_type: orderType,
     p_table_number: tableNumber,
-    p_table_zone: tableZone
+    p_table_zone: tableZone,
+    p_txn_ref: txnRef
   });
 
   if (!result.error) return result.data;

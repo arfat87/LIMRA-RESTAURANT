@@ -3,12 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Heart, Share2, MapPin, AlertTriangle, CheckCircle, Truck, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, Heart, AlertTriangle, CheckCircle, Truck, ShieldCheck } from 'lucide-react';
 import { productApi } from '../api/product.api';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
-import { useAuthStore } from '../store/authStore';
 import { ConditionBadge } from '../components/ui/Badge';
 import { Rating } from '../components/ui/Rating';
 import { Button } from '../components/ui/Button';
@@ -23,7 +22,6 @@ const ProductDetail: React.FC = () => {
   const navigate = useNavigate();
   const { addItem, openCart } = useCartStore();
   const { toggle, has } = useWishlistStore();
-  const { isAuthenticated } = useAuthStore();
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [pincode, setPincode] = useState('');

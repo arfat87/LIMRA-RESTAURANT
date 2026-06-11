@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Phone, MapPin, Mail, Instagram, Facebook, Youtube, ArrowRight } from 'lucide-react';
+import { Camera, Phone, MapPin, Mail, Share2, MessageCircle, Play, ArrowRight } from 'lucide-react';
 import { ROUTES } from '../../constants/routes';
 
 export const Footer: React.FC = () => {
@@ -26,9 +26,9 @@ export const Footer: React.FC = () => {
             </p>
             <div className="flex gap-3">
               {[
-                { icon: Instagram, href: '#', label: 'Instagram' },
-                { icon: Facebook, href: '#', label: 'Facebook' },
-                { icon: Youtube, href: '#', label: 'YouTube' },
+                { icon: Share2, href: '#', label: 'Instagram' },
+                { icon: MessageCircle, href: '#', label: 'Facebook' },
+                { icon: Play, href: '#', label: 'YouTube' },
               ].map(({ icon: Icon, href, label }) => (
                 <a key={label} href={href} aria-label={label}
                   className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-accent transition-colors">

@@ -1,127 +1,82 @@
-import prisma from '../../config/db';
+import { User } from '../../models/User.model';
+import { Address } from '../../models/Address.model';
 import { ApiError } from '../../utils/ApiError';
 import { uploadToCloudinary } from '../../config/cloudinary';
 import type { UpdateProfileInput, AddAddressInput, UpdateAddressInput } from './user.schema';
 
-const USER_SELECT = {
-  id: true,
-  name: true,
-  email: true,
-  phone: true,
-  role: true,
-  isVerified: true,
-  avatar: true,
-  createdAt: true,
-  updatedAt: true,
-};
+const USER_SELECT = 'id name email phone role isVerified avatar createdAt updatedAt';
 
 export const getUserById = async (userId: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: USER_SELECT,
-  });
+  const user = await User.findById(userId).select('-password -refreshToken');
   if (!user) throw new ApiError(404, 'User not found.');
-  return user;
+  return { ...user.toObject(), id: user._id.toString() };
 };
 
 export const updateProfile = async (userId: string, data: UpdateProfileInput) => {
-  // Check phone uniqueness if being updated
   if (data.phone) {
-    const existing = await prisma.user.findFirst({
-      where: { phone: data.phone, NOT: { id: userId } },
-    });
+    const existing = await User.findOne({ phone: data.phone, _id: { $ne: userId } });
     if (existing) throw new ApiError(409, 'Phone number already in use.');
   }
-
-  return prisma.user.update({
-    where: { id: userId },
-    data,
-    select: USER_SELECT,
-  });
+  const user = await User.findByIdAndUpdate(userId, data, { new: true })
+    .select('-password -refreshToken');
+  if (!user) throw new ApiError(404, 'User not found.');
+  return { ...user.toObject(), id: user._id.toString() };
 };
 
 export const updateAvatar = async (userId: string, fileBuffer: Buffer): Promise<string> => {
   const result = await uploadToCloudinary(fileBuffer, 'dslrworld/avatars');
-  await prisma.user.update({
-    where: { id: userId },
-    data: { avatar: result.secure_url },
-  });
+  await User.findByIdAndUpdate(userId, { avatar: result.secure_url });
   return result.secure_url;
 };
 
 // ─── Address Services ─────────────────────────────────────────────────────────
 
 export const getAddresses = async (userId: string) => {
-  return prisma.address.findMany({
-    where: { userId },
-    orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
-  });
+  const addresses = await Address.find({ userId })
+    .sort({ isDefault: -1, createdAt: -1 })
+    .lean();
+  return addresses.map((a) => ({ ...a, id: a._id.toString() }));
 };
 
 export const addAddress = async (userId: string, data: AddAddressInput) => {
-  // If this is the default, unset others
   if (data.isDefault) {
-    await prisma.address.updateMany({
-      where: { userId },
-      data: { isDefault: false },
-    });
+    await Address.updateMany({ userId }, { isDefault: false });
   }
-
-  // If no addresses exist, make this default
-  const count = await prisma.address.count({ where: { userId } });
+  const count = await Address.countDocuments({ userId });
   const isDefault = count === 0 ? true : (data.isDefault ?? false);
 
-  return prisma.address.create({
-    data: { ...data, isDefault, userId },
-  });
+  const address = await Address.create({ ...data, isDefault, userId });
+  return { ...address.toObject(), id: address._id.toString() };
 };
 
-export const updateAddress = async (
-  userId: string,
-  addressId: string,
-  data: UpdateAddressInput
-) => {
-  const address = await prisma.address.findFirst({
-    where: { id: addressId, userId },
-  });
+export const updateAddress = async (userId: string, addressId: string, data: UpdateAddressInput) => {
+  const address = await Address.findOne({ _id: addressId, userId });
   if (!address) throw new ApiError(404, 'Address not found.');
 
   if (data.isDefault) {
-    await prisma.address.updateMany({
-      where: { userId },
-      data: { isDefault: false },
-    });
+    await Address.updateMany({ userId }, { isDefault: false });
   }
 
-  return prisma.address.update({ where: { id: addressId }, data });
+  const updated = await Address.findByIdAndUpdate(addressId, data, { new: true });
+  return { ...updated!.toObject(), id: updated!._id.toString() };
 };
 
 export const deleteAddress = async (userId: string, addressId: string) => {
-  const address = await prisma.address.findFirst({
-    where: { id: addressId, userId },
-  });
+  const address = await Address.findOne({ _id: addressId, userId });
   if (!address) throw new ApiError(404, 'Address not found.');
+  await address.deleteOne();
 
-  await prisma.address.delete({ where: { id: addressId } });
-
-  // If deleted was default, make the most recent one default
   if (address.isDefault) {
-    const next = await prisma.address.findFirst({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (next) {
-      await prisma.address.update({ where: { id: next.id }, data: { isDefault: true } });
-    }
+    const next = await Address.findOne({ userId }).sort({ createdAt: -1 });
+    if (next) await Address.findByIdAndUpdate(next._id, { isDefault: true });
   }
 };
 
 export const setDefaultAddress = async (userId: string, addressId: string) => {
-  const address = await prisma.address.findFirst({
-    where: { id: addressId, userId },
-  });
+  const address = await Address.findOne({ _id: addressId, userId });
   if (!address) throw new ApiError(404, 'Address not found.');
 
-  await prisma.address.updateMany({ where: { userId }, data: { isDefault: false } });
-  return prisma.address.update({ where: { id: addressId }, data: { isDefault: true } });
+  await Address.updateMany({ userId }, { isDefault: false });
+  const updated = await Address.findByIdAndUpdate(addressId, { isDefault: true }, { new: true });
+  return { ...updated!.toObject(), id: updated!._id.toString() };
 };

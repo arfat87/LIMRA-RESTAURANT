@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Camera, Eye, EyeOff, ArrowRight, User } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, User } from 'lucide-react';
 import { authApi } from '../api/auth.api';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';

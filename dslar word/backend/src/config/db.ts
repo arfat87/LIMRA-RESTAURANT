@@ -1,33 +1,24 @@
-import { PrismaClient } from '@prisma/client';
+import mongoose from 'mongoose';
 import { logger } from '../utils/logger';
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __prisma: PrismaClient | undefined;
-}
-
-// Prevent multiple Prisma instances in development (hot reload)
-const prisma: PrismaClient =
-  global.__prisma ||
-  new PrismaClient({
-    log:
-      process.env.NODE_ENV === 'development'
-        ? ['query', 'error', 'warn']
-        : ['error'],
-  });
-
-if (process.env.NODE_ENV !== 'production') {
-  global.__prisma = prisma;
-}
+const MONGODB_URI = process.env.MONGODB_URI || '';
 
 export const connectDB = async (): Promise<void> => {
   try {
-    await prisma.$connect();
-    logger.info('✅ PostgreSQL connected via Prisma');
+    await mongoose.connect(MONGODB_URI, {
+      dbName: 'dslrworld',
+    });
+    logger.info('✅ MongoDB connected via Mongoose');
   } catch (error) {
-    logger.error('❌ Database connection failed:', error);
+    logger.error('❌ MongoDB connection failed:', error);
     process.exit(1);
   }
 };
 
-export default prisma;
+// Graceful disconnect helper
+export const disconnectDB = async (): Promise<void> => {
+  await mongoose.disconnect();
+  logger.info('✅ MongoDB disconnected');
+};
+
+export default mongoose;

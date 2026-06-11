@@ -18,7 +18,9 @@ const Wishlist = lazy(() => import('./pages/Wishlist'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const OrderHistory = lazy(() => import('./pages/OrderHistory'));
+const OrderDetail = lazy(() => import('./pages/OrderDetail'));
 const Checkout = lazy(() => import('./pages/Checkout'));
+const Profile = lazy(() => import('./pages/Profile'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Admin pages
@@ -57,8 +59,9 @@ const App: React.FC = () => {
                 {/* Protected routes */}
                 <Route path={ROUTES.CHECKOUT} element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
                 <Route path={ROUTES.ORDERS} element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
-                <Route path="/orders/:id" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
-                <Route path="/order-success/:id" element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
+                <Route path="/orders/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+                <Route path="/order-success/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+                <Route path={ROUTES.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
                 <Route path="*" element={<NotFound />} />
               </Route>

@@ -1,32 +1,26 @@
 import crypto from 'crypto';
 import razorpay from '../../config/razorpay';
-import prisma from '../../config/db';
+import { Order } from '../../models/Order.model';
 import { ApiError } from '../../utils/ApiError';
 import { logger } from '../../utils/logger';
 
 export const createRazorpayOrder = async (orderId: string, userId: string) => {
-  const order = await prisma.order.findFirst({
-    where: { id: orderId, userId },
-  });
+  const order = await Order.findOne({ _id: orderId, userId });
   if (!order) throw new ApiError(404, 'Order not found.');
   if (order.paymentStatus === 'PAID') throw new ApiError(400, 'Order is already paid.');
 
   const razorpayOrder = await razorpay.orders.create({
     amount: Math.round(order.totalAmount), // already in paise
     currency: 'INR',
-    receipt: `receipt_${orderId.slice(0, 16)}`,
+    receipt: `receipt_${orderId.toString().slice(-16)}`,
     notes: {
-      orderId,
-      userId,
+      orderId: orderId.toString(),
+      userId: userId.toString(),
       storeName: process.env.STORE_NAME || 'DSLR WORLD',
     },
   });
 
-  // Save Razorpay order ID
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { razorpayOrderId: razorpayOrder.id },
-  });
+  await Order.findByIdAndUpdate(orderId, { razorpayOrderId: razorpayOrder.id });
 
   return {
     razorpayOrderId: razorpayOrder.id,
@@ -42,7 +36,6 @@ export const verifyPayment = async (
   razorpaySignature: string,
   orderId: string
 ) => {
-  // Verify HMAC signature
   const expectedSignature = crypto
     .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
     .update(`${razorpayOrderId}|${razorpayPaymentId}`)
@@ -52,26 +45,26 @@ export const verifyPayment = async (
     throw new ApiError(400, 'Payment verification failed. Invalid signature.');
   }
 
-  // Update order
-  const order = await prisma.order.update({
-    where: { id: orderId },
-    data: {
+  const order = await Order.findByIdAndUpdate(
+    orderId,
+    {
       paymentStatus: 'PAID',
       status: 'CONFIRMED',
       razorpayPaymentId,
       razorpayOrderId,
+      razorpaySignature,
     },
-  });
+    { new: true }
+  );
 
   logger.info(`✅ Payment verified for order: ${orderId}`);
-  return order;
+  return { ...order!.toObject(), id: order!._id.toString() };
 };
 
 export const handleWebhook = async (
   rawBody: string,
   signature: string
 ): Promise<{ event: string }> => {
-  // Verify webhook signature
   const expectedSignature = crypto
     .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET!)
     .update(rawBody)
@@ -91,9 +84,10 @@ export const handleWebhook = async (
       const paymentId = payload.payload.payment.entity.id as string;
       const notes = payload.payload.payment.entity.notes as { orderId?: string };
       if (notes?.orderId) {
-        await prisma.order.update({
-          where: { id: notes.orderId },
-          data: { paymentStatus: 'PAID', status: 'CONFIRMED', razorpayPaymentId: paymentId },
+        await Order.findByIdAndUpdate(notes.orderId, {
+          paymentStatus: 'PAID',
+          status: 'CONFIRMED',
+          razorpayPaymentId: paymentId,
         });
       }
       break;
@@ -101,20 +95,14 @@ export const handleWebhook = async (
     case 'payment.failed': {
       const notes = payload.payload.payment.entity.notes as { orderId?: string };
       if (notes?.orderId) {
-        await prisma.order.update({
-          where: { id: notes.orderId },
-          data: { paymentStatus: 'FAILED' },
-        });
+        await Order.findByIdAndUpdate(notes.orderId, { paymentStatus: 'FAILED' });
       }
       break;
     }
     case 'refund.created': {
       const notes = payload.payload.refund.entity.notes as { orderId?: string };
       if (notes?.orderId) {
-        await prisma.order.update({
-          where: { id: notes.orderId },
-          data: { paymentStatus: 'REFUNDED' },
-        });
+        await Order.findByIdAndUpdate(notes.orderId, { paymentStatus: 'REFUNDED' });
       }
       break;
     }

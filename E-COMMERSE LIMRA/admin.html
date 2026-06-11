@@ -142,7 +142,7 @@
           </div>
         </div>
 
-        <div class="adm-stats">
+        <div class="adm-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
           <div class="adm-stat">
             <div>
               <p class="adm-stat-label">Total Orders</p>
@@ -154,17 +154,35 @@
           </div>
           <div class="adm-stat">
             <div>
-              <p class="adm-stat-label">Delivered</p>
-              <p class="adm-stat-value" id="stat-delivered">—</p>
+              <p class="adm-stat-label">Paid Orders</p>
+              <p class="adm-stat-value" id="stat-paid-orders">—</p>
             </div>
-            <div class="adm-stat-icon blue">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+            <div class="adm-stat-icon green">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
           </div>
           <div class="adm-stat">
             <div>
-              <p class="adm-stat-label">Pending</p>
-              <p class="adm-stat-value" id="stat-pending-orders">—</p>
+              <p class="adm-stat-label">Unpaid Orders</p>
+              <p class="adm-stat-value" id="stat-unpaid-orders">—</p>
+            </div>
+            <div class="adm-stat-icon red" style="background:#fdecea; color:#ff5b5b;">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2 2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Today's Payments</p>
+              <p class="adm-stat-value" id="stat-today-payments">—</p>
+            </div>
+            <div class="adm-stat-icon green">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Pending Payments</p>
+              <p class="adm-stat-value" id="stat-pending-payments">—</p>
             </div>
             <div class="adm-stat-icon orange">
               <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -176,7 +194,25 @@
               <p class="adm-stat-value" id="stat-revenue">—</p>
             </div>
             <div class="adm-stat-icon green">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Collected Revenue</p>
+              <p class="adm-stat-value" id="stat-collected-revenue">—</p>
+            </div>
+            <div class="adm-stat-icon green">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Outstanding Revenue</p>
+              <p class="adm-stat-value" id="stat-outstanding-revenue">—</p>
+            </div>
+            <div class="adm-stat-icon red" style="background:#fdecea; color:#ff5b5b;">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
             </div>
           </div>
         </div>
@@ -251,6 +287,13 @@
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
             </select>
+            <select id="orders-payment-filter" class="adm-select">
+              <option value="all">All Payments</option>
+              <option value="paid">Paid Orders</option>
+              <option value="unpaid">Unpaid Orders</option>
+              <option value="today_paid">Today Paid Orders</option>
+              <option value="today_unpaid">Today Unpaid Orders</option>
+            </select>
             <input type="search" id="orders-search" class="adm-input" placeholder="Search by name, phone, order ID..." />
           </div>
         </div>
@@ -259,11 +302,12 @@
             <thead>
               <tr>
                 <th>Order ID</th>
-                <th>Date</th>
                 <th>Customer Name</th>
                 <th>Phone</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>Payment Status</th>
+                <th>Date</th>
                 <th>Action</th>
               </tr>
             </thead>
