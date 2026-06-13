@@ -6,11 +6,11 @@ import { ApiError } from '../../utils/ApiError';
 import * as PaymentService from './payment.service';
 
 const createOrderSchema = z.object({
-  orderId: z.string().uuid('Invalid order ID'),
+  orderId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid order ID'),
 });
 
 const verifyPaymentSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid order ID'),
   razorpayOrderId: z.string(),
   razorpayPaymentId: z.string(),
   razorpaySignature: z.string(),

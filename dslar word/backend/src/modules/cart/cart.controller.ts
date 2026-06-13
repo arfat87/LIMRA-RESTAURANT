@@ -6,12 +6,12 @@ import { ApiError } from '../../utils/ApiError';
 import * as CartService from './cart.service';
 
 const addToCartSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid product ID'),
   quantity: z.number().int().min(1).default(1),
 });
 
 const updateCartSchema = z.object({
-  productId: z.string().uuid(),
+  productId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid product ID'),
   quantity: z.number().int().min(1),
 });
 

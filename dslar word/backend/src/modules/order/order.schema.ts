@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const placeOrderSchema = z.object({
   body: z.object({
-    addressId: z.string().uuid('Invalid address ID'),
+    addressId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid address ID'),
     paymentMethod: z.enum(['razorpay', 'cod']).default('razorpay'),
     notes: z.string().max(500).optional(),
     couponCode: z.string().optional(),
@@ -23,7 +23,7 @@ export const updateOrderStatusSchema = z.object({
     trackingId: z.string().optional(),
     shiprocketOrderId: z.string().optional(),
   }),
-  params: z.object({ id: z.string().uuid() }),
+  params: z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid order ID') }),
 });
 
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>['body'];

@@ -34,7 +34,7 @@ export const updateAddressSchema = z.object({
     pincode: z.string().regex(/^\d{6}$/).optional(),
     isDefault: z.boolean().optional(),
   }),
-  params: z.object({ id: z.string().uuid() }),
+  params: z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid address ID') }),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>['body'];

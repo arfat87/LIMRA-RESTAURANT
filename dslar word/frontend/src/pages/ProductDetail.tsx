@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ShoppingCart, Heart, AlertTriangle, CheckCircle, Truck, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, Heart, AlertTriangle, CheckCircle, Truck, ShieldCheck, Star, MessageSquare } from 'lucide-react';
 import { productApi } from '../api/product.api';
+import { reviewApi } from '../api/review.api';
 import { QUERY_KEYS } from '../constants/queryKeys';
 import { useCartStore } from '../store/cartStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import { useAuthStore } from '../store/authStore';
 import { ConditionBadge } from '../components/ui/Badge';
 import { Rating } from '../components/ui/Rating';
 import { Button } from '../components/ui/Button';
@@ -16,6 +18,7 @@ import { formatPrice } from '../utils/formatCurrency';
 import { userApi } from '../api/user.api';
 import { ROUTES } from '../constants/routes';
 import toast from 'react-hot-toast';
+import type { Review } from '../types/product.types';
 
 const ProductDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -127,8 +130,8 @@ const ProductDetail: React.FC = () => {
               </div>
               <h1 className="font-poppins font-bold text-2xl text-midnight leading-tight">{product.name}</h1>
               <div className="flex items-center gap-3 mt-2">
-                <Rating value={4.5} size={16} showValue count={product._count?.reviews || 0} />
-                <button className="text-accent text-sm hover:underline">Write a review</button>
+                <Rating value={product._count?.reviews ? 4.5 : 0} size={16} showValue count={product._count?.reviews || 0} />
+                <a href="#reviews" className="text-accent text-sm hover:underline">Write a review</a>
               </div>
             </div>
 
@@ -239,8 +242,156 @@ const ProductDetail: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* Reviews Section */}
+        <ReviewsSection productId={product.id} />
       </div>
     </>
+  );
+};
+
+// ─── Reviews Section Component ────────────────────────────────────────────────
+const ReviewsSection: React.FC<{ productId: string }> = ({ productId }) => {
+  const { user } = useAuthStore();
+  const qc = useQueryClient();
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['reviews', productId],
+    queryFn: () => reviewApi.getProductReviews(productId).then((r) => r.data.data),
+  });
+
+  const reviews: Review[] = (data as { reviews?: Review[] })?.reviews || [];
+  const avgRating: number = (data as { avgRating?: number })?.avgRating || 0;
+
+  const addMutation = useMutation({
+    mutationFn: () => reviewApi.addReview(productId, { rating, comment }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reviews', productId] });
+      setRating(0);
+      setComment('');
+      toast.success('Review submitted!');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || 'Failed to submit review');
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (rating === 0) { toast.error('Please select a rating'); return; }
+    addMutation.mutate();
+  };
+
+  return (
+    <div id="reviews" className="mt-12 max-w-3xl">
+      <div className="flex items-center gap-3 mb-6">
+        <MessageSquare size={22} className="text-accent" />
+        <h2 className="font-poppins font-bold text-xl text-midnight">Customer Reviews</h2>
+        {reviews.length > 0 && (
+          <span className="text-sm text-gray-500">({reviews.length})</span>
+        )}
+      </div>
+
+      {/* Average Rating */}
+      {reviews.length > 0 && (
+        <div className="flex items-center gap-4 bg-white rounded-2xl shadow-card p-5 mb-6">
+          <div className="text-center">
+            <p className="font-poppins font-black text-5xl text-midnight">{avgRating.toFixed(1)}</p>
+            <Rating value={avgRating} size={18} />
+            <p className="text-xs text-gray-500 mt-1">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="flex-1 space-y-1.5">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const count = reviews.filter((r) => Math.round(r.rating) === star).length;
+              const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+              return (
+                <div key={star} className="flex items-center gap-2 text-xs text-gray-500">
+                  <span className="w-4 text-right">{star}</span>
+                  <Star size={10} className="text-gold fill-gold" />
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gold rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-6">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Review List */}
+      {isLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => <div key={i} className="bg-white rounded-2xl shadow-card p-5 animate-pulse h-24" />)}
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-card p-10 text-center mb-6">
+          <Star size={36} className="text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">No reviews yet</p>
+          <p className="text-gray-400 text-sm mt-1">Be the first to review this product!</p>
+        </div>
+      ) : (
+        <div className="space-y-4 mb-6">
+          {reviews.map((review) => (
+            <div key={review.id} className="bg-white rounded-2xl shadow-card p-5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-accent to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-sm font-bold">{review.user.name.charAt(0).toUpperCase()}</span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <p className="font-semibold text-gray-800">{review.user.name}</p>
+                      <Rating value={review.rating} size={13} />
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                  {review.comment && (
+                    <p className="text-gray-600 text-sm mt-2 leading-relaxed">{review.comment}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Write Review Form */}
+      {user ? (
+        <div className="bg-white rounded-2xl shadow-card p-6">
+          <h3 className="font-poppins font-semibold text-gray-800 mb-4">Write a Review</h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Your Rating <span className="text-accent">*</span></label>
+              <Rating value={rating} size={28} interactive onChange={setRating} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">Comment (optional)</label>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={4}
+                placeholder="Share your experience with this product..."
+                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm resize-none outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              />
+            </div>
+            <Button type="submit" loading={addMutation.isPending}>Submit Review</Button>
+          </form>
+        </div>
+      ) : (
+        <div className="bg-gray-50 rounded-2xl p-6 text-center border border-gray-100">
+          <p className="text-gray-600 mb-3">Please log in to write a review</p>
+          <Link to={ROUTES.LOGIN}>
+            <Button variant="outline">Login to Review</Button>
+          </Link>
+        </div>
+      )}
+    </div>
   );
 };
 

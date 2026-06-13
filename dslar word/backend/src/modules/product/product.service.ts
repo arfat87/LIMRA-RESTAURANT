@@ -39,13 +39,13 @@ export const getProducts = async (query: ProductQuery) => {
     if (maxPrice !== undefined) (filter.price as Record<string, number>).$lte = maxPrice;
   }
 
-  const sortMap: Record<string, Record<string, number>> = {
+  const sortMap: Record<string, Record<string, 1 | -1>> = {
     price_asc:  { price: 1 },
     price_desc: { price: -1 },
     popular:    { createdAt: -1 },
     newest:     { createdAt: -1 },
   };
-  const sortObj = sortMap[sort || 'newest'] || { createdAt: -1 };
+  const sortObj = sortMap[sort || 'newest'] || { createdAt: -1 as const };
 
   const [products, total] = await Promise.all([
     Product.find(filter)

@@ -11,7 +11,7 @@ export const createProductSchema = z.object({
     condition: z.enum(['NEW', 'SECOND_HAND', 'REFURBISHED']).optional().default('NEW'),
     brand: z.string().optional(),
     model: z.string().optional(),
-    categoryId: z.string().uuid('Invalid category ID'),
+    categoryId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid category ID'),
     isActive: z.boolean().optional().default(true),
     isFeatured: z.boolean().optional().default(false),
   }),
@@ -28,11 +28,11 @@ export const updateProductSchema = z.object({
     condition: z.enum(['NEW', 'SECOND_HAND', 'REFURBISHED']).optional(),
     brand: z.string().optional(),
     model: z.string().optional(),
-    categoryId: z.string().uuid().optional(),
+    categoryId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid category ID').optional(),
     isActive: z.boolean().optional(),
     isFeatured: z.boolean().optional(),
   }),
-  params: z.object({ id: z.string().uuid() }),
+  params: z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid product ID') }),
 });
 
 export const productQuerySchema = z.object({

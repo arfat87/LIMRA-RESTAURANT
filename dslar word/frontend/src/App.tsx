@@ -27,6 +27,14 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminProducts = lazy(() => import('./pages/admin/Products'));
 const AdminOrders = lazy(() => import('./pages/admin/Orders'));
+const AdminProductForm = lazy(() => import('./pages/admin/ProductForm'));
+const AdminCategories = lazy(() => import('./pages/admin/Categories'));
+const AdminOrderDetail = lazy(() => import('./pages/admin/OrderDetail'));
+const AdminUsers = lazy(() => import('./pages/admin/Users'));
+
+// Auth pages
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 
 
 const queryClient = new QueryClient({
@@ -63,6 +71,10 @@ const App: React.FC = () => {
                 <Route path="/order-success/:id" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
                 <Route path={ROUTES.PROFILE} element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
+                {/* Auth pages */}
+                <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
+                <Route path="/reset-password/:token" element={<ResetPassword />} />
+
                 <Route path="*" element={<NotFound />} />
               </Route>
 
@@ -70,7 +82,12 @@ const App: React.FC = () => {
               <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminLayout /></ProtectedRoute>}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="products" element={<AdminProducts />} />
+                <Route path="products/add" element={<AdminProductForm />} />
+                <Route path="products/:id/edit" element={<AdminProductForm />} />
+                <Route path="categories" element={<AdminCategories />} />
                 <Route path="orders" element={<AdminOrders />} />
+                <Route path="orders/:id" element={<AdminOrderDetail />} />
+                <Route path="users" element={<AdminUsers />} />
               </Route>
             </Routes>
           </Suspense>
