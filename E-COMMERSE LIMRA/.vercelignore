@@ -1,0 +1,11 @@
+node_modules
+.git
+.insforge
+dist
+.vscode
+*.log
+*.zip
+*.tar.gz
+src/MEDIA
+src/MEDIA/
+src/MEDIA/**

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">LIMRA RESTUARANT</string>
-    <string name="title_table_order">Table Order</string>
-    <string name="desc_table_order">Scan QR or enter table number</string>
-    <string name="btn_retry">Retry Connection</string>
-    <string name="no_internet">No Internet Connection</string>
-    <string name="no_internet_msg">Please check your network connection and try again.</string>
-</resources>

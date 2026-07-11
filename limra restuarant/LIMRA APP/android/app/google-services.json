@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "537173575832",
+    "project_id": "limra-app",
+    "storage_bucket": "limra-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:537173575832:android:b69b6c1fdd3b2a75b428ed",
+        "android_client_info": {
+          "package_name": "LIMRARESTUARANT.LIMRA"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCu81GDaPdOPFPrqO3LLnFYv496vFWtxH4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
