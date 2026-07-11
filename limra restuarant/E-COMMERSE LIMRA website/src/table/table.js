@@ -327,7 +327,8 @@ function updateCartState() {
 function updateCartUI() {
   const totalQty = cart.reduce((s, c) => s + c.quantity, 0);
   const subtotal = cart.reduce((s, c) => s + (c.item.price * c.quantity), 0);
-  const totalAmt = subtotal;
+  const gst = Math.round(subtotal * 0.05);
+  const totalAmt = subtotal + gst;
 
   // Update Badges & Totals
   $('#cart-count-desktop').textContent = `${totalQty} item${totalQty === 1 ? '' : 's'}`;
@@ -337,7 +338,7 @@ function updateCartUI() {
 
   // Update modal checkout breakdown
   if ($('modal-subtotal')) $('modal-subtotal').textContent = `₹${subtotal.toFixed(2)}`;
-  if ($('modal-gst')) $('modal-gst').textContent = `₹0.00`;
+  if ($('modal-gst')) $('modal-gst').textContent = `₹${gst.toFixed(2)}`;
   if ($('modal-total')) $('modal-total').textContent = `₹${totalAmt.toFixed(2)}`;
 
   // Enable/Disable Place Order Buttons
@@ -453,6 +454,7 @@ function setupCartUI() {
       const zone = currentTable <= 9 ? 'indoor' : 'outdoor';
 
       const subtotal = cart.reduce((s, c) => s + (c.item.price * c.quantity), 0);
+      const gst = Math.round(subtotal * 0.05);
 
       const orderItems = cart.map(c => ({
         id: c.item.id,
@@ -460,6 +462,15 @@ function setupCartUI() {
         price: c.item.price,
         qty: c.quantity
       }));
+
+      if (gst > 0) {
+        orderItems.push({
+          id: 9999,
+          name: 'GST (5% Incl.)',
+          price: gst,
+          qty: 1
+        });
+      }
 
       const orderData = await saveOrder({
         customerName: name,
