@@ -1,7 +1,7 @@
 import './style.css';
 import './admin.css';
 import { Chart, registerables } from 'chart.js';
-import { insforge, getMenuOverrides, saveMenuOverride } from './lib/insforge.js';
+import { insforge, getMenuOverrides, saveMenuOverride, getCoupons, saveCoupon, deleteCoupon, getCombos, saveCombo, deleteCombo } from './lib/insforge.js';
 import { PaymentService } from './lib/payments.js';
 import { menuItems, categoryImages, categoryLabels } from './data/menu.js';
 import { getAdminLoginUrl } from './lib/admin-routes.js';
@@ -28,6 +28,7 @@ const STATUS_LABEL = {
 let orders = [];
 let orderItems = [];
 let bookings = [];
+let adminPlaces = [];
 let dashboardMap = null;
 let dashboardMarkersGroup = null;
 let activeMapFilter = 'all';
@@ -469,11 +470,12 @@ async function checkAdminAccess() {
 }
 
 async function loadData() {
-  const [ordersRes, itemsRes, bookingsRes, notifsRes] = await Promise.all([
+  const [ordersRes, itemsRes, bookingsRes, notifsRes, placesRes] = await Promise.all([
     insforge.database.from('orders').select('*').order('created_at', { ascending: false }),
     insforge.database.from('order_items').select('*'),
     insforge.database.from('bookings').select('*').order('created_at', { ascending: false }),
     insforge.database.from('notifications').select('*').order('created_at', { ascending: false }).limit(50),
+    insforge.database.from('delivery_areas').select('*').order('name', { ascending: true }),
   ]);
   
   if (ordersRes.error) throw ordersRes.error;
@@ -548,7 +550,45 @@ async function loadData() {
   orders = newOrders;
   orderItems = itemsRes.data || [];
   bookings = newBookings;
+  adminPlaces = (placesRes && placesRes.data) || [];
   $('last-updated').textContent = `Updated ${new Date().toLocaleTimeString('en-IN')}`;
+
+  await autoAcceptTableOrders();
+}
+
+async function autoAcceptTableOrders() {
+  if (!Array.isArray(orders)) return;
+  const tableOrdersToComplete = orders.filter(order => {
+    if (order.status === 'delivered' || order.status === 'cancelled') return false;
+    const meta = parseNotesMetadata(order.notes, order);
+    return meta.type === 'table';
+  });
+
+  for (const order of tableOrdersToComplete) {
+    console.log(`[Auto-Accept] Dine-in Table order #${order.order_number} auto-completing...`);
+    try {
+      await insforge.database.from('orders').update({ status: 'delivered' }).eq('id', order.id);
+      order.status = 'delivered';
+      
+      const cleanPhone = order.customer_phone.replace(/\D/g, '');
+      if (cleanPhone) {
+        insforge.realtime.publish(`customer-notifications:${cleanPhone}`, 'notification_created', {
+          id: Date.now(),
+          type: 'order_status',
+          title: 'Order Served/Completed',
+          message: `Your table order #${order.order_number} has been completed!`,
+          created_at: new Date().toISOString()
+        }).catch(console.warn);
+      }
+      
+      insforge.realtime.publish(`order-updates:${order.id}`, 'order_status_updated', {
+        orderId: order.id,
+        status: 'delivered'
+      }).catch(console.warn);
+    } catch (err) {
+      console.warn(`[Auto-Accept] Failed to auto-complete table order #${order.id}:`, err);
+    }
+  }
 }
 
 function buildCustomerStats() {
@@ -596,7 +636,9 @@ function buildCustomerStats() {
     }
     touchActivity(c, order.created_at);
     getItemsForOrder(order.id).forEach(item => {
-      c.items[item.item_name] = (c.items[item.item_name] || 0) + item.quantity;
+      if (isFoodItem(item.item_name)) {
+        c.items[item.item_name] = (c.items[item.item_name] || 0) + item.quantity;
+      }
     });
   });
 
@@ -628,10 +670,27 @@ function buildCustomerStats() {
     });
 }
 
+function isFoodItem(itemName) {
+  if (!itemName) return false;
+  const lowerName = itemName.toLowerCase();
+  return !(
+    lowerName.includes('gst') ||
+    lowerName.includes('tax') ||
+    lowerName.includes('delivery') ||
+    lowerName.includes('discount') ||
+    lowerName.includes('off') ||
+    lowerName.includes('coupon') ||
+    lowerName.includes('charge') ||
+    lowerName.includes('packaging')
+  );
+}
+
 function getTopItems(limit = 8) {
   const counts = {};
   orderItems.forEach(item => {
-    counts[item.item_name] = (counts[item.item_name] || 0) + item.quantity;
+    if (isFoodItem(item.item_name)) {
+      counts[item.item_name] = (counts[item.item_name] || 0) + item.quantity;
+    }
   });
   return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, limit);
 }
@@ -709,6 +768,37 @@ function renderStats() {
 
   const elOutstanding = $('stat-outstanding-revenue');
   if (elOutstanding) elOutstanding.textContent = fmtMoney(outstandingRev);
+
+  // Calculate GST stats (5% included in subtotal)
+  // subtotal = (total_amount - deliveryCharge) / 1.05
+  // GST = subtotal * 0.05
+  let totalGst = 0;
+  let paidGst = 0;
+  let pendingGst = 0;
+
+  orders.filter(o => o.status !== 'cancelled').forEach(o => {
+    const meta = parseNotesMetadata(o.notes, o);
+    const deliveryCharge = meta.charge ? parseFloat(meta.charge.replace(/[^\d.]/g, '')) || 0 : 0;
+    const totalAmt = parseFloat(o.total_amount) || 0;
+    const subtotal = Math.max(0, totalAmt - deliveryCharge) / 1.05;
+    const gst = subtotal * 0.05;
+
+    totalGst += gst;
+    if (o.payment_status === 'paid') {
+      paidGst += gst;
+    } else {
+      pendingGst += gst;
+    }
+  });
+
+  const elGstTotal = $('stat-gst-total');
+  if (elGstTotal) elGstTotal.textContent = fmtMoney(totalGst);
+
+  const elGstPaid = $('stat-gst-paid');
+  if (elGstPaid) elGstPaid.textContent = fmtMoney(paidGst);
+
+  const elGstPending = $('stat-gst-pending');
+  if (elGstPending) elGstPending.textContent = fmtMoney(pendingGst);
 
   // Sidebar badges
   const orderBadge = $('pending-orders-badge');
@@ -1381,7 +1471,7 @@ function renderOrderDetailPicker() {
   ].join('');
 }
 
-function renderOrderDetail(orderId) {
+async function renderOrderDetail(orderId) {
   const id = orderId || $('order-detail-picker')?.value;
   const order = orders.find(o => o.id === id);
   const content = $('order-detail-content');
@@ -1442,11 +1532,30 @@ function renderOrderDetail(orderId) {
 
   const parsedMeta = parseNotesMetadata(order.notes, order);
 
+  let promoMsg = '';
+  try {
+    const { data: promoList } = await insforge.database
+      .from('coupons')
+      .select('*')
+      .eq('active', true)
+      .eq('is_auto_send', true)
+      .limit(1);
+      
+    if (promoList && promoList.length > 0) {
+      const promo = promoList[0];
+      const expDate = new Date(promo.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      promoMsg = ` Use Coupon code: ${promo.code} to get ${promo.discount_pct}% OFF on your next visit! Valid until ${expDate}.`;
+    }
+  } catch (err) {
+    console.error('Failed to load auto-send promo coupon in admin:', err);
+  }
+
   const digits = order.customer_phone.replace(/\D/g, '');
   const formattedPhone = digits.length === 10 ? '91' : '';
   const whatsappPhone = formattedPhone + digits;
   const statusText = STATUS_LABEL[order.status] || order.status;
-  const whatsappMsg = `Hi ${order.customer_name}, your LIMRA order #${order.order_number} has been received! Current status: ${statusText}. We are preparing it with care and will contact you as soon as possible. Thank you for choosing LIMRA!`;
+  const promoSuffix = promoMsg || '';
+  const whatsappMsg = `Hi ${order.customer_name}, your LIMRA order #${order.order_number} has been received! Current status: ${statusText}. We are preparing it with care and will contact you as soon as possible. Thank you for choosing LIMRA!${promoSuffix}`;
   const whatsappLink = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMsg)}`;
 
   const emailSubject = `LIMRA Restaurant - Order #${order.order_number} Confirmation`;
@@ -1624,12 +1733,19 @@ function renderOrderDetail(orderId) {
         <div class="adm-card">
           <h3 class="adm-card-title">Quick Actions</h3>
           <div class="adm-action-row">
-            ${order.status === 'pending' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm accept-order">✓ Accept Order</button>` : ''}
-            ${order.status === 'confirmed' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm prep-order">👨‍🍳 Start Preparing</button>` : ''}
-            ${order.status === 'preparing' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm ready-order">✓ Mark Ready</button>` : ''}
-            ${order.status === 'ready' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm deliver-order">✓ Mark Delivered</button>` : ''}
-            ${order.status !== 'cancelled' && order.status !== 'delivered' ? `<button type="button" class="adm-btn adm-btn-danger adm-btn-sm cancel-order">✕ Cancel</button>` : ''}
-            ${(order.payment_status || 'unpaid') === 'unpaid' ? `<button type="button" class="adm-btn adm-btn-success adm-btn-sm mark-paid-btn">💵 Mark As Paid</button>` : ''}
+            ${parsedMeta.type === 'table' ? `
+              ${(order.payment_status || 'unpaid') === 'unpaid' 
+                ? `<button type="button" class="adm-btn adm-btn-success adm-btn-sm mark-paid-btn">💵 Mark As Paid</button>` 
+                : `<button type="button" class="adm-btn adm-btn-outline adm-btn-sm mark-unpaid-btn" style="border-color:#ff5b5b; color:#ff5b5b; padding:0.4rem 0.8rem; font-weight:600; cursor:pointer;">↩ Mark Unpaid</button>`
+              }
+            ` : `
+              ${order.status === 'pending' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm accept-order">✓ Accept Order</button>` : ''}
+              ${order.status === 'confirmed' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm prep-order">👨‍🍳 Start Preparing</button>` : ''}
+              ${order.status === 'preparing' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm ready-order">✓ Mark Ready</button>` : ''}
+              ${order.status === 'ready' ? `<button type="button" class="adm-btn adm-btn-primary adm-btn-sm deliver-order">✓ Mark Delivered</button>` : ''}
+              ${order.status !== 'cancelled' && order.status !== 'delivered' ? `<button type="button" class="adm-btn adm-btn-danger adm-btn-sm cancel-order">✕ Cancel</button>` : ''}
+              ${(order.payment_status || 'unpaid') === 'unpaid' ? `<button type="button" class="adm-btn adm-btn-success adm-btn-sm mark-paid-btn">💵 Mark As Paid</button>` : ''}
+            `}
           </div>
 
           <h3 class="adm-card-title" style="margin-top: 1.5rem; margin-bottom: 0.75rem;">Customer Shortcuts</h3>
@@ -1666,6 +1782,11 @@ function renderOrderDetail(orderId) {
   content.querySelector('.mark-paid-btn')?.addEventListener('click', () => {
     if (confirm('Are you sure you want to mark this order as paid?')) {
       updateOrderPaymentStatus(order.id, 'paid');
+    }
+  });
+  content.querySelector('.mark-unpaid-btn')?.addEventListener('click', () => {
+    if (confirm('Are you sure you want to mark this order as unpaid?')) {
+      updateOrderPaymentStatus(order.id, 'unpaid');
     }
   });
 
@@ -1934,6 +2055,97 @@ function renderCustomers() {
   }).join('');
 }
 
+// ── Customer Analysis ────────────────────────────────────
+
+function buildCustomerAnalysis() {
+  const map = new Map();
+
+  orders.forEach(order => {
+    const phone = order.customer_phone;
+    if (!phone) return;
+
+    if (!map.has(phone)) {
+      map.set(phone, {
+        name: order.customer_name || 'Customer',
+        phone: phone,
+        totalSpent: 0,
+        orderCount: 0,
+        ordersList: []
+      });
+    }
+
+    const c = map.get(phone);
+    c.orderCount += 1;
+    c.totalSpent += Number(order.total_amount);
+
+    if (order.customer_name && (!c.name || c.name === 'Customer')) {
+      c.name = order.customer_name;
+    }
+
+    const items = orderItems.filter(item => item.order_id === order.id && isFoodItem(item.item_name));
+    const itemsList = items.map(it => `${it.item_name} (x${it.quantity || 1})`).join(', ');
+
+    c.ordersList.push({
+      id: order.id,
+      date: new Date(order.created_at),
+      amount: Number(order.total_amount),
+      food: itemsList || 'No items listed'
+    });
+  });
+
+  const list = [...map.values()];
+  list.forEach(c => {
+    c.ordersList.sort((a, b) => b.date - a.date);
+  });
+
+  return list.sort((a, b) => b.totalSpent - a.totalSpent);
+}
+
+function renderCustomerAnalysis() {
+  const search = ($('analysis-search')?.value || '').toLowerCase().trim();
+  let customers = buildCustomerAnalysis();
+
+  if (search) {
+    customers = customers.filter(c =>
+      c.name.toLowerCase().includes(search) || c.phone.includes(search)
+    );
+  }
+
+  const tbody = $('analysis-table-body');
+  if (!tbody) return;
+
+  if (customers.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-slate-400">No customer analysis data found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = customers.map(c => {
+    const ordersHtml = c.ordersList.map(o => `
+      <div style="border-bottom:1px solid rgba(255,255,255,0.05); padding:0.4rem 0; font-size:0.75rem;">
+        <div style="display:flex; justify-content:space-between; font-weight:bold; color:var(--adm-text);">
+          <span>📅 ${o.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+          <span style="color:var(--adm-green); margin-left: auto;">₹${o.amount.toFixed(2)}</span>
+        </div>
+        <div style="color:var(--adm-muted); margin-top:2px;">🍔 ${escapeHtml(o.food)}</div>
+      </div>
+    `).join('');
+
+    return `
+      <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <td class="font-bold text-slate-900" style="padding:1rem; vertical-align: top;">${escapeHtml(c.name)}</td>
+        <td class="text-sm font-mono" style="padding:1rem; vertical-align: top;">${escapeHtml(c.phone)}</td>
+        <td class="font-semibold text-emerald-600" style="padding:1rem; text-align:right; vertical-align: top;">₹${c.totalSpent.toFixed(2)}</td>
+        <td style="padding:1rem; text-align:center; font-weight:bold; vertical-align: top;">${c.orderCount}</td>
+        <td style="padding: 0.5rem 1rem; vertical-align: top;">
+          <div style="max-height:180px; overflow-y:auto; padding-right:0.5rem;">
+            ${ordersHtml}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
 // ── Bookings ────────────────────────────────────────────
 
 function renderBookingCalendar() {
@@ -2088,13 +2300,15 @@ function renderFoods() {
         price: override.price !== null && override.price !== undefined ? parseFloat(override.price) : item.price,
         mrp: override.mrp !== null && override.mrp !== undefined ? parseFloat(override.mrp) : item.mrp,
         available: override.available !== undefined ? override.available : true,
-        featured: override.featured !== undefined ? override.featured : false
+        featured: override.featured !== undefined ? override.featured : false,
+        description: override.description !== undefined ? override.description : (item.description || '')
       };
     }
     return {
       ...item,
       available: true,
-      featured: false
+      featured: false,
+      description: item.description || ''
     };
   });
 
@@ -2230,11 +2444,13 @@ function setupFoodControlListeners() {
 
       const currentPrice = override && override.price !== null && override.price !== undefined ? override.price : staticItem.price;
       const currentMrp = override && override.mrp !== null && override.mrp !== undefined ? override.mrp : (staticItem.mrp || '');
+      const currentDesc = override && override.description !== undefined ? override.description : (staticItem.description || '');
 
       $('edit-modal-item-id').value = itemId;
       $('edit-modal-item-name').textContent = `Edit Details: ${staticItem.name}`;
       $('edit-modal-item-price').value = currentPrice;
       $('edit-modal-item-mrp').value = currentMrp;
+      $('edit-modal-item-desc').value = currentDesc;
 
       $('adm-edit-modal').classList.add('active');
     });
@@ -2257,6 +2473,7 @@ function setupEditModalListeners() {
     const newPrice = parseFloat($('edit-modal-item-price').value);
     const newMrpVal = $('edit-modal-item-mrp').value;
     const newMrp = newMrpVal ? parseFloat(newMrpVal) : null;
+    const newDesc = $('edit-modal-item-desc').value.trim();
 
     if (isNaN(newPrice) || newPrice <= 0) {
       alert('Please enter a valid price');
@@ -2274,6 +2491,7 @@ function setupEditModalListeners() {
           id: itemId,
           price: newPrice,
           mrp: newMrp,
+          description: newDesc,
           available: true,
           featured: false
         };
@@ -2281,6 +2499,7 @@ function setupEditModalListeners() {
       } else {
         override.price = newPrice;
         override.mrp = newMrp;
+        override.description = newDesc;
       }
 
       await saveMenuOverride(override);
@@ -2302,9 +2521,13 @@ const PANEL_TITLES = {
   orders: 'Order List',
   'order-detail': 'Order Detail',
   customers: 'Customer',
+  'customer-analysis': 'Customer Analysis',
   analytics: 'Analytics',
   bookings: 'Bookings',
   foods: 'Foods',
+  coupons: 'Coupons',
+  combos: 'Combos',
+  places: 'Places & Charges',
 };
 
 function switchPanel(panelId) {
@@ -2313,9 +2536,29 @@ function switchPanel(panelId) {
   document.querySelectorAll('.adm-nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector(`.adm-nav-item[data-panel="${panelId}"]`)?.classList.add('active');
 
+  // Editor Zone submenu auto-expand
+  const subPanels = ['coupons', 'combos', 'places'];
+  const editorZoneTrigger = $('editor-zone-trigger');
+  const editorZoneItems = $('editor-zone-items');
+  if (subPanels.includes(panelId)) {
+    if (editorZoneItems) editorZoneItems.style.display = 'flex';
+    if (editorZoneTrigger) {
+      editorZoneTrigger.classList.add('active');
+      editorZoneTrigger.classList.add('expanded');
+    }
+  } else {
+    if (editorZoneTrigger) {
+      editorZoneTrigger.classList.remove('active');
+    }
+  }
+
+  if (panelId === 'customer-analysis') renderCustomerAnalysis();
   if (panelId === 'analytics') renderAnalytics();
   if (panelId === 'foods') { initFoodsFilters(); loadAndRenderFoods(); }
   if (panelId === 'bookings') renderBookingCalendar();
+  if (panelId === 'coupons') { loadAndRenderCoupons(); }
+  if (panelId === 'combos') { loadAndRenderCombos(); }
+  if (panelId === 'places') { loadAndRenderPlaces(); }
   if (panelId === 'order-detail') {
     renderOrderDetailPicker();
     renderOrderDetail(selectedOrderId);
@@ -2339,6 +2582,7 @@ function renderAll() {
   renderOrdersTable();
   renderOrderDetailPicker();
   renderCustomers();
+  renderCustomerAnalysis();
   renderBookingCalendar();
   renderBookingsList();
   initFoodsFilters();
@@ -2445,6 +2689,22 @@ function initDashboardUI() {
     btn.addEventListener('click', () => switchPanel(btn.dataset.panel));
   });
 
+  const editorZoneTrigger = $('editor-zone-trigger');
+  const editorZoneItems = $('editor-zone-items');
+  if (editorZoneTrigger && editorZoneItems) {
+    editorZoneTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isExpanded = editorZoneItems.style.display === 'flex';
+      if (isExpanded) {
+        editorZoneItems.style.display = 'none';
+        editorZoneTrigger.classList.remove('expanded');
+      } else {
+        editorZoneItems.style.display = 'flex';
+        editorZoneTrigger.classList.add('expanded');
+      }
+    });
+  }
+
   $('refresh-btn').addEventListener('click', () => {
     warmUpAudio();
     refreshDashboard(true);
@@ -2518,6 +2778,7 @@ function initDashboardUI() {
 
   $('orders-search')?.addEventListener('input', () => { ordersPage = 1; renderOrdersTable(); });
   $('customers-search')?.addEventListener('input', renderCustomers);
+  $('analysis-search')?.addEventListener('input', renderCustomerAnalysis);
   $('bookings-type-filter')?.addEventListener('change', () => { renderBookingsList(); renderBookingCalendar(); });
   $('bookings-status-filter')?.addEventListener('change', renderBookingsList);
   $('foods-category-filter')?.addEventListener('change', renderFoods);
@@ -2539,6 +2800,7 @@ function initDashboardUI() {
     if (q) switchPanel('orders');
     renderOrdersTable();
     renderCustomers();
+    renderCustomerAnalysis();
   });
 
   $('sidebar-toggle').addEventListener('click', () => {
@@ -2583,8 +2845,12 @@ function initDashboardUI() {
   // Auto-refresh every 10 seconds for near real-time notifications
   setInterval(() => refreshDashboard(false), 10000);
 
-  // Setup modal listeners for menu editor
+  // Setup modal listeners for menu editor, coupon manager, and combo manager
   setupEditModalListeners();
+  setupCouponModalListeners();
+  setupComboModalListeners();
+  setupPlaceModalListeners();
+  setupCouponShareModalListeners();
 }
 
 initDashboardAuth();
@@ -2887,4 +3153,786 @@ async function printOrderReceipt(order) {
     console.error('[QZ] Printing error:', err);
     showAdminToast('Printing failed: ' + err.message, 'error');
   }
+}
+
+// ── Coupons Management ──────────────────────────────────
+let adminCoupons = [];
+let editingCouponCode = null;
+
+async function loadAndRenderCoupons() {
+  try {
+    $('coupons-table-body').innerHTML = '<tr><td colspan="8" class="text-center py-4 text-slate-400">Loading coupons...</td></tr>';
+    adminCoupons = await getCoupons();
+    renderCouponsTable();
+  } catch (err) {
+    console.error('Failed to load coupons:', err);
+    $('coupons-table-body').innerHTML = `<tr><td colspan="8" class="text-center py-4 text-red-500">Error: ${err.message}</td></tr>`;
+  }
+}
+
+function renderCouponsTable() {
+  $('coupons-count').textContent = adminCoupons.length;
+  
+  if (adminCoupons.length === 0) {
+    $('coupons-table-body').innerHTML = '<tr><td colspan="8" class="text-center py-4 text-slate-400">No coupons found. Click Create Coupon to add one.</td></tr>';
+    return;
+  }
+  
+  $('coupons-table-body').innerHTML = adminCoupons.map(c => {
+    const isExpired = new Date(c.expiry_date) < new Date();
+    const expiryStr = new Date(c.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    const statusText = c.active && !isExpired ? 'Active' : (isExpired ? 'Expired' : 'Inactive');
+    const statusClass = c.active && !isExpired ? 'adm-badge-success' : 'adm-badge-danger';
+    
+    return `
+      <tr>
+        <td class="font-bold text-slate-900" style="padding:1rem">${c.code}</td>
+        <td class="font-semibold text-emerald-600">${c.discount_pct}% OFF</td>
+        <td>₹${parseFloat(c.min_bill).toFixed(2)}</td>
+        <td>${c.used_count} / ${c.max_uses} uses</td>
+        <td class="${isExpired ? 'text-red-500 font-medium' : ''}">${expiryStr}</td>
+        <td>
+          <label class="adm-toggle-label">
+            <input type="checkbox" class="coupon-toggle-auto-send" data-code="${c.code}" ${c.is_auto_send ? 'checked' : ''} />
+            <span class="adm-toggle-slider"></span>
+            <span class="adm-toggle-text text-xs" style="font-weight:bold;color:${c.is_auto_send ? 'var(--adm-green)' : 'var(--adm-muted)'}">
+              ${c.is_auto_send ? '★ Active Promo' : 'Off'}
+            </span>
+          </label>
+        </td>
+        <td><span class="adm-badge ${c.active && !isExpired ? '' : 'inactive'}" style="background:${c.active && !isExpired ? 'rgba(0,176,116,0.1)' : 'rgba(255,91,91,0.1)'};color:${c.active && !isExpired ? 'var(--adm-green)' : '#ff5b5b'};padding:4px 8px;border-radius:12px;font-size:0.75rem;font-weight:700">${statusText}</span></td>
+        <td>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn-secondary text-xs btn-share-coupon" data-code="${c.code}" data-pct="${c.discount_pct}" data-min="${c.min_bill}" data-expiry="${expiryStr}" style="padding:0.35rem 0.65rem;font-size:0.75rem;background:rgba(0,176,116,0.08);color:var(--adm-green);border:1px solid rgba(0,176,116,0.15);border-radius:6px;cursor:pointer;font-weight:600">🔗 Share</button>
+            <button class="btn-secondary text-xs btn-edit-coupon" data-code="${c.code}" style="padding:0.35rem 0.65rem;font-size:0.75rem">✏️ Edit</button>
+            <button class="btn-danger text-xs btn-delete-coupon" data-code="${c.code}" style="padding:0.35rem 0.65rem;background:#fdecea;color:#ff5b5b;border:none;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer">🗑️ Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  setupCouponEventListeners();
+}
+
+function setupCouponEventListeners() {
+  const body = $('coupons-table-body');
+  if (!body) return;
+  
+  body.querySelectorAll('.coupon-toggle-auto-send').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const code = cb.dataset.code;
+      const isChecked = cb.checked;
+      
+      try {
+        const coupon = adminCoupons.find(c => c.code === code);
+        if (coupon) {
+          coupon.is_auto_send = isChecked;
+          await saveCoupon(coupon);
+          loadAndRenderCoupons();
+        }
+      } catch (err) {
+        alert('Failed to set auto-send: ' + err.message);
+        cb.checked = !isChecked;
+      }
+    });
+  });
+  
+  body.querySelectorAll('.btn-share-coupon').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code;
+      const pct = btn.dataset.pct;
+      const min = btn.dataset.min;
+      const expiry = btn.dataset.expiry;
+      
+      // Populate hidden fields in share modal
+      $('share-coupon-code').value = code;
+      $('share-coupon-pct').value = pct;
+      $('share-coupon-min').value = min;
+      $('share-coupon-expiry').value = expiry;
+      
+      // Clear inputs
+      $('share-customer-name').value = '';
+      $('share-customer-phone').value = '';
+      
+      // Set default message
+      updateShareMessage();
+      
+      // Open modal
+      $('adm-coupon-share-modal').classList.add('active');
+    });
+  });
+  
+  body.querySelectorAll('.btn-edit-coupon').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = btn.dataset.code;
+      const coupon = adminCoupons.find(c => c.code === code);
+      if (coupon) {
+        editingCouponCode = code;
+        $('coupon-modal-title').textContent = 'Edit Coupon';
+        $('coupon-modal-code').value = coupon.code;
+        $('coupon-modal-code').disabled = true;
+        $('coupon-modal-pct').value = coupon.discount_pct;
+        $('coupon-modal-min').value = coupon.min_bill;
+        $('coupon-modal-max').value = coupon.max_uses;
+        
+        const expDate = new Date(coupon.expiry_date);
+        const yyyy = expDate.getFullYear();
+        const mm = String(expDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(expDate.getDate()).padStart(2, '0');
+        $('coupon-modal-expiry').value = `${yyyy}-${mm}-${dd}`;
+        
+        $('coupon-modal-auto-send').checked = coupon.is_auto_send;
+        
+        $('adm-coupon-modal').classList.add('active');
+      }
+    });
+  });
+  
+  body.querySelectorAll('.btn-delete-coupon').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const code = btn.dataset.code;
+      if (confirm(`Are you sure you want to delete coupon: ${code}?`)) {
+        try {
+          await deleteCoupon(code);
+          loadAndRenderCoupons();
+        } catch (err) {
+          alert('Failed to delete coupon: ' + err.message);
+        }
+      }
+    });
+  });
+}
+
+function setupCouponModalListeners() {
+  const modal = $('adm-coupon-modal');
+  const form = $('adm-coupon-form');
+  const cancelBtn = $('coupon-modal-cancel');
+  const createBtn = $('btn-create-coupon');
+  
+  if (!modal || !form || !cancelBtn) return;
+  
+  createBtn?.addEventListener('click', () => {
+    editingCouponCode = null;
+    $('coupon-modal-title').textContent = 'Create Coupon';
+    $('coupon-modal-code').value = '';
+    $('coupon-modal-code').disabled = false;
+    $('coupon-modal-pct').value = '10';
+    $('coupon-modal-min').value = '0';
+    $('coupon-modal-max').value = '100';
+    $('coupon-modal-expiry').value = '';
+    $('coupon-modal-auto-send').checked = false;
+    
+    modal.classList.add('active');
+  });
+  
+  cancelBtn.addEventListener('click', () => {
+    modal.classList.remove('active');
+  });
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = $('coupon-modal-code').value.trim().toUpperCase();
+    const pct = parseInt($('coupon-modal-pct').value, 10);
+    const minBill = parseFloat($('coupon-modal-min').value) || 0;
+    const maxUses = parseInt($('coupon-modal-max').value, 10) || 100;
+    const expiry = $('coupon-modal-expiry').value;
+    const autoSend = $('coupon-modal-auto-send').checked;
+    
+    if (!code) {
+      alert('Please enter a coupon code');
+      return;
+    }
+    if (isNaN(pct) || pct <= 0 || pct > 100) {
+      alert('Please enter a valid percentage (1-100)');
+      return;
+    }
+    if (!expiry) {
+      alert('Please select an expiry date');
+      return;
+    }
+    
+    const saveBtn = form.querySelector('button[type="submit"]');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    
+    try {
+      const coupon = {
+        code,
+        discount_pct: pct,
+        min_bill: minBill,
+        max_uses: maxUses,
+        expiry_date: new Date(expiry).toISOString(),
+        is_auto_send: autoSend,
+        active: true
+      };
+      
+      await saveCoupon(coupon);
+      modal.classList.remove('active');
+      loadAndRenderCoupons();
+    } catch (err) {
+      alert('Failed to save coupon: ' + err.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Coupon';
+    }
+  });
+}
+
+// ── Combos Management ───────────────────────────────────
+let adminCombos = [];
+
+async function loadAndRenderCombos() {
+  try {
+    $('combos-table-body').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-400">Loading combos...</td></tr>';
+    adminCombos = await getCombos();
+    renderCombosTable();
+  } catch (err) {
+    console.error('Failed to load combos:', err);
+    $('combos-table-body').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500">Error: ${err.message}</td></tr>`;
+  }
+}
+
+function renderCombosTable() {
+  $('combos-count').textContent = adminCombos.length;
+  
+  if (adminCombos.length === 0) {
+    $('combos-table-body').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-slate-400">No combos found. Click Create Combo Pack to add one.</td></tr>';
+    return;
+  }
+  
+  $('combos-table-body').innerHTML = adminCombos.map(c => {
+    const itemsListStr = Array.isArray(c.items)
+      ? c.items.map(it => `${it.name} (x${it.qty || 1})`).join(', ')
+      : 'No items';
+      
+    const statusText = c.available ? 'Available' : 'Unavailable';
+    const hasDiscount = c.mrp && parseFloat(c.mrp) > parseFloat(c.price);
+    const priceDisplay = hasDiscount
+      ? `₹${parseFloat(c.price).toFixed(2)} <span style="text-decoration:line-through;font-size:0.8em;color:var(--adm-muted);margin-left:0.25rem">₹${parseFloat(c.mrp).toFixed(2)}</span>`
+      : `₹${parseFloat(c.price).toFixed(2)}`;
+    
+    return `
+      <tr>
+        <td class="font-bold text-slate-900" style="padding:1rem">
+          <div style="display:flex; align-items:center; gap:0.75rem">
+            ${c.image_url ? `<img src="${c.image_url}" style="width:40px; height:40px; border-radius:6px; object-fit:cover; border:1px solid rgba(255,255,255,0.08)" />` : `<div style="width:40px; height:40px; border-radius:6px; background:rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,0.05); font-size:1.2rem">🍿</div>`}
+            <span>${c.name}</span>
+          </div>
+        </td>
+        <td class="text-xs text-slate-500" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.description || 'N/A'}</td>
+        <td class="text-xs font-mono text-slate-400">${itemsListStr}</td>
+        <td class="font-semibold text-emerald-600">${priceDisplay}</td>
+        <td>
+          <label class="adm-toggle-label">
+            <input type="checkbox" class="combo-toggle-availability" data-id="${c.id}" ${c.available ? 'checked' : ''} />
+            <span class="adm-toggle-slider"></span>
+            <span class="adm-toggle-text text-xs" style="font-weight:bold;color:${c.available ? 'var(--adm-green)' : 'var(--adm-muted)'}">
+              ${statusText}
+            </span>
+          </label>
+        </td>
+        <td>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn-secondary text-xs btn-edit-combo" data-id="${c.id}" style="padding:0.35rem 0.65rem;font-size:0.75rem">✏️ Edit</button>
+            <button class="btn-danger text-xs btn-delete-combo" data-id="${c.id}" style="padding:0.35rem 0.65rem;background:#fdecea;color:#ff5b5b;border:none;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer">🗑️ Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  setupComboEventListeners();
+}
+
+function setupComboEventListeners() {
+  const body = $('combos-table-body');
+  if (!body) return;
+  
+  body.querySelectorAll('.combo-toggle-availability').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const id = parseInt(cb.dataset.id, 10);
+      const isChecked = cb.checked;
+      
+      try {
+        const combo = adminCombos.find(c => c.id === id);
+        if (combo) {
+          combo.available = isChecked;
+          await saveCombo(combo);
+          loadAndRenderCombos();
+        }
+      } catch (err) {
+        alert('Failed to update availability: ' + err.message);
+        cb.checked = !isChecked;
+      }
+    });
+  });
+  
+  body.querySelectorAll('.btn-edit-combo').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id, 10);
+      const combo = adminCombos.find(c => c.id === id);
+      if (combo) {
+        $('combo-modal-title').textContent = 'Edit Combo Pack';
+        $('combo-modal-id').value = combo.id;
+        $('combo-modal-name').value = combo.name;
+        $('combo-modal-desc').value = combo.description || '';
+        $('combo-modal-price').value = combo.price;
+        $('combo-modal-mrp').value = combo.mrp || '';
+        
+        $('combo-modal-img-url').value = combo.image_url || '';
+        const preview = $('combo-modal-img-preview');
+        const placeholder = $('combo-modal-img-placeholder');
+        if (combo.image_url) {
+          preview.src = combo.image_url;
+          preview.style.display = 'block';
+          placeholder.style.display = 'none';
+        } else {
+          preview.src = '';
+          preview.style.display = 'none';
+          placeholder.style.display = 'block';
+        }
+        $('combo-modal-file').value = '';
+        $('combo-modal-upload-status').textContent = 'No file selected';
+        
+        populateComboItemsChecklist(combo.items);
+        $('adm-combo-modal').classList.add('active');
+      }
+    });
+  });
+  
+  body.querySelectorAll('.btn-delete-combo').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt(btn.dataset.id, 10);
+      if (confirm('Are you sure you want to delete this combo?')) {
+        try {
+          await deleteCombo(id);
+          loadAndRenderCombos();
+        } catch (err) {
+          alert('Failed to delete combo: ' + err.message);
+        }
+      }
+    });
+  });
+}
+
+function populateComboItemsChecklist(selectedItems = []) {
+  const container = $('combo-items-checklist');
+  if (!container) return;
+  
+  const searchInput = $('combo-items-search');
+  if (searchInput) searchInput.value = '';
+  
+  container.innerHTML = menuItems.map(item => {
+    const matched = selectedItems.find(s => s.id === item.id);
+    const isChecked = !!matched;
+    const qty = matched ? (matched.qty || 1) : 1;
+    
+    return `
+      <div class="combo-item-row" data-name="${item.name.toLowerCase()}" data-category="${item.category.toLowerCase()}" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.25rem 0;border-bottom:1px solid rgba(255,255,255,0.03)">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex:1">
+          <input type="checkbox" class="combo-item-checkbox" id="chk-combo-item-${item.id}" data-id="${item.id}" data-name="${item.name}" ${isChecked ? 'checked' : ''} style="cursor:pointer;width:14px;height:14px" />
+          <label for="chk-combo-item-${item.id}" style="cursor:pointer;font-size:0.8rem;color:var(--adm-text)" class="select-none">
+            ${item.name} <span style="color:var(--adm-muted)">(${item.category})</span>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.35rem">
+          <span style="font-size:0.75rem;color:var(--adm-muted)">Qty:</span>
+          <input type="number" class="combo-item-qty" data-id="${item.id}" min="1" max="99" value="${qty}" style="width:45px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:4px;padding:2px 4px;font-size:0.75rem;text-align:center" />
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setupComboModalListeners() {
+  const modal = $('adm-combo-modal');
+  const form = $('adm-combo-form');
+  const cancelBtn = $('combo-modal-cancel');
+  const createBtn = $('btn-create-combo');
+  
+  if (!modal || !form || !cancelBtn) return;
+  
+  // Search items filter
+  const itemSearch = $('combo-items-search');
+  if (itemSearch) {
+    itemSearch.addEventListener('input', () => {
+      const query = itemSearch.value.toLowerCase().trim();
+      const container = $('combo-items-checklist');
+      if (container) {
+        container.querySelectorAll('.combo-item-row').forEach(row => {
+          const name = row.dataset.name || '';
+          const category = row.dataset.category || '';
+          if (name.includes(query) || category.includes(query)) {
+            row.style.display = 'flex';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      }
+    });
+  }
+  
+  // 1. Image upload elements
+  const fileInput = $('combo-modal-file');
+  const uploadBtn = $('combo-modal-upload-btn');
+  const statusSpan = $('combo-modal-upload-status');
+  const urlInput = $('combo-modal-img-url');
+  const previewImg = $('combo-modal-img-preview');
+  const placeholderImg = $('combo-modal-img-placeholder');
+
+  // Trigger file selection on click
+  uploadBtn?.addEventListener('click', () => {
+    fileInput?.click();
+  });
+
+  // Handle file upload to InsForge public combos storage bucket
+  fileInput?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    statusSpan.textContent = 'Uploading...';
+    if (uploadBtn) uploadBtn.disabled = true;
+
+    try {
+      const { data, error } = await insforge.storage.from('combos').uploadAuto(file);
+      if (error) throw error;
+
+      statusSpan.textContent = 'Uploaded successfully!';
+      if (urlInput) {
+        urlInput.value = data.url;
+        // Trigger preview update
+        if (previewImg && placeholderImg) {
+          previewImg.src = data.url;
+          previewImg.style.display = 'block';
+          placeholderImg.style.display = 'none';
+        }
+      }
+    } catch (err) {
+      statusSpan.textContent = 'Upload failed!';
+      alert('Failed to upload image: ' + err.message);
+    } finally {
+      if (uploadBtn) uploadBtn.disabled = false;
+    }
+  });
+
+  // Handle manual URL changes for preview updates
+  urlInput?.addEventListener('input', (e) => {
+    const url = e.target.value.trim();
+    if (previewImg && placeholderImg) {
+      if (url) {
+        previewImg.src = url;
+        previewImg.style.display = 'block';
+        placeholderImg.style.display = 'none';
+      } else {
+        previewImg.src = '';
+        previewImg.style.display = 'none';
+        placeholderImg.style.display = 'block';
+      }
+    }
+  });
+
+  createBtn?.addEventListener('click', () => {
+    $('combo-modal-title').textContent = 'Create Combo Pack';
+    $('combo-modal-id').value = '';
+    $('combo-modal-name').value = '';
+    $('combo-modal-desc').value = '';
+    $('combo-modal-price').value = '';
+    $('combo-modal-mrp').value = '';
+    
+    if (urlInput) urlInput.value = '';
+    if (previewImg && placeholderImg) {
+      previewImg.src = '';
+      previewImg.style.display = 'none';
+      placeholderImg.style.display = 'block';
+    }
+    if (fileInput) fileInput.value = '';
+    if (statusSpan) statusSpan.textContent = 'No file selected';
+
+    populateComboItemsChecklist([]);
+    modal.classList.add('active');
+  });
+  
+  cancelBtn.addEventListener('click', () => {
+    modal.classList.remove('active');
+  });
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const idVal = $('combo-modal-id').value;
+    const id = idVal ? parseInt(idVal, 10) : null;
+    const name = $('combo-modal-name').value.trim();
+    const desc = $('combo-modal-desc').value.trim();
+    const price = parseFloat($('combo-modal-price').value);
+    const mrpVal = $('combo-modal-mrp').value ? parseFloat($('combo-modal-mrp').value) : null;
+    const imageUrl = urlInput ? urlInput.value.trim() : '';
+    
+    if (!name) {
+      alert('Please enter a combo name');
+      return;
+    }
+    if (isNaN(price) || price <= 0) {
+      alert('Please enter a valid price');
+      return;
+    }
+    
+    const selectedItems = [];
+    const checkboxes = form.querySelectorAll('.combo-item-checkbox:checked');
+    
+    checkboxes.forEach(cb => {
+      const itemId = parseInt(cb.dataset.id, 10);
+      const itemName = cb.dataset.name;
+      const qtyInput = form.querySelector(`.combo-item-qty[data-id="${itemId}"]`);
+      const qty = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
+      
+      selectedItems.push({
+        id: itemId,
+        name: itemName,
+        qty: qty
+      });
+    });
+    
+    if (selectedItems.length === 0) {
+      alert('Please select at least one menu item to build the combo');
+      return;
+    }
+    
+    const saveBtn = form.querySelector('button[type="submit"]');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    
+    try {
+      const combo = {
+        name,
+        description: desc,
+        price,
+        mrp: mrpVal,
+        items: selectedItems,
+        available: true,
+        image_url: imageUrl || null
+      };
+      
+      if (id) combo.id = id;
+      
+      await saveCombo(combo);
+      modal.classList.remove('active');
+      loadAndRenderCombos();
+    } catch (err) {
+      alert('Failed to save combo: ' + err.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Combo';
+    }
+  });
+}
+
+// ── Places & Charges Management ───────────────────────────
+
+async function loadAndRenderPlaces() {
+  try {
+    const res = await insforge.database.from('delivery_areas').select('*').order('name', { ascending: true });
+    if (res.error) throw res.error;
+    adminPlaces = res.data || [];
+    renderPlacesTable();
+  } catch (err) {
+    console.error('Failed to load places:', err);
+    showAdminToast('Failed to load delivery places.', 'error');
+  }
+}
+
+function renderPlacesTable() {
+  const tbody = $('places-table-body');
+  if (!tbody) return;
+  
+  const searchQuery = ($('places-search')?.value || '').toLowerCase().trim();
+  const filtered = adminPlaces.filter(p => p.name.toLowerCase().includes(searchQuery));
+  
+  const countSpan = $('places-count');
+  if (countSpan) countSpan.textContent = adminPlaces.length;
+  
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" class="adm-empty">No places found</td></tr>`;
+    return;
+  }
+  
+  tbody.innerHTML = filtered.map(p => {
+    return `
+      <tr data-place-id="${p.id}">
+        <td><strong style="color:var(--adm-text)">${escapeHtml(p.name)}</strong></td>
+        <td style="text-align:right; font-weight:600">₹${Number(p.charge)}</td>
+        <td style="text-align:center;">
+          <div style="display:flex; gap:0.5rem; justify-content:center;">
+            <button class="adm-btn adm-btn-primary adm-btn-sm edit-place-btn" data-id="${p.id}">Edit</button>
+            <button class="adm-btn adm-btn-danger adm-btn-sm delete-place-btn" data-id="${p.id}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Bind actions
+  tbody.querySelectorAll('.edit-place-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id, 10);
+      const place = adminPlaces.find(p => p.id === id);
+      if (place) {
+        openPlaceModal(place);
+      }
+    });
+  });
+  
+  tbody.querySelectorAll('.delete-place-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt(btn.dataset.id, 10);
+      const place = adminPlaces.find(p => p.id === id);
+      if (place && confirm(`Are you sure you want to delete place "${place.name}"?`)) {
+        try {
+          const res = await insforge.database.from('delivery_areas').delete().eq('id', id);
+          if (res.error) throw res.error;
+          showAdminToast('Place deleted successfully.', 'success');
+          loadAndRenderPlaces();
+        } catch (err) {
+          alert('Failed to delete place: ' + err.message);
+        }
+      }
+    });
+  });
+}
+
+function openPlaceModal(place = null) {
+  const modal = $('adm-place-modal');
+  const title = $('place-modal-title');
+  const idInput = $('place-modal-id');
+  const nameInput = $('place-modal-name');
+  const chargeInput = $('place-modal-charge');
+  
+  if (!modal) return;
+  
+  if (place) {
+    title.textContent = 'Edit Place';
+    idInput.value = place.id;
+    nameInput.value = place.name;
+    chargeInput.value = place.charge;
+  } else {
+    title.textContent = 'Add New Place';
+    idInput.value = '';
+    nameInput.value = '';
+    chargeInput.value = '';
+  }
+  
+  modal.classList.add('active');
+}
+
+function setupPlaceModalListeners() {
+  const modal = $('adm-place-modal');
+  const form = $('adm-place-form');
+  const cancelBtn = $('place-modal-cancel');
+  const searchInput = $('places-search');
+  
+  $('btn-create-place')?.addEventListener('click', () => openPlaceModal());
+  
+  cancelBtn?.addEventListener('click', () => {
+    modal.classList.remove('active');
+  });
+  
+  searchInput?.addEventListener('input', () => {
+    renderPlacesTable();
+  });
+  
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const idVal = $('place-modal-id').value;
+    const id = idVal ? parseInt(idVal, 10) : null;
+    const name = $('place-modal-name').value.trim();
+    const charge = parseFloat($('place-modal-charge').value);
+    
+    if (!name) {
+      alert('Please enter a place name');
+      return;
+    }
+    if (isNaN(charge) || charge < 0) {
+      alert('Please enter a valid delivery fee');
+      return;
+    }
+    
+    const saveBtn = form.querySelector('button[type="submit"]');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    
+    try {
+      const payload = { name, charge };
+      let res;
+      if (id) {
+        res = await insforge.database.from('delivery_areas').update(payload).eq('id', id);
+      } else {
+        res = await insforge.database.from('delivery_areas').insert([payload]);
+      }
+      
+      if (res.error) throw res.error;
+      showAdminToast('Place saved successfully.', 'success');
+      modal.classList.remove('active');
+      loadAndRenderPlaces();
+    } catch (err) {
+      alert('Failed to save place: ' + err.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Place';
+    }
+  });
+}
+
+// ── Coupon Share Composer Modal ─────────────────────────
+
+function updateShareMessage() {
+  const name = $('share-customer-name')?.value.trim() || 'Valued Customer';
+  const code = $('share-coupon-code')?.value || '';
+  const pct = $('share-coupon-pct')?.value || '';
+  const min = $('share-coupon-min')?.value || '0';
+  const expiry = $('share-coupon-expiry')?.value || '';
+  
+  const msg = `Hi *${name}*,\n\nHere is a special coupon for you: *${code}*\n\nGet ${pct}% OFF on your next order at Limra Restaurant! (Min bill: ₹${Number(min).toFixed(0)}, Exp: ${expiry}).\n\nOrder now: https://vb9ucr22.insforge.site`;
+  
+  const desc = $('share-coupon-desc');
+  if (desc) desc.value = msg;
+}
+
+function setupCouponShareModalListeners() {
+  const modal = $('adm-coupon-share-modal');
+  const cancelBtn = $('share-modal-cancel');
+  const nameInput = $('share-customer-name');
+  const whatsappBtn = $('btn-share-whatsapp');
+  const copyBtn = $('btn-share-copy');
+  
+  if (!modal) return;
+  
+  cancelBtn?.addEventListener('click', () => {
+    modal.classList.remove('active');
+  });
+  
+  nameInput?.addEventListener('input', updateShareMessage);
+  
+  copyBtn?.addEventListener('click', () => {
+    const msg = $('share-coupon-desc')?.value || '';
+    navigator.clipboard.writeText(msg).then(() => {
+      showAdminToast('Promo message copied to clipboard!', 'success');
+    }).catch(err => {
+      alert('Failed to copy message: ' + err.message);
+    });
+  });
+  
+  whatsappBtn?.addEventListener('click', () => {
+    const msg = $('share-coupon-desc')?.value || '';
+    const rawPhone = $('share-customer-phone')?.value.trim() || '';
+    
+    let cleanPhone = rawPhone.replace(/\D/g, '');
+    
+    let waLink;
+    if (cleanPhone) {
+      waLink = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
+    } else {
+      waLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    }
+    
+    window.open(waLink, '_blank');
+  });
 }

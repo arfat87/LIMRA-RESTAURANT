@@ -1,5 +1,8 @@
-import { insforge, saveOrder, getMenuOverrides } from '../lib/insforge.js';
+import { insforge, saveOrder, getMenuOverrides, validateCouponCode, redeemCoupon, getCombos } from '../lib/insforge.js';
 import { menuItems, categoryTabOrder, categoryLabels, categoryEmojis } from '../data/menu.js';
+
+const GOOGLE_REVIEW_URL = 'https://www.google.com/travel/search?q=limra%20restaurant%20reviews&g2lb=4965990%2C72471280%2C72560029%2C72573224%2C72647020%2C72686036%2C72803964%2C72882230%2C73064764%2C121738283%2C121762713&hl=en-IN&gl=in&cs=1&ssta=1&ts=CAEaKwopEicyJTB4M2ExZDJiMjYxNGYzYzE1NToweGRmOWNhNzlhZjUxMWVhY2E&qs=CAEyFENnc0l5dFhIcUtfenFjN2ZBUkFCOAI&ap=ugEHcmV2aWV3cw&ictx=111&ved=0CAAQ5JsGahcKEwiIhf6ftcyVAxUAAAAAHQAAAAAQBA';
+
 
 const $ = selector => {
   if (typeof selector === 'string' && selector.startsWith('#')) {
@@ -29,6 +32,7 @@ function loadTableCart() {
 
 let cart = loadTableCart(); // Hydrate dine-in cart from localStorage
 let currentTable = null;
+let appliedCoupon = null;
 
 // ====================================================
 // INITIALIZATION
@@ -112,7 +116,8 @@ async function init() {
 // ====================================================
 // CUSTOMER ORDERING VIEW LOGIC
 // ====================================================
-let selectedCategory = 'biryani';
+let selectedCategory = 'featured';
+let activeCombos = [];
 
 async function loadMenuOverridesAndApply() {
   try {
@@ -144,6 +149,13 @@ async function initCustomerView() {
   
   // Load dynamic menu overrides first
   await loadMenuOverridesAndApply();
+
+  // Load combos from database
+  try {
+    activeCombos = await getCombos();
+  } catch (err) {
+    console.error('Failed to load combos on customer view:', err);
+  }
 
   // Render Categories chips
   renderCategoryChips();
@@ -216,19 +228,84 @@ function renderMenu() {
     return matchesCategory && matchesSearch;
   });
 
-  $('#menu-count-badge').textContent = `${filtered.length} item${filtered.length === 1 ? '' : 's'}`;
+  // Filter combos if Today's Specials or All category is active
+  const filteredCombos = activeCombos.filter(combo => {
+    if (selectedCategory !== 'all' && selectedCategory !== 'featured') return false;
+    const matchesSearch = !searchVal || combo.name.toLowerCase().includes(searchVal);
+    return combo.available !== false && matchesSearch;
+  });
 
-  if (filtered.length === 0) {
-    grid.innerHTML = `
-      <div class="col-span-full py-12 text-center text-slate-400 space-y-2">
-        <p class="text-3xl">🍲</p>
-        <p class="text-sm font-semibold">No food items match your search</p>
-      </div>
-    `;
+  const totalCount = filtered.length + filteredCombos.length;
+  $('#menu-count-badge').textContent = `${totalCount} item${totalCount === 1 ? '' : 's'}`;
+
+  if (totalCount === 0) {
+    if (selectedCategory === 'featured') {
+      grid.innerHTML = `
+        <div class="col-span-full py-16 text-center text-slate-400 space-y-4">
+          <p class="text-5xl">🍱</p>
+          <div class="space-y-1">
+            <p class="text-sm font-bold text-slate-200">No active Specials or Combo Deals today</p>
+            <p class="text-xs text-slate-400">Click the "🍽️ All Items" tab above to view our complete menu!</p>
+          </div>
+        </div>
+      `;
+    } else {
+      grid.innerHTML = `
+        <div class="col-span-full py-12 text-center text-slate-400 space-y-2">
+          <p class="text-3xl">🍲</p>
+          <p class="text-sm font-semibold">No food items match your search</p>
+        </div>
+      `;
+    }
     return;
   }
 
-  grid.innerHTML = filtered.map(item => {
+  // Render combo cards
+  const combosHtml = filteredCombos.map(combo => {
+    const cartItem = cart.find(c => c.item.id === `combo-${combo.id}`);
+    const qty = cartItem ? cartItem.quantity : 0;
+    const itemsListStr = Array.isArray(combo.items)
+      ? combo.items.map(it => `${it.name} (x${it.qty || 1})`).join(' + ')
+      : 'No items';
+
+    const hasDiscount = combo.mrp && parseFloat(combo.mrp) > parseFloat(combo.price);
+
+    return `
+      <div class="glass-card food-card p-4 flex flex-col justify-between space-y-4 border border-amber-500/25" data-item-id="combo-${combo.id}">
+        <div class="flex gap-3">
+          <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-amber-500/15 bg-amber-500/5 flex items-center justify-center relative">
+            <span class="text-3xl">🍱</span>
+          </div>
+          <div class="flex-1 min-w-0 text-left">
+            <div class="flex items-center gap-1.5 mb-1">
+              <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-[9px] font-bold text-amber-400 uppercase tracking-wider">Combo Pack</span>
+            </div>
+            <h4 class="font-bold text-sm text-slate-100 truncate">${combo.name}</h4>
+            <p class="text-[10px] text-slate-400 mt-1 font-semibold leading-relaxed" style="max-height: 2.4rem; overflow: hidden;">Includes: ${itemsListStr}</p>
+            <p class="text-sm font-bold text-amber-500 mt-2">
+              ₹${combo.price}
+              ${hasDiscount ? `<span class="text-xs font-normal text-slate-500 line-through ml-1.5">₹${combo.mrp}</span>` : ''}
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center pt-2">
+          <div class="flex items-center gap-2">
+            ${qty > 0 ? `
+              <button class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold btn-cart-minus" data-item-id="combo-${combo.id}">-</button>
+              <span class="w-6 text-center font-semibold text-sm text-slate-100">${qty}</span>
+              <button class="w-8 h-8 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center justify-center font-bold btn-cart-plus" data-item-id="combo-${combo.id}">+</button>
+            ` : `
+              <button class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs btn-cart-add" data-item-id="combo-${combo.id}">Add to Cart</button>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Render normal items
+  const itemsHtml = filtered.map(item => {
     const cartItem = cart.find(c => c.item.id === item.id);
     const qty = cartItem ? cartItem.quantity : 0;
     const itemImage = item.image || '/images/food_biryani.png';
@@ -240,9 +317,9 @@ function renderMenu() {
         <div class="flex gap-3">
           <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-white/5 bg-neutral-800 animate-pulse flex items-center justify-center relative">
             <img src="${itemImage}" alt="" class="w-full h-full object-cover error-fallback" onload="this.parentElement.classList.remove('animate-pulse', 'bg-neutral-800');" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.parentElement.classList.remove('animate-pulse', 'bg-neutral-800');">
-            <span class="text-3xl hidden absolute inset-0 flex items-center justify-center" style="display:none;">${emojiStr}</span>
+            <span class="text-3xl absolute inset-0 flex items-center justify-center" style="display:none;">${emojiStr}</span>
           </div>
-          <div class="flex-1 min-w-0">
+          <div class="flex-1 min-w-0 text-left">
             <h4 class="font-bold text-sm text-slate-100 truncate">${item.name}</h4>
             <p class="text-xs text-slate-400 mt-1 capitalize">${categoryLabels[item.category] || item.category}</p>
             <p class="text-sm font-bold text-amber-500 mt-2">₹${item.price}</p>
@@ -250,44 +327,66 @@ function renderMenu() {
         </div>
 
         <div class="flex justify-between items-center pt-2">
-          <span class="text-xs text-slate-400">Order Quantity</span>
-          
-          ${!isAvailable ? `
-            <span class="text-xs font-bold text-slate-500 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-white/5">Sold Out</span>
-          ` : (qty === 0 ? `
-            <button class="btn-add-to-cart px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/10" data-item-id="${item.id}">
-              Add
-            </button>
-          ` : `
+          ${isAvailable ? `
             <div class="flex items-center gap-2">
-              <button class="btn-qty-minus w-7 h-7 rounded-md bg-white/5 hover:bg-white/10 text-white font-bold flex items-center justify-center text-sm transition-all" data-item-id="${item.id}">-</button>
-              <span class="text-xs font-bold w-5 text-center">${qty}</span>
-              <button class="btn-qty-plus w-7 h-7 rounded-md bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold flex items-center justify-center text-sm transition-all" data-item-id="${item.id}">+</button>
+              ${qty > 0 ? `
+                <button class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold btn-cart-minus" data-item-id="${item.id}">-</button>
+                <span class="w-6 text-center font-semibold text-sm text-slate-100">${qty}</span>
+                <button class="w-8 h-8 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center justify-center font-bold btn-cart-plus" data-item-id="${item.id}">+</button>
+              ` : `
+                <button class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs btn-cart-add" data-item-id="${item.id}">Add to Cart</button>
+              `}
             </div>
-          `)}
+          ` : `
+            <span class="px-2 py-1 rounded bg-red-500/10 text-red-500 font-bold text-[9px] uppercase tracking-wider">Sold Out</span>
+          `}
         </div>
       </div>
     `;
   }).join('');
 
-  // Setup click listeners
-  grid.querySelectorAll('.btn-add-to-cart, .btn-qty-plus').forEach(btn => {
+  grid.innerHTML = combosHtml + itemsHtml;
+
+  // Add click handlers
+  grid.querySelectorAll('.btn-cart-add, .btn-cart-plus').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.dataset.itemId, 10);
+      const idVal = btn.dataset.itemId;
+      const id = idVal.startsWith('combo-') ? idVal : parseInt(idVal, 10);
       addToCart(id);
     });
   });
 
-  grid.querySelectorAll('.btn-qty-minus').forEach(btn => {
+  grid.querySelectorAll('.btn-cart-minus').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.dataset.itemId, 10);
+      const idVal = btn.dataset.itemId;
+      const id = idVal.startsWith('combo-') ? idVal : parseInt(idVal, 10);
       removeFromCart(id);
     });
   });
 }
 
 function addToCart(itemId) {
-  const item = menuItems.find(i => i.id === itemId);
+  let item = null;
+  if (typeof itemId === 'string' && itemId.startsWith('combo-')) {
+    const comboId = parseInt(itemId.replace('combo-', ''), 10);
+    const combo = activeCombos.find(c => c.id === comboId);
+    if (combo) {
+      const itemsListStr = Array.isArray(combo.items)
+        ? combo.items.map(it => `${it.name} (x${it.qty || 1})`).join(' + ')
+        : 'No items';
+      item = {
+        id: itemId,
+        name: combo.name,
+        price: parseFloat(combo.price),
+        category: 'specials',
+        description: `Included: ${itemsListStr}`,
+        isCombo: true
+      };
+    }
+  } else {
+    item = menuItems.find(i => i.id === itemId);
+  }
+  
   if (!item) return;
 
   const cartItem = cart.find(c => c.item.id === itemId);
@@ -327,8 +426,20 @@ function updateCartState() {
 function updateCartUI() {
   const totalQty = cart.reduce((s, c) => s + c.quantity, 0);
   const subtotal = cart.reduce((s, c) => s + (c.item.price * c.quantity), 0);
-  const gst = Math.round(subtotal * 0.05);
-  const totalAmt = subtotal + gst;
+
+  if (appliedCoupon && subtotal < parseFloat(appliedCoupon.min_bill)) {
+    appliedCoupon = null;
+    const feedback = $('#table-coupon-feedback');
+    if (feedback) {
+      feedback.textContent = `✗ Coupon cleared: Minimum bill of ₹${parseFloat(appliedCoupon.min_bill).toFixed(2)} required.`;
+      feedback.style.color = '#ff5b5b';
+      show(feedback);
+    }
+  }
+
+  const discountAmt = appliedCoupon ? Math.round(subtotal * (appliedCoupon.discount_pct / 100)) : 0;
+  const gst = Math.round((subtotal - discountAmt) * 0.05);
+  const totalAmt = subtotal - discountAmt + gst;
 
   // Update Badges & Totals
   $('#cart-count-desktop').textContent = `${totalQty} item${totalQty === 1 ? '' : 's'}`;
@@ -338,6 +449,16 @@ function updateCartUI() {
 
   // Update modal checkout breakdown
   if ($('modal-subtotal')) $('modal-subtotal').textContent = `₹${subtotal.toFixed(2)}`;
+  
+  if ($('modal-discount-row')) {
+    if (appliedCoupon) {
+      $('modal-discount').textContent = `-₹${discountAmt.toFixed(2)}`;
+      show($('modal-discount-row'));
+    } else {
+      hide($('modal-discount-row'));
+    }
+  }
+  
   if ($('modal-gst')) $('modal-gst').textContent = `₹${gst.toFixed(2)}`;
   if ($('modal-total')) $('modal-total').textContent = `₹${totalAmt.toFixed(2)}`;
 
@@ -368,8 +489,9 @@ function renderCartListings(totalAmt) {
 
   const itemsHtml = cart.map(c => `
     <div class="p-3 rounded-xl border border-white/5 bg-slate-900/40 flex items-center justify-between gap-3">
-      <div class="min-w-0 flex-1">
+      <div class="min-w-0 flex-1 text-left">
         <p class="font-semibold text-xs truncate text-slate-200">${c.item.name}</p>
+        ${c.item.description ? `<p class="text-[9px] text-slate-400 mt-0.5 font-semibold truncate">${c.item.description}</p>` : ''}
         <p class="text-[10px] text-amber-500 font-bold mt-1">₹${c.item.price} × ${c.quantity}</p>
       </div>
       <div class="flex items-center gap-1.5 shrink-0">
@@ -387,13 +509,17 @@ function renderCartListings(totalAmt) {
   [desktopContainer, mobileContainer].forEach(container => {
     container.querySelectorAll('.btn-cart-plus').forEach(btn => {
       btn.addEventListener('click', () => {
-        addToCart(parseInt(btn.dataset.itemId, 10));
+        const idVal = btn.dataset.itemId;
+        const id = idVal.startsWith('combo-') ? idVal : parseInt(idVal, 10);
+        addToCart(id);
       });
     });
 
     container.querySelectorAll('.btn-cart-minus').forEach(btn => {
       btn.addEventListener('click', () => {
-        removeFromCart(parseInt(btn.dataset.itemId, 10));
+        const idVal = btn.dataset.itemId;
+        const id = idVal.startsWith('combo-') ? idVal : parseInt(idVal, 10);
+        removeFromCart(id);
       });
     });
   });
@@ -432,6 +558,42 @@ function setupCartUI() {
   $('#checkout-modal').addEventListener('click', e => {
     if (e.target === $('#checkout-modal')) closeModal();
   });
+
+  // Coupon Validation logic
+  $('#btn-apply-coupon')?.addEventListener('click', async () => {
+    const input = $('#table-coupon-input');
+    const feedback = $('#table-coupon-feedback');
+    const phoneInput = document.querySelector('#checkout-form input[name="phone"]');
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const code = input.value.trim().toUpperCase();
+    
+    if (!code) {
+      feedback.textContent = 'Please enter a coupon code';
+      feedback.style.color = '#ff5b5b';
+      feedback.classList.remove('hidden');
+      return;
+    }
+    
+    feedback.textContent = 'Validating...';
+    feedback.style.color = '#cbd5e1';
+    feedback.classList.remove('hidden');
+    
+    const subtotal = cart.reduce((s, c) => s + (c.item.price * c.quantity), 0);
+    
+    try {
+      const coupon = await validateCouponCode(code, subtotal, phone);
+      appliedCoupon = coupon;
+      feedback.textContent = `✓ Code applied! Saved ${coupon.discount_pct}% on subtotal.`;
+      feedback.style.color = '#10b981';
+      updateCartUI();
+    } catch (err) {
+      appliedCoupon = null;
+      feedback.textContent = `✗ ${err.message}`;
+      feedback.style.color = '#ff5b5b';
+      updateCartUI();
+    }
+  });
+
   $('#checkout-form').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -448,20 +610,31 @@ function setupCartUI() {
     submitBtn.textContent = 'Sending to Kitchen...';
 
     try {
+      const couponNote = appliedCoupon ? `[COUPON: ${appliedCoupon.code} (${appliedCoupon.discount_pct}% OFF)]` : '';
       const paymentNote = `[PAYMENT: ${payment}] | [PAYMENT_STATUS: ${payment === 'upi' ? 'PAID' : 'PENDING'}]`;
-      const combinedNotes = [`[TABLE: ${currentTable}]`, paymentNote, instruction].filter(Boolean).join(' | ');
+      const combinedNotes = [`[TABLE: ${currentTable}]`, paymentNote, couponNote, instruction].filter(Boolean).join(' | ');
 
       const zone = currentTable <= 9 ? 'indoor' : 'outdoor';
 
       const subtotal = cart.reduce((s, c) => s + (c.item.price * c.quantity), 0);
-      const gst = Math.round(subtotal * 0.05);
+      const discountAmt = appliedCoupon ? Math.round(subtotal * (appliedCoupon.discount_pct / 100)) : 0;
+      const gst = Math.round((subtotal - discountAmt) * 0.05);
 
       const orderItems = cart.map(c => ({
         id: c.item.id,
-        name: c.item.name,
+        name: c.item.isCombo ? `🍱 [COMBO] ${c.item.name} (${c.item.description})` : c.item.name,
         price: c.item.price,
         qty: c.quantity
       }));
+
+      if (discountAmt > 0) {
+        orderItems.push({
+          id: 9998,
+          name: `Discount (${appliedCoupon.code})`,
+          price: -discountAmt,
+          qty: 1
+        });
+      }
 
       if (gst > 0) {
         orderItems.push({
@@ -483,8 +656,45 @@ function setupCartUI() {
         txnRef: txnRef
       });
 
+      if (appliedCoupon) {
+        try {
+          await redeemCoupon(appliedCoupon.code, phone, orderData.id);
+        } catch (err) {
+          console.error('Failed to redeem coupon:', err);
+        }
+      }
+
+      try {
+        const { data: promoList } = await insforge.database
+          .from('coupons')
+          .select('*')
+          .eq('active', true)
+          .eq('is_auto_send', true)
+          .limit(1);
+          
+        if (promoList && promoList.length > 0) {
+          const promo = promoList[0];
+          const expDate = new Date(promo.expiry_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+          $('#success-promo-code').textContent = promo.code;
+          $('#success-promo-pct').textContent = `${promo.discount_pct}%`;
+          $('#success-promo-expiry').textContent = expDate;
+          show($('#success-promo-box'));
+        } else {
+          hide($('#success-promo-box'));
+        }
+      } catch (err) {
+        console.error('Failed to load auto-send promo coupon:', err);
+        hide($('#success-promo-box'));
+      }
+
       closeModal();
       cart = [];
+      appliedCoupon = null;
+      const input = $('#table-coupon-input');
+      if (input) input.value = '';
+      const feedback = $('#table-coupon-feedback');
+      if (feedback) hide(feedback);
+      
       updateCartState();
       
       $('#success-order-number').textContent = `#${orderData.order_number}`;
@@ -493,12 +703,37 @@ function setupCartUI() {
 
       hide($('#customer-view'));
       show($('#success-view'));
+      triggerGoogleReviewPrompt();
     } catch (err) {
       alert('Failed to place order: ' + err.message);
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Confirm & Send to Kitchen';
     }
+  }
+
+  function triggerGoogleReviewPrompt() {
+    if (sessionStorage.getItem('google_review_prompted') === 'true') return;
+    
+    setTimeout(() => {
+      const modal = $('#google-review-modal');
+      const submitBtn = $('#btn-submit-google-review');
+      const closeBtn = $('#btn-close-google-review');
+      
+      if (!modal || !submitBtn || !closeBtn) return;
+      
+      submitBtn.href = GOOGLE_REVIEW_URL;
+      
+      const dismiss = () => {
+        hide(modal);
+        sessionStorage.setItem('google_review_prompted', 'true');
+      };
+      
+      submitBtn.onclick = dismiss;
+      closeBtn.onclick = dismiss;
+      
+      show(modal);
+    }, 1000); // 1 Second delay
   }
 
 

@@ -355,10 +355,25 @@
           <textarea name="notes" placeholder="E.g., Make it spicy, No onions, etc." rows="2" class="w-full px-4 py-3 rounded-xl glass-input text-sm resize-none"></textarea>
         </div>
 
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Promo Coupon Code</label>
+          <div class="flex gap-2">
+            <input type="text" id="table-coupon-input" placeholder="Enter coupon code" class="flex-1 px-4 py-3 rounded-xl glass-input text-sm uppercase" style="text-transform:uppercase" />
+            <button type="button" id="btn-apply-coupon" class="px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-all">
+              Apply
+            </button>
+          </div>
+          <div id="table-coupon-feedback" class="text-[11px] mt-1.5 hidden font-semibold"></div>
+        </div>
+
         <div class="rounded-xl p-4 space-y-2 bg-slate-900/60 border border-white/5 text-xs text-left">
           <div class="flex justify-between text-slate-400">
             <span>Subtotal</span>
             <span class="font-semibold text-slate-200" id="modal-subtotal">₹0.00</span>
+          </div>
+          <div class="flex justify-between text-emerald-500 hidden" id="modal-discount-row">
+            <span>Discount</span>
+            <span class="font-semibold" id="modal-discount">-₹0.00</span>
           </div>
           <div class="flex justify-between text-slate-400">
             <span>5% GST</span>
@@ -413,6 +428,11 @@
           <span class="text-slate-400">Diner Name:</span>
           <strong class="text-slate-200" id="success-diner-name">John Doe</strong>
         </p>
+      </div>
+
+      <div id="success-promo-box" class="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-left text-xs space-y-2 hidden">
+        <p class="font-bold text-amber-300">🎁 Special Offer for your Next Visit!</p>
+        <p class="text-slate-300 text-[11px]">Use code <strong class="text-amber-500 font-bold" id="success-promo-code">CODE</strong> to get <strong class="text-amber-400 font-bold" id="success-promo-pct">X%</strong> off on your next visit! Valid until <span id="success-promo-expiry">Date</span>.</p>
       </div>
 
       <button id="btn-order-more" class="w-full py-3.5 rounded-xl border border-white/10 hover:border-amber-500/30 text-slate-200 hover:text-amber-500 font-semibold transition-all text-sm">
@@ -587,6 +607,39 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- MODAL: GOOGLE REVIEW PROMPT -->
+  <!-- ==================================================== -->
+  <div id="google-review-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="w-full max-w-sm glass-card p-6 text-center space-y-6 border border-amber-500/20">
+      <!-- Icon/Stars -->
+      <div class="space-y-2">
+        <div class="text-5xl">🌟</div>
+        <div class="flex justify-center gap-1 text-2xl text-amber-400">
+          <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+        </div>
+      </div>
+      
+      <!-- Text -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-bold font-outfit text-amber-400">Rate Our Food & Service!</h3>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          Love your dining experience at <span class="font-semibold text-slate-200">LIMRA Restaurant</span>? Please take a moment to rate us on Google. Your feedback helps us grow!
+        </p>
+      </div>
+
+      <!-- Actions -->
+      <div class="space-y-2">
+        <a id="btn-submit-google-review" href="#" target="_blank" class="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-xs block text-center shadow-lg shadow-amber-500/10">
+          ⭐ Write a Review
+        </a>
+        <button id="btn-close-google-review" class="w-full py-3 px-4 rounded-xl border border-white/5 hover:border-white/10 text-slate-400 hover:text-slate-200 font-semibold transition-all text-xs">
+          Maybe Later
+        </button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/src/table/table.js"></script>

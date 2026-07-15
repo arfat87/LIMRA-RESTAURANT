@@ -95,11 +95,20 @@ function updateLocationBadge(verified) {
   }
 }
 
+function isDeliveryAvailable() {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const timeVal = hours * 60 + minutes;
+  // Delivery open from 1:00 PM (13:00) to 10:30 PM (22:30)
+  return timeVal >= (13 * 60) && timeVal <= (22 * 60 + 30);
+}
+
 // ═══════════════════════════════════════
 // DELIVERY STATE
 // ═══════════════════════════════════════
 const DELIVERY_RATE = 10; // ₹ per km
-let isDelivery = true;    // true = delivery, false = self pickup
+let isDelivery = isDeliveryAvailable();    // true = delivery, false = self pickup
 let deliveryKm = 0;       // km entered by customer
 let deliveryMap = null;
 let deliveryMarker = null;
@@ -247,14 +256,10 @@ function updateCartUI() {
     viewCartBtn.classList.toggle('hidden', count === 0);
   }
 
-  // Footer & Empty state
-  const step1Footer = document.getElementById('checkout-step-1-footer');
-  if (step1Footer) {
-    step1Footer.classList.toggle('hidden', count === 0);
-    const countText = document.getElementById('cart-count-text-1');
-    if (countText) countText.textContent = count;
-    const subtotalText = document.getElementById('cart-subtotal-1');
-    if (subtotalText) subtotalText.textContent = subtotal;
+  // Toggle Checkout form visibility based on cart count
+  const formFields = document.getElementById('checkout-form-fields');
+  if (formFields) {
+    formFields.classList.toggle('hidden', count === 0);
   }
   
   const cartEmpty = document.getElementById('cart-empty');
@@ -423,6 +428,7 @@ function createMenuCard(item) {
         <span class="text-lg leading-none mt-0.5">${item.emoji}</span>
         <h3 class="text-sm font-semibold leading-snug flex-1" style="color:var(--color-text-primary)">${item.name}</h3>
       </div>
+      ${item.description ? `<p class="text-xs text-neutral-500 leading-relaxed line-clamp-2 mt-0.5" style="color:var(--color-text-muted)">${item.description}</p>` : ''}
       <div class="flex items-center justify-between mt-auto">
         <div class="flex items-baseline">
           <span class="font-bold text-base" style="color:var(--color-accent)">₹${item.price}</span>
@@ -1079,6 +1085,189 @@ function initBackToTop() {
 // ═══════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════
+function initSearchableDeliveryArea() {
+  const select = document.getElementById('order-delivery-area');
+  if (!select) return;
+
+  // Hide the native select
+  select.style.display = 'none';
+
+  // Check if our custom dropdown wrapper already exists (to avoid duplicate insertion on hot reloads)
+  let wrapper = document.getElementById('searchable-delivery-area-wrapper');
+  if (wrapper) {
+    wrapper.remove();
+  }
+
+  wrapper = document.createElement('div');
+  wrapper.id = 'searchable-delivery-area-wrapper';
+  wrapper.className = 'relative w-full';
+
+  // Trigger button/bar
+  const trigger = document.createElement('div');
+  trigger.className = 'cart-input flex items-center justify-between cursor-pointer py-2.5 px-3 bg-white border border-slate-200 rounded-xl text-slate-800 text-xs font-semibold shadow-sm transition-all duration-200 hover:border-slate-300';
+  trigger.innerHTML = `
+    <span id="searchable-area-trigger-label" class="truncate">-- Select Area / Village --</span>
+    <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+  `;
+
+  // Dropdown panel
+  const dropdown = document.createElement('div');
+  dropdown.className = 'absolute left-0 right-0 mt-1.5 p-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 hidden transition-all duration-200 scale-95 opacity-0';
+  dropdown.style.transformOrigin = 'top';
+
+  // Search input
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.placeholder = '🔍 Search place name...';
+  searchInput.className = 'w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-slate-300 mb-2';
+
+  // Options list container
+  const optionsList = document.createElement('div');
+  optionsList.className = 'max-h-48 overflow-y-auto space-y-0.5';
+
+  dropdown.appendChild(searchInput);
+  dropdown.appendChild(optionsList);
+  wrapper.appendChild(trigger);
+  wrapper.appendChild(dropdown);
+
+  // Insert wrapper right after the native select
+  select.parentNode.insertBefore(wrapper, select.nextSibling);
+
+  // Toggle dropdown state
+  let isOpen = false;
+  function openDropdown() {
+    isOpen = true;
+    dropdown.classList.remove('hidden');
+    // Force reflow
+    dropdown.offsetHeight;
+    dropdown.classList.remove('scale-95', 'opacity-0');
+    dropdown.classList.add('scale-100', 'opacity-100');
+    const arrowSvg = trigger.querySelector('svg');
+    if (arrowSvg) arrowSvg.style.transform = 'rotate(180deg)';
+    searchInput.focus();
+  }
+
+  function closeDropdown() {
+    isOpen = false;
+    dropdown.classList.remove('scale-100', 'opacity-100');
+    dropdown.classList.add('scale-95', 'opacity-0');
+    const arrowSvg = trigger.querySelector('svg');
+    if (arrowSvg) arrowSvg.style.transform = 'rotate(0deg)';
+    setTimeout(() => {
+      if (!isOpen) dropdown.classList.add('hidden');
+    }, 200);
+  }
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isOpen) closeDropdown();
+    else openDropdown();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!wrapper.contains(e.target)) {
+      closeDropdown();
+    }
+  });
+
+  // Re-populate options based on search query
+  function populateOptions(filter = '') {
+    const options = Array.from(select.options);
+    optionsList.innerHTML = '';
+
+    const matching = options.filter(opt => {
+      if (!opt.value) return filter === ''; // Always show first option only when empty filter
+      return opt.text.toLowerCase().includes(filter.toLowerCase());
+    });
+
+    if (matching.length === 0) {
+      optionsList.innerHTML = `<div class="text-center py-3 text-[11px] text-slate-400 font-medium">No places match search</div>`;
+      return;
+    }
+
+    matching.forEach(opt => {
+      const optEl = document.createElement('div');
+      optEl.className = 'px-3 py-2 text-xs font-semibold rounded-lg cursor-pointer transition-colors duration-150 hover:bg-slate-50 text-slate-700';
+      if (opt.value === select.value) {
+        optEl.className += ' bg-emerald-50 text-emerald-600 hover:bg-emerald-50';
+      }
+      optEl.textContent = opt.text;
+      optEl.addEventListener('click', () => {
+        select.value = opt.value;
+        const label = document.getElementById('searchable-area-trigger-label');
+        if (label) label.textContent = opt.text;
+        
+        // Trigger select change event to fire native listener
+        select.dispatchEvent(new Event('change'));
+        closeDropdown();
+      });
+      optionsList.appendChild(optEl);
+    });
+  }
+
+  searchInput.addEventListener('input', () => {
+    populateOptions(searchInput.value);
+  });
+
+  // Observe select value changes from outside (e.g. prefill from address book)
+  const observer = new MutationObserver(() => {
+    const selectedOpt = select.options[select.selectedIndex];
+    const label = document.getElementById('searchable-area-trigger-label');
+    if (label && selectedOpt) {
+      label.textContent = selectedOpt.text;
+    }
+  });
+  observer.observe(select, { attributes: true, childList: true, characterData: true, subtree: true });
+  
+  // Also track value property programmatic writes
+  const originalValueSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+  Object.defineProperty(select, 'value', {
+    set: function(val) {
+      originalValueSetter.call(this, val);
+      const selectedOpt = this.options[this.selectedIndex];
+      const label = document.getElementById('searchable-area-trigger-label');
+      if (label && selectedOpt) {
+        label.textContent = selectedOpt.text;
+      }
+    },
+    get: function() {
+      return Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').get.call(this);
+    }
+  });
+
+  // Initial populate
+  populateOptions();
+}
+
+let databaseDeliveryAreas = [];
+
+async function loadDeliveryAreas() {
+  try {
+    const { data, error } = await insforge.database.from('delivery_areas').select('*').order('name', { ascending: true });
+    if (!error && data && data.length > 0) {
+      databaseDeliveryAreas = data;
+      
+      // Update AREA_DELIVERY_CHARGES dynamically
+      data.forEach(item => {
+        AREA_DELIVERY_CHARGES[item.name.toLowerCase()] = Number(item.charge);
+      });
+      
+      // Update index.html dropdown options
+      const select = document.getElementById('order-delivery-area');
+      if (select) {
+        select.innerHTML = '<option value="">-- Select Area / Village --</option>' + 
+          data.map(item => `<option value="${item.name.toLowerCase()}">${item.name}</option>`).join('') +
+          '<option value="custom">Other / Custom Location</option>';
+        
+        // Initialize custom searchable select wrapper
+        initSearchableDeliveryArea();
+      }
+    }
+  } catch (err) {
+    console.warn('[Website] Failed to load delivery areas from database:', err);
+  }
+}
+
 let activeMenuOverrides = [];
 
 async function loadMenuOverridesAndApply() {
@@ -1092,9 +1281,11 @@ async function loadMenuOverridesAndApply() {
         if (override.mrp !== null && override.mrp !== undefined) item.mrp = parseFloat(override.mrp);
         if (override.available !== undefined) item.available = override.available;
         if (override.featured !== undefined) item.featured = override.featured;
+        if (override.description !== undefined) item.description = override.description;
       } else {
         item.available = true;
         item.featured = false;
+        item.description = '';
       }
     });
   } catch (err) {
@@ -1105,7 +1296,8 @@ async function loadMenuOverridesAndApply() {
 document.addEventListener('DOMContentLoaded', async () => {
   initScrollAnimations();
 
-  // Load database menu overrides before rendering grids
+  // Load database delivery areas and menu overrides before rendering grids
+  await loadDeliveryAreas();
   await loadMenuOverridesAndApply();
 
   renderMenuGrid('menu-grid', 'all');
@@ -1479,7 +1671,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!btnDeliver || !btnPickup) return;
 
-    btnDeliver.addEventListener('click', () => setDeliveryMode(true));
+    // Sync initial UI state based on delivery availability
+    const deliveryOpen = isDeliveryAvailable();
+    setDeliveryMode(deliveryOpen);
+
+    const hoursBadge = document.getElementById('delivery-hours-badge');
+    if (hoursBadge) {
+      if (deliveryOpen) {
+        hoursBadge.textContent = 'Hours: 1:00 PM - 10:30 PM';
+        hoursBadge.className = 'text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded';
+        hoursBadge.style.border = '1px solid rgba(16,185,129,0.15)';
+      } else {
+        hoursBadge.textContent = 'Closed (Pickup Only)';
+        hoursBadge.className = 'text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded';
+        hoursBadge.style.border = '1px solid rgba(245,158,11,0.15)';
+      }
+    }
+
+    btnDeliver.addEventListener('click', () => {
+      if (!isDeliveryAvailable()) {
+        alert('Sorry, delivery is only available between 1:00 PM and 10:30 PM. Please select Self Pickup.');
+        return;
+      }
+      setDeliveryMode(true);
+    });
     btnPickup.addEventListener('click',  () => setDeliveryMode(false));
 
     if (openMapBtn) openMapBtn.addEventListener('click', openMapModal);
@@ -1580,7 +1795,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (btnPickup) btnPickup.style.cssText  = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
       if (addrBlock) addrBlock.style.display  = '';
     } else {
-      if (btnDeliver) btnDeliver.style.cssText = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
+      if (btnDeliver) {
+        if (!isDeliveryAvailable()) {
+          btnDeliver.style.cssText = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent; opacity:0.5; cursor:not-allowed';
+        } else {
+          btnDeliver.style.cssText = 'border-color:var(--color-border); color:var(--color-text-muted); background:transparent';
+        }
+      }
       if (btnPickup) btnPickup.style.cssText  = 'border-color:var(--color-accent); background:var(--color-accent); color:#fff';
       if (addrBlock) addrBlock.style.display  = 'none';
       deliveryKm = 0;
@@ -1595,32 +1816,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let geocodeResolvedAddress = "";
 
   function showStep(stepNum) {
-    currentStep = stepNum;
-    for (let i = 1; i <= 5; i++) {
-      const el = document.getElementById(`checkout-step-${i}`);
-      if (el) {
-        if (i === stepNum) el.classList.remove('hidden');
-        else el.classList.add('hidden');
-      }
-      
-      const lbl = document.getElementById(`step-lbl-${i}`);
-      if (lbl) {
-        if (i === stepNum) {
-          lbl.className = 'step-lbl active text-accent font-bold';
-        } else if (i < stepNum) {
-          lbl.className = 'step-lbl text-slate-800 font-semibold';
-        } else {
-          lbl.className = 'step-lbl text-slate-400';
-        }
-      }
-    }
-    
-    if (stepNum === 3) {
-      triggerAddressGeocoding();
-    }
-    if (stepNum === 5) {
-      updateConfirmStepDetails();
-    }
+    // No-op: Removed wizard steps in favor of unified single-screen checkout
   }
 
   function validateStep2() {
@@ -2248,12 +2444,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Place order (saved to admin dashboard)
   document.getElementById('place-order-btn').addEventListener('click', async () => {
     if (cart.length === 0) { alert('Your cart is empty! Add some items first.'); return; }
+    if (isDelivery && !isDeliveryAvailable()) {
+      alert('Sorry, delivery is only available between 1:00 PM and 10:30 PM. Please select Self Pickup.');
+      return;
+    }
     const name    = document.getElementById('order-customer-name').value.trim();
     const phone   = document.getElementById('order-customer-phone').value.trim();
     const email   = document.getElementById('order-customer-email').value.trim();
     const address = document.getElementById('order-address')?.value?.trim() || '';
     const notes   = document.getElementById('order-notes').value.trim();
     const km      = parseFloat(document.getElementById('order-distance')?.value) || 0;
+    const subtotal = getCartSubtotal();
     const charge  = getDeliveryCharge();
     const taxes   = getTaxesAmount();
     const payment = getSelectedPaymentMethod();

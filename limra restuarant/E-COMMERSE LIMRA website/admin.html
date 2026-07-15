@@ -15,6 +15,36 @@
   <link rel="stylesheet" href="/src/admin.css" />
   <link rel="icon" href="/images/logo.png" type="image/png" />
   <link rel="apple-touch-icon" href="/images/logo.png" />
+  <style>
+    /* Editor Zone Dropdown styles */
+    .adm-nav-group-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      border-radius: 0.75rem;
+      color: var(--adm-muted);
+      font-weight: 500;
+      transition: all 0.2s;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+    }
+    .adm-nav-group-trigger:hover {
+      color: var(--adm-text);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .adm-nav-group-trigger.active {
+      color: var(--adm-green);
+      background: rgba(0, 176, 116, 0.08);
+    }
+    .adm-nav-group-trigger.expanded .adm-nav-group-arrow {
+      transform: rotate(180deg);
+    }
+  </style>
 </head>
 <body class="admin-app">
 
@@ -65,6 +95,10 @@
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
         Customer
       </button>
+      <button data-panel="customer-analysis" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Customer Analysis
+      </button>
       <button data-panel="analytics" class="adm-nav-item">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
         Analytics
@@ -78,6 +112,30 @@
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
         Foods
       </button>
+      <!-- Editor Zone Collapsible Menu -->
+      <div class="adm-nav-group">
+        <button type="button" class="adm-nav-group-trigger" id="editor-zone-trigger">
+          <span>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:20px; height:20px; display:inline-block; vertical-align:middle; margin-right:8px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            Editor Zone
+          </span>
+          <svg class="adm-nav-group-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; transition:transform 0.2s"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div class="adm-nav-group-items" id="editor-zone-items" style="display:none; flex-direction:column; gap:0.25rem; margin-top:0.25rem; padding-left:1.25rem; border-left:1px solid rgba(255,255,255,0.06); margin-left:0.5rem">
+          <button data-panel="coupons" class="adm-nav-item" style="font-size:0.8rem; padding:0.4rem 0.65rem">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px; height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+            Coupons
+          </button>
+          <button data-panel="combos" class="adm-nav-item" style="font-size:0.8rem; padding:0.4rem 0.65rem">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px; height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Combos
+          </button>
+          <button data-panel="places" class="adm-nav-item" style="font-size:0.8rem; padding:0.4rem 0.65rem">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px; height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Places & Charges
+          </button>
+        </div>
+      </div>
     </nav>
 
     <div class="adm-promo">
@@ -223,18 +281,24 @@
           </div>
         </div>
 
-        <!-- Active Deliveries Map Card -->
+        <!-- GST Revenue Card -->
         <div class="adm-card mb-6">
           <div class="adm-card-head" style="flex-wrap: wrap; gap: 0.75rem;">
-            <h3 class="adm-card-title">📍 Live Delivery Tracker</h3>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              <button id="map-filter-all" class="adm-pill active" style="border: 1px solid var(--adm-border); cursor:pointer; background:var(--adm-green); color:#fff; font-family: inherit;">All Active</button>
-              <button id="map-filter-pending" class="adm-pill" style="border: 1px solid var(--adm-border); cursor:pointer; background:#f5f7fa; color:var(--adm-text); font-family: inherit;">New Orders</button>
-              <button id="map-filter-preparing" class="adm-pill" style="border: 1px solid var(--adm-border); cursor:pointer; background:#f5f7fa; color:var(--adm-text); font-family: inherit;">Preparing / Ready</button>
-            </div>
+            <h3 class="adm-card-title">📊 GST Revenue Overview</h3>
           </div>
-          <div class="adm-detail-map-wrap" style="height: 380px;">
-            <div id="dashboard-deliveries-map" style="height: 100%; width: 100%;"></div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; padding: 1.5rem;">
+            <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-border); display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 500;">Total GST Revenue</p>
+              <p id="stat-gst-total" style="margin:0; font-size: 1.75rem; font-weight: 700; color: var(--adm-green);">₹0</p>
+            </div>
+            <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-border); display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 500;">GST from Paid Orders</p>
+              <p id="stat-gst-paid" style="margin:0; font-size: 1.75rem; font-weight: 700; color: var(--adm-blue, #3b82f6);">₹0</p>
+            </div>
+            <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-border); display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+              <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 500;">GST from Unpaid Orders</p>
+              <p id="stat-gst-pending" style="margin:0; font-size: 1.75rem; font-weight: 700; color: var(--adm-orange, #f97316);">₹0</p>
+            </div>
           </div>
         </div>
 
@@ -362,6 +426,38 @@
         <div id="customers-list" class="adm-customer-grid"></div>
       </section>
 
+      <!-- Customer Analysis -->
+      <section id="panel-customer-analysis" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title">Customer Analysis</h1>
+            <p class="adm-page-sub">Analyze merged order histories, spending, and food preferences per customer phone number</p>
+          </div>
+        </div>
+        <div class="adm-filters">
+          <input type="search" id="analysis-search" class="adm-input" placeholder="Search by name or number..." style="max-width:320px" />
+        </div>
+        
+        <div class="adm-card" style="margin-top:1.5rem">
+          <div style="overflow-x:auto;">
+            <table class="adm-table" id="analysis-table" style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.08); background:rgba(0,0,0,0.15)">
+                  <th style="padding:1rem; text-align:left; color:var(--adm-text); font-weight:bold; font-size:0.85rem">Customer Name</th>
+                  <th style="padding:1rem; text-align:left; color:var(--adm-text); font-weight:bold; font-size:0.85rem">Phone Number</th>
+                  <th style="padding:1rem; text-align:right; color:var(--adm-text); font-weight:bold; font-size:0.85rem">Total Spent</th>
+                  <th style="padding:1rem; text-align:center; color:var(--adm-text); font-weight:bold; font-size:0.85rem">Total Orders</th>
+                  <th style="padding:1rem; text-align:left; color:var(--adm-text); font-weight:bold; font-size:0.85rem; width:45%">Order History & Food Details</th>
+                </tr>
+              </thead>
+              <tbody id="analysis-table-body">
+                <!-- Populated dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- Analytics -->
       <section id="panel-analytics" class="adm-panel">
         <div class="adm-page-head">
@@ -438,11 +534,263 @@
         </div>
         <div id="foods-grid" class="adm-food-grid"></div>
       </section>
+
+      <section id="panel-coupons" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title">Coupons</h1>
+            <p class="adm-page-sub"><span id="coupons-count">0</span> coupons created</p>
+          </div>
+          <button id="btn-create-coupon" class="btn-primary" style="padding:0.75rem 1.5rem;font-size:0.85rem">
+            ➕ Create Coupon
+          </button>
+        </div>
+        
+        <div class="adm-card" style="margin-top:1.5rem;overflow-x:auto">
+          <table class="adm-table" id="coupons-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Discount (%)</th>
+                <th>Min Bill</th>
+                <th>Usage Limit</th>
+                <th>Expiry Date</th>
+                <th>Auto-Send Promo</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="coupons-table-body">
+              <!-- Rendered Dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="panel-combos" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title">Combos</h1>
+            <p class="adm-page-sub"><span id="combos-count">0</span> combo packages created</p>
+          </div>
+          <button id="btn-create-combo" class="btn-primary" style="padding:0.75rem 1.5rem;font-size:0.85rem">
+            ➕ Create Combo Pack
+          </button>
+        </div>
+        
+        <div class="adm-card" style="margin-top:1.5rem;overflow-x:auto">
+          <table class="adm-table" id="combos-table">
+            <thead>
+              <tr>
+                <th>Combo Name</th>
+                <th>Description</th>
+                <th>Included Items</th>
+                <th>Combo Price</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="combos-table-body">
+              <!-- Rendered Dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="panel-places" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title">Places & Charges</h1>
+            <p class="adm-page-sub"><span id="places-count">0</span> delivery places configured</p>
+          </div>
+          <button id="btn-create-place" class="btn-primary" style="padding:0.75rem 1.5rem;font-size:0.85rem">
+            ➕ Add New Place
+          </button>
+        </div>
+
+        <div class="adm-filters" style="margin-top:1.5rem; margin-bottom: 0;">
+          <input type="search" id="places-search" class="adm-input" placeholder="Search places..." style="max-width:320px" />
+        </div>
+        
+        <div class="adm-card" style="margin-top:1rem;overflow-x:auto">
+          <table class="adm-table" id="places-table">
+            <thead>
+              <tr>
+                <th>Place / Village Name</th>
+                <th>Delivery Fee (₹)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="places-table-body">
+              <!-- Rendered Dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </div>
 </div>
 
 <div id="sidebar-overlay" class="adm-overlay adm-hidden"></div>
+
+<!-- Create/Edit Place Modal -->
+<div id="adm-place-modal" class="adm-edit-modal">
+  <div class="adm-edit-modal-content" style="max-width:400px">
+    <h3 class="adm-edit-modal-title" id="place-modal-title">Add New Place</h3>
+    <form id="adm-place-form">
+      <input type="hidden" id="place-modal-id" />
+      
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Place Name</label>
+        <input type="text" id="place-modal-name" class="adm-edit-modal-input" required placeholder="E.g., Contai" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Delivery Fee (₹)</label>
+        <input type="number" id="place-modal-charge" class="adm-edit-modal-input" required min="0" placeholder="50" />
+      </div>
+      
+      <div class="adm-edit-modal-actions" style="margin-top:1.5rem">
+        <button type="button" id="place-modal-cancel" class="adm-btn adm-btn-outline" style="border-color:rgba(255,255,255,0.15); color:var(--adm-muted)">Cancel</button>
+        <button type="submit" class="adm-btn adm-btn-primary">Save Place</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Create/Edit Coupon Modal -->
+<div id="adm-coupon-modal" class="adm-edit-modal">
+  <div class="adm-edit-modal-content">
+    <h3 class="adm-edit-modal-title" id="coupon-modal-title">Create Coupon</h3>
+    <form id="adm-coupon-form">
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Coupon Code</label>
+        <input type="text" id="coupon-modal-code" class="adm-edit-modal-input" required placeholder="E.g., WELCOME10" style="text-transform:uppercase" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Discount Percentage (%)</label>
+        <input type="number" id="coupon-modal-pct" class="adm-edit-modal-input" required min="1" max="100" placeholder="10" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Minimum Order Value (₹)</label>
+        <input type="number" id="coupon-modal-min" class="adm-edit-modal-input" min="0" placeholder="0" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Max Uses Limit</label>
+        <input type="number" id="coupon-modal-max" class="adm-edit-modal-input" required min="1" placeholder="100" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Expiry Date</label>
+        <input type="date" id="coupon-modal-expiry" class="adm-edit-modal-input" required />
+      </div>
+      <div class="adm-edit-modal-field" style="display:flex;align-items:center;gap:0.5rem;margin-top:1rem">
+        <input type="checkbox" id="coupon-modal-auto-send" style="cursor:pointer;width:16px;height:16px" />
+        <label for="coupon-modal-auto-send" class="adm-edit-modal-label" style="margin:0;cursor:pointer;text-transform:none;font-size:0.8rem">
+          Auto-Send to Next Visit Customers (WhatsApp promo)
+        </label>
+      </div>
+      <div class="adm-edit-modal-actions">
+        <button type="button" id="coupon-modal-cancel" class="adm-edit-modal-btn cancel">Cancel</button>
+        <button type="submit" class="adm-edit-modal-btn save">Save Coupon</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Share Coupon Modal -->
+<div id="adm-coupon-share-modal" class="adm-edit-modal">
+  <div class="adm-edit-modal-content" style="max-width:450px">
+    <h3 class="adm-edit-modal-title">Share Coupon Code</h3>
+    <form id="adm-coupon-share-form">
+      <input type="hidden" id="share-coupon-code" />
+      <input type="hidden" id="share-coupon-pct" />
+      <input type="hidden" id="share-coupon-min" />
+      <input type="hidden" id="share-coupon-expiry" />
+      
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Customer Name</label>
+        <input type="text" id="share-customer-name" class="adm-edit-modal-input" placeholder="E.g., John Doe" required />
+      </div>
+      
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Customer Phone (Optional - for direct WhatsApp send)</label>
+        <input type="text" id="share-customer-phone" class="adm-edit-modal-input" placeholder="E.g., 919876543210 (include country code)" />
+      </div>
+      
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Share Message / Description</label>
+        <textarea id="share-coupon-desc" class="adm-edit-modal-input" rows="5" style="resize:none; font-family:monospace; font-size:0.75rem"></textarea>
+      </div>
+      
+      <div class="adm-edit-modal-actions" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem">
+        <div style="display:flex; gap:0.5rem; width:100%">
+          <button type="button" id="btn-share-whatsapp" class="adm-btn" style="flex:1; background:#25D366; color:#fff; border:none; border-radius:8px; font-weight:600; padding:0.6rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.35rem">
+            <span>💬 Share via WhatsApp</span>
+          </button>
+          <button type="button" id="btn-share-copy" class="adm-btn" style="flex:1; background:var(--adm-primary); color:#fff; border:none; border-radius:8px; font-weight:600; padding:0.6rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.35rem">
+            <span>📋 Copy Message</span>
+          </button>
+        </div>
+        <button type="button" id="share-modal-cancel" class="adm-edit-modal-btn cancel" style="width:100%; margin-top:0.25rem">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Create/Edit Combo Modal -->
+<div id="adm-combo-modal" class="adm-edit-modal">
+  <div class="adm-edit-modal-content" style="max-height:85vh;overflow-y:auto;max-width:550px">
+    <h3 class="adm-edit-modal-title" id="combo-modal-title">Create Combo Pack</h3>
+    <form id="adm-combo-form">
+      <input type="hidden" id="combo-modal-id" />
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Combo Name</label>
+        <input type="text" id="combo-modal-name" class="adm-edit-modal-input" required placeholder="E.g., Super Saver Meal" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Description / Subtitle</label>
+        <textarea id="combo-modal-desc" class="adm-edit-modal-input" placeholder="E.g., Includes Butter Chicken + 2 Naans + Cold Drink" rows="2" style="resize:none"></textarea>
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Combo Price (₹)</label>
+        <input type="number" id="combo-modal-price" class="adm-edit-modal-input" required min="1" placeholder="350" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Combo MRP (₹) (Optional - for discount display)</label>
+        <input type="number" id="combo-modal-mrp" class="adm-edit-modal-input" min="0" placeholder="E.g., 450" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Combo Image</label>
+        <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem; background:rgba(255,255,255,0.02); padding:0.75rem; border-radius:10px; border:1px solid rgba(255,255,255,0.05)">
+          <div style="width:70px; height:70px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+            <img id="combo-modal-img-preview" src="" style="width:100%; height:100%; object-fit:cover; display:none;" />
+            <span id="combo-modal-img-placeholder" style="font-size:1.5rem; color:rgba(255,255,255,0.3)">🖼️</span>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:0.35rem;">
+            <input type="file" id="combo-modal-file" accept="image/*" style="display:none;" />
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+              <button type="button" id="combo-modal-upload-btn" class="adm-btn" style="font-size:0.75rem; padding:0.4rem 0.8rem; cursor:pointer; background:var(--adm-green); color:#fff; border:none; border-radius:6px; font-weight:600;">Upload Image</button>
+              <span id="combo-modal-upload-status" style="font-size:0.7rem; color:var(--adm-muted);">No file selected</span>
+            </div>
+            <input type="text" id="combo-modal-img-url" class="adm-edit-modal-input" placeholder="Or paste image URL" style="font-size:0.75rem; padding:0.4rem; margin-top:4px;" />
+          </div>
+        </div>
+      </div>
+      
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label" style="margin-bottom:0.5rem">Select Included Menu Items</label>
+        <input type="text" id="combo-items-search" class="adm-edit-modal-input" placeholder="🔍 Search menu items..." style="margin-bottom:0.5rem; font-size:0.8rem; padding:0.4rem 0.65rem;" />
+        <div id="combo-items-checklist" style="max-height:220px;overflow-y:auto;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0.75rem;background:rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:0.5rem">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+      
+      <div class="adm-edit-modal-actions">
+        <button type="button" id="combo-modal-cancel" class="adm-edit-modal-btn cancel">Cancel</button>
+        <button type="submit" class="adm-edit-modal-btn save">Save Combo</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <!-- Edit Menu Item Modal -->
 <div id="adm-edit-modal" class="adm-edit-modal">
@@ -457,6 +805,10 @@
       <div class="adm-edit-modal-field">
         <label class="adm-edit-modal-label">MRP (₹) (Optional - for discount display)</label>
         <input type="number" id="edit-modal-item-mrp" class="adm-edit-modal-input" min="0" step="any" />
+      </div>
+      <div class="adm-edit-modal-field">
+        <label class="adm-edit-modal-label">Food Description (For Customers)</label>
+        <textarea id="edit-modal-item-desc" class="adm-edit-modal-input" rows="3" style="resize:none" placeholder="E.g., Delicious hot soup with fresh vegetables, mushrooms, and spices."></textarea>
       </div>
       <div class="adm-edit-modal-actions">
         <button type="button" id="edit-modal-cancel" class="adm-edit-modal-btn cancel">Cancel</button>
