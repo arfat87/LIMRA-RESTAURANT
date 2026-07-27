@@ -349,7 +349,8 @@ function renderMenu() {
 
   // Add click handlers
   grid.querySelectorAll('.btn-cart-add, .btn-cart-plus').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const idVal = btn.dataset.itemId;
       const id = idVal.startsWith('combo-') ? idVal : parseInt(idVal, 10);
       addToCart(id);
@@ -357,10 +358,22 @@ function renderMenu() {
   });
 
   grid.querySelectorAll('.btn-cart-minus').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const idVal = btn.dataset.itemId;
       const id = idVal.startsWith('combo-') ? idVal : parseInt(idVal, 10);
       removeFromCart(id);
+    });
+  });
+
+  // Attach card-level clicks to open the detail drawer
+  grid.querySelectorAll('.food-card').forEach(card => {
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', () => {
+      const idVal = card.dataset.itemId;
+      if (idVal.startsWith('combo-')) return; // skip combo detail popup
+      const id = parseInt(idVal, 10);
+      openTableDetailDrawer(id);
     });
   });
 }
@@ -526,6 +539,7 @@ function renderCartListings(totalAmt) {
 }
 
 function setupCartUI() {
+  setupTableDetailDrawer();
   // Mobile drawer controls
   $('#cart-fab-btn').addEventListener('click', () => {
     show($('#cart-drawer-overlay'));
@@ -886,6 +900,215 @@ function renderQRCard(tableId, areaLabel) {
       dlBtn.href = qrCodeUrl;
       dlBtn.removeAttribute('download');
     });
+}
+
+// ═══════════════════════════════════════
+// PRODUCT DETAILS & RECOMMENDATIONS DRAWER
+// ═══════════════════════════════════════
+
+// Fetch dynamic recommendations for a menu item inside Dine-In
+function getTableRecommendations(item) {
+  if (!item) return [];
+
+  const nameLower = (item.name || '').toLowerCase();
+  const category = item.category || '';
+
+  let recommendedCategories = [];
+  
+  // Rule 1: If they select Naan or Breads -> recommend Gravies/Curries
+  if (category === 'bread' || nameLower.includes('naan') || nameLower.includes('roti') || nameLower.includes('kulcha')) {
+    recommendedCategories = ['veg-curry', 'nonveg-curry'];
+  }
+  // Rule 2: If they select Biryani -> suggest Cold Drinks/Beverages
+  else if (category === 'biryani' || nameLower.includes('biryani') || nameLower.includes('khuska')) {
+    recommendedCategories = ['beverages', 'lassi', 'milkshakes', 'mocktails'];
+  }
+  // Rule 3: If they select Chicken/Mutton dishes -> suggest Roti or Rice
+  else if (
+    category === 'nonveg-curry' || 
+    category === 'nonveg-starters' || 
+    category === 'tandoor-kabab' || 
+    category === 'chinese-nonveg' ||
+    nameLower.includes('chicken') || 
+    nameLower.includes('mutton') || 
+    nameLower.includes('fish') || 
+    nameLower.includes('prawns') || 
+    nameLower.includes('tikka') || 
+    nameLower.includes('kabab')
+  ) {
+    recommendedCategories = ['bread', 'veg-rice', 'nonveg-rice'];
+  }
+  // Fallback: suggest popular Desserts, Momos/Chaat or Mocktails
+  else {
+    recommendedCategories = ['desserts', 'momos-chaat', 'mocktails'];
+  }
+
+  // Filter recommendations matching the target categories (excluding the current item itself)
+  let list = menuItems.filter(m => m.id !== item.id && recommendedCategories.includes(m.category) && m.available !== false);
+
+  // Shuffle list and return up to 2 items for display
+  return list.sort(() => 0.5 - Math.random()).slice(0, 2);
+}
+
+// Open Dine-In Product Detail Drawer
+function openTableDetailDrawer(itemId) {
+  const item = menuItems.find(m => m.id === itemId);
+  if (!item) return;
+
+  const overlay = $('#table-detail-overlay');
+  const drawer = $('#table-detail-drawer');
+  if (!overlay || !drawer) return;
+
+  // Set standard info
+  $('#table-drawer-name').textContent = item.name;
+  $('#table-drawer-category').textContent = categoryLabels[item.category] || item.category;
+  $('#table-drawer-price').textContent = `₹${item.price}`;
+  $('#table-drawer-desc').textContent = item.description || `Fresh and authentic ${item.name} prepared with traditional spices and methods at LIMRA Restaurant Egra.`;
+  $('#table-drawer-image').src = item.image || '/images/food_biryani.png';
+
+  // Render actions (+ / - / Add)
+  updateTableDrawerActions(item);
+
+  // Render recommendations pairing
+  const recGrid = $('#table-drawer-recommendations-grid');
+  const recSection = $('#table-drawer-recommendations-section');
+  const recommendations = getTableRecommendations(item);
+
+  if (recGrid && recSection) {
+    if (recommendations.length > 0) {
+      recGrid.innerHTML = '';
+      recommendations.forEach(rec => {
+        const recCard = document.createElement('div');
+        recCard.className = 'flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl hover:border-amber-500/30 transition-colors cursor-pointer';
+        
+        const recImg = rec.image || '/images/food_biryani.png';
+        const recEmoji = rec.emoji || '🍲';
+        
+        recCard.innerHTML = `
+          <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/5 bg-neutral-800 flex items-center justify-center relative">
+            <img src="${recImg}" alt="${rec.name}" class="w-full h-full object-cover error-fallback" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <span class="text-xl absolute inset-0 flex items-center justify-center" style="display:none;">${recEmoji}</span>
+          </div>
+          <div class="flex-1 min-w-0 text-left">
+            <h5 class="text-xs font-bold text-slate-100 truncate">${rec.name}</h5>
+            <span class="text-[10px] font-black text-amber-400">₹${rec.price}</span>
+          </div>
+          <button class="rec-add-btn shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-amber-500 hover:bg-amber-600 active:scale-90 text-slate-950 font-bold text-sm shadow-md shadow-amber-500/10 transition-all">
+            +
+          </button>
+        `;
+
+        // Allow opening the recommendation item detail if clicked (excluding add button)
+        recCard.addEventListener('click', (e) => {
+          if (!e.target.closest('.rec-add-btn')) {
+            openTableDetailDrawer(rec.id);
+          }
+        });
+
+        // Bind add button click
+        recCard.querySelector('.rec-add-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          addToCart(rec.id);
+          
+          // Re-render current drawer item's action (in case they added the same item that's currently in focus)
+          updateTableDrawerActions(item);
+
+          // Checked micro-interaction
+          const btn = e.currentTarget;
+          btn.textContent = '✓';
+          btn.classList.replace('bg-amber-500', 'bg-slate-700');
+          btn.classList.replace('text-slate-950', 'text-amber-500');
+          setTimeout(() => {
+            btn.textContent = '+';
+            btn.classList.replace('bg-slate-700', 'bg-amber-500');
+            btn.classList.replace('text-amber-500', 'text-slate-950');
+          }, 1200);
+        });
+
+        recGrid.appendChild(recCard);
+      });
+      show(recSection);
+    } else {
+      hide(recSection);
+    }
+  }
+
+  // Show drawer and overlay
+  show(overlay);
+  show(drawer);
+  void drawer.offsetWidth; // trigger reflow
+  overlay.classList.remove('opacity-0');
+  drawer.classList.add('open');
+}
+
+// Render dynamic quantity controller for drawer
+function updateTableDrawerActions(item) {
+  const container = $('#table-drawer-actions-container');
+  if (!container) return;
+
+  const cartItem = cart.find(c => c.item.id === item.id);
+  const qty = cartItem ? cartItem.quantity : 0;
+
+  if (qty > 0) {
+    container.innerHTML = `
+      <button class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-sm active:scale-95 transition-transform btn-drawer-minus">-</button>
+      <span class="w-6 text-center font-bold text-slate-100 text-sm">${qty}</span>
+      <button class="w-9 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 flex items-center justify-center font-bold text-sm active:scale-95 transition-transform btn-drawer-plus">+</button>
+    `;
+
+    container.querySelector('.btn-drawer-plus').addEventListener('click', () => {
+      addToCart(item.id);
+      updateTableDrawerActions(item);
+    });
+
+    container.querySelector('.btn-drawer-minus').addEventListener('click', () => {
+      removeFromCart(item.id);
+      updateTableDrawerActions(item);
+    });
+  } else {
+    container.innerHTML = `
+      <button class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold text-xs transition-transform btn-drawer-add">
+        Add to Order
+      </button>
+    `;
+
+    container.querySelector('.btn-drawer-add').addEventListener('click', () => {
+      addToCart(item.id);
+      updateTableDrawerActions(item);
+    });
+  }
+}
+
+// Close Dine-In Product Detail Drawer
+function closeTableDetailDrawer() {
+  const overlay = $('#table-detail-overlay');
+  const drawer = $('#table-detail-drawer');
+  if (!overlay || !drawer) return;
+
+  overlay.classList.add('opacity-0');
+  drawer.classList.remove('open');
+
+  setTimeout(() => {
+    hide(overlay);
+    hide(drawer);
+  }, 350);
+}
+
+// Bind Drawer Event Listeners
+function setupTableDetailDrawer() {
+  const overlay = $('#table-detail-overlay');
+  const closeBtn = $('#table-drawer-close');
+
+  if (closeBtn) closeBtn.addEventListener('click', closeTableDetailDrawer);
+  if (overlay) {
+    overlay.addEventListener('click', closeTableDetailDrawer);
+  }
+  document.addEventListener('keydown', (e) => {
+    const drawer = $('#table-detail-drawer');
+    if (drawer && !drawer.classList.contains('hidden') && e.key === 'Escape') {
+      closeTableDetailDrawer();
+    }
+  });
 }
 
 // Start

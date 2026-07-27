@@ -206,6 +206,86 @@
           </div>
         </div>
 
+        <!-- Date Search & Order Summary Widget -->
+        <div class="adm-card mb-6" style="border: 1px solid var(--adm-border);">
+          <div class="adm-card-head" style="flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <h3 class="adm-card-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                📅 Search Orders by Date
+              </h3>
+            </div>
+            <!-- Quick Date Filter Presets & Date Input -->
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;" id="dash-date-presets">
+                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn active" data-preset="today">Today</button>
+                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="yesterday">Yesterday</button>
+                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="week">Last 7 Days</button>
+                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="month">This Month</button>
+                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="all">All Time</button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.35rem;">
+                <input type="date" id="dash-date-input" class="adm-input" style="padding: 0.35rem 0.6rem; font-size: 0.85rem; width: auto; font-family: inherit;" />
+                <button type="button" id="dash-date-clear" class="adm-btn adm-btn-outline adm-btn-sm" style="padding: 0.35rem 0.6rem;" title="Reset Date Filter">✕ Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date Summary Results Bar -->
+          <div style="padding: 1.25rem 1.5rem; background: var(--adm-card-bg-sub, rgba(0, 176, 116, 0.03)); border-bottom: 1px solid var(--adm-border);">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+              <div>
+                <p style="margin: 0; font-size: 0.8rem; color: var(--adm-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;" id="dash-date-summary-label">Summary for Today</p>
+                <div style="display: flex; align-items: baseline; gap: 1.5rem; margin-top: 0.25rem; flex-wrap: wrap;">
+                  <div>
+                    <span style="font-size: 0.85rem; color: var(--adm-muted);">Total Orders: </span>
+                    <span id="dash-date-order-count" style="font-size: 1.5rem; font-weight: 800; color: var(--adm-text);">0 orders</span>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.85rem; color: var(--adm-muted);">Total Ordered Amount: </span>
+                    <span id="dash-date-order-amount" style="font-size: 1.5rem; font-weight: 800; color: var(--adm-green);">₹0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Metrics Breakdown -->
+              <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <div style="background: rgba(0, 176, 116, 0.08); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(0, 176, 116, 0.2);">
+                  <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 500;">Paid Amount</div>
+                  <div id="dash-date-paid-amount" style="font-size: 1.1rem; font-weight: 700; color: var(--adm-green);">₹0.00</div>
+                </div>
+                <div style="background: rgba(255, 91, 91, 0.08); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(255, 91, 91, 0.2);">
+                  <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 500;">Unpaid Amount</div>
+                  <div id="dash-date-unpaid-amount" style="font-size: 1.1rem; font-weight: 700; color: #ff5b5b;">₹0.00</div>
+                </div>
+                <div style="background: rgba(59, 130, 246, 0.08); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                  <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 500;">Online / Table</div>
+                  <div id="dash-date-type-breakdown" style="font-size: 0.95rem; font-weight: 700; color: var(--adm-text);">0 Online · 0 Table</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date-Filtered Orders Preview Table -->
+          <div class="adm-table-wrap" style="max-height: 280px; overflow-y: auto;">
+            <table class="adm-table" style="font-size: 0.85rem;">
+              <thead>
+                <tr>
+                  <th>Order #</th>
+                  <th>Customer</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Payment</th>
+                  <th>Date & Time</th>
+                </tr>
+              </thead>
+              <tbody id="dash-date-orders-table-body">
+                <tr><td colspan="7" class="adm-empty">No orders found for this date</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="adm-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
           <div class="adm-stat">
             <div>
@@ -347,7 +427,7 @@
             <button class="adm-pill" data-type="online" style="border: 1px solid var(--adm-border); cursor:pointer; font-family: inherit; background:#f5f7fa; color:var(--adm-text);">Online Orders</button>
             <button class="adm-pill" data-type="table" style="border: 1px solid var(--adm-border); cursor:pointer; font-family: inherit; background:#f5f7fa; color:var(--adm-text);">🪑 Table Orders</button>
           </div>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
             <select id="orders-status-filter" class="adm-select">
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -364,7 +444,21 @@
               <option value="today_paid">Today Paid Orders</option>
               <option value="today_unpaid">Today Unpaid Orders</option>
             </select>
-            <input type="search" id="orders-search" class="adm-input" placeholder="Search by name, phone, order ID..." />
+            <input type="date" id="orders-date-filter" class="adm-input" style="width: auto; padding: 0.4rem 0.6rem; font-family: inherit;" title="Filter by date" />
+            <input type="search" id="orders-search" class="adm-input" placeholder="Search name, phone, ID, date..." />
+          </div>
+        </div>
+
+        <!-- Orders List Summary Bar -->
+        <div id="orders-summary-bar" style="margin-bottom: 1.25rem; padding: 0.65rem 1rem; background: var(--adm-card-bg-sub, rgba(0, 176, 116, 0.04)); border: 1px solid var(--adm-border); border-radius: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="color: var(--adm-muted); font-weight: 500;">Filtered Orders: </span>
+            <strong id="orders-summary-count" style="color: var(--adm-text); font-weight: 700;">0 orders</strong>
+            <span id="orders-date-active-label" class="adm-badge" style="background: rgba(0, 176, 116, 0.1); color: var(--adm-green); font-size: 0.75rem; display: none;"></span>
+          </div>
+          <div>
+            <span style="color: var(--adm-muted); font-weight: 500;">Total Amount: </span>
+            <strong id="orders-summary-amount" style="color: var(--adm-green); font-size: 1rem; font-weight: 800;">₹0.00</strong>
           </div>
         </div>
         <div class="adm-card adm-table-wrap">
@@ -434,8 +528,17 @@
             <p class="adm-page-sub">Analyze merged order histories, spending, and food preferences per customer phone number</p>
           </div>
         </div>
-        <div class="adm-filters">
-          <input type="search" id="analysis-search" class="adm-input" placeholder="Search by name or number..." style="max-width:320px" />
+        <div class="adm-filters" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <input type="search" id="analysis-search" class="adm-input" placeholder="Search name, phone, date..." style="max-width:260px;" />
+            <input type="date" id="analysis-date-filter" class="adm-input" style="width: auto; padding: 0.4rem 0.6rem; font-family: inherit;" title="Filter by date" />
+            <button type="button" id="analysis-date-clear" class="adm-btn adm-btn-outline adm-btn-sm" style="padding: 0.4rem 0.6rem;" title="Clear Date Filter">✕ Clear Date</button>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <button type="button" id="export-customer-analysis-btn" class="adm-btn adm-btn-primary adm-btn-sm" style="background: var(--adm-green); color: #fff; display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; padding: 0.5rem 0.85rem; border-radius: 8px;">
+              📊 Export to Excel (.csv)
+            </button>
+          </div>
         </div>
         
         <div class="adm-card" style="margin-top:1.5rem">

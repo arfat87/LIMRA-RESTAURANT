@@ -325,11 +325,28 @@
         </label>
       </div>
 
+      <!-- Coupon Section -->
+      <div class="space-y-1.5 pt-2 border-t" style="border-color:var(--color-border)">
+        <label class="block text-[11px] font-semibold text-slate-500">Apply Promo Coupon</label>
+        <div class="flex gap-2">
+          <input type="text" id="cart-coupon-input" placeholder="Coupon Code (e.g. LIMRASPACIAL)" class="cart-input py-2 text-xs flex-1 uppercase font-semibold" style="text-transform:uppercase" />
+          <button id="cart-coupon-apply-btn" type="button" class="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all active:scale-[0.98]" style="background:var(--color-accent)">
+            Apply
+          </button>
+        </div>
+        <p id="cart-coupon-status" class="text-[10px] font-bold hidden"></p>
+      </div>
+
       <!-- Pricing Summary Breakdown -->
       <div class="rounded-xl p-3 space-y-2 text-left" style="background:var(--color-off-white)">
         <div class="flex justify-between text-xs text-slate-600">
           <span>Subtotal</span>
           <span>₹<span id="cart-subtotal-3">0</span></span>
+        </div>
+
+        <div id="cart-discount-row-3" class="flex justify-between text-xs text-emerald-600 font-medium hidden">
+          <span>🏷️ Promo Discount (<span id="cart-discount-pct-3">0</span>%)</span>
+          <span>-₹<span id="cart-discount-3">0</span></span>
         </div>
         
         <div id="delivery-charge-row-3" class="flex justify-between text-xs text-slate-600">
@@ -595,8 +612,8 @@
       "Once you try it, you will love it."
     </p>
     <div class="flex flex-col sm:flex-row gap-4 mb-16 anim-fade-up" style="animation-delay:.4s">
-      <a href="#menu" class="px-8 py-3.5 rounded-full font-semibold text-white shadow-lg transition-all hover:scale-105" style="background:var(--color-accent)">
-        Explore Menu
+      <a href="#order" class="px-8 py-3.5 rounded-full font-semibold text-white shadow-lg transition-all hover:scale-105" style="background:var(--color-accent)">
+        Order Now
       </a>
       <a href="#booking" class="px-8 py-3.5 rounded-full font-semibold border-2 transition-all hover:scale-105" style="border-color:var(--color-text-primary); color:var(--color-text-primary); background:rgba(255,255,255,0.7)">
         Book a Table
@@ -664,7 +681,7 @@
       </span>
     </div>
 
-    <div id="order-grid" class="menu-product-grid grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-4" role="list" aria-live="polite" aria-label="Order menu items"></div>
+    <div id="order-grid" class="menu-product-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4" role="list" aria-live="polite" aria-label="Order menu items"></div>
 
     <div class="text-center mt-10 reveal">
       <button id="view-cart-btn" class="fixed bottom-24 right-6 z-40 inline-flex items-center gap-3 px-6 py-3.5 rounded-full font-bold text-white shadow-xl transition-all hover:scale-105 hidden" style="background:var(--color-accent)">
@@ -1229,6 +1246,8 @@
       <p class="flex items-center gap-3">
         <a href="/admin-login.html" class="hover:underline" style="color:var(--color-accent)">Admin</a>
         <span>·</span>
+        <a href="/privacy.html" class="hover:underline" style="color:var(--color-accent)">Privacy Policy</a>
+        <span>·</span>
         <span>Crafted with ❤️ for the people of Egra</span>
       </p>
     </div>
@@ -1500,6 +1519,63 @@
         <button id="confirm-map-location-btn" type="button" class="text-xs font-bold text-white px-5 py-2.5 rounded-xl transition-all active:scale-[0.97]" style="background:var(--color-accent)">
           Confirm Address
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- PRODUCT DETAILS & CROSS-SELLING MODAL -->
+<!-- ═══════════════════════════════════════ -->
+<div id="product-detail-modal" class="fixed inset-0 z-[60] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  <div class="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl transition-transform duration-300 scale-95 border dark:border-slate-800 flex flex-col max-h-[85vh]">
+    
+    <!-- Modal Close Button -->
+    <button id="product-modal-close" class="absolute right-4 top-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+
+    <!-- Scrollable container -->
+    <div class="flex-1 overflow-y-auto min-h-0">
+      <!-- Banner Image -->
+      <div class="relative aspect-[16/10] bg-slate-100 overflow-hidden">
+        <img id="product-modal-image" src="" alt="Dish image" class="w-full h-full object-cover">
+        <span id="product-modal-discount" class="absolute left-4 top-4 discount-badge hidden"></span>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 space-y-5">
+        <!-- Title and price -->
+        <div class="space-y-1.5">
+          <div class="flex items-start gap-2.5">
+            <span id="product-modal-emoji" class="text-2xl leading-none mt-0.5"></span>
+            <h2 id="product-modal-name" class="text-xl font-bold text-slate-800 dark:text-white leading-tight"></h2>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span id="product-modal-price" class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400"></span>
+            <span id="product-modal-mrp" class="text-xs text-slate-400 line-through hidden"></span>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <p id="product-modal-desc" class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed"></p>
+
+        <!-- Base Add to Cart Button -->
+        <div>
+          <button id="product-modal-add-btn" class="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-bold py-3 rounded-2xl text-xs transition-all shadow-lg shadow-emerald-500/20">
+            ➕ Add to Order
+          </button>
+        </div>
+
+        <!-- Cross-Selling Recommendations Section -->
+        <div id="product-modal-recommendations-section" class="border-t dark:border-slate-800 pt-5 space-y-3.5">
+          <h4 class="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Perfect Matches / Pairings</h4>
+          
+          <div id="product-modal-recommendations-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Dynamic Recommendation Cards will be injected here -->
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

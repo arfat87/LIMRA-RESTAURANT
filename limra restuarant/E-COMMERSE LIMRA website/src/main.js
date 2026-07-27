@@ -1,5 +1,5 @@
 import './style.css';
-import { insforge, saveOrder, saveBooking, getCustomerBookings, getCustomerOrders, getMenuOverrides } from './lib/insforge.js';
+import { insforge, saveOrder, saveBooking, getCustomerBookings, getCustomerOrders, getMenuOverrides, getCoupons } from './lib/insforge.js';
 import { menuItems, categoryImages, categoryLabels, categoryEmojis, categoryTabOrder } from './data/menu.js';
 import { sendEmailNotification, generateOrderPlacedHtml } from './lib/email-service.js';
 import { NotificationService } from './lib/notifications.js';
@@ -142,8 +142,19 @@ function getDeliveryCharge() {
   return Math.round(km * DELIVERY_RATE);
 }
 
+let appliedCoupon = null; // holds { code, discount_pct, min_bill }
+
+function getCouponDiscountAmount() {
+  if (!appliedCoupon) return 0;
+  const subtotal = getCartSubtotal();
+  if (subtotal < appliedCoupon.min_bill) return 0;
+  return Math.round(subtotal * (appliedCoupon.discount_pct / 100));
+}
+
 function getTaxesAmount() {
-  return Math.round(getCartSubtotal() * 0.05); // 5% GST
+  const subtotal = getCartSubtotal();
+  const discount = getCouponDiscountAmount();
+  return Math.round(Math.max(0, subtotal - discount) * 0.05); // 5% GST on discounted subtotal
 }
 
 function saveCart() {
@@ -155,7 +166,11 @@ function getCartSubtotal() {
 }
 
 function getCartTotal() {
-  return getCartSubtotal() + getDeliveryCharge() + getTaxesAmount();
+  const subtotal = getCartSubtotal();
+  const discount = getCouponDiscountAmount();
+  const delivery = getDeliveryCharge();
+  const taxes = getTaxesAmount();
+  return Math.max(0, subtotal - discount) + delivery + taxes;
 }
 
 // Micro-interactions & spring animations
@@ -230,6 +245,14 @@ function updateQty(id, delta) {
 }
 
 function clearCart() {
+  appliedCoupon = null;
+  const couponInput = document.getElementById('cart-coupon-input');
+  if (couponInput) couponInput.value = '';
+  const couponStatus = document.getElementById('cart-coupon-status');
+  if (couponStatus) {
+    couponStatus.textContent = '';
+    couponStatus.classList.add('hidden');
+  }
   antigravityCartStore.state = { items: [] };
   updateCartUI();
   animateBadgePop();
@@ -238,9 +261,40 @@ function clearCart() {
 function updateCartUI() {
   const count = getCartCount();
   const subtotal = getCartSubtotal();
+
+  // Auto-remove coupon if subtotal drops below minimum order value
+  if (appliedCoupon && subtotal < appliedCoupon.min_bill) {
+    const oldCode = appliedCoupon.code;
+    const oldMinBill = appliedCoupon.min_bill;
+    appliedCoupon = null;
+    const input = document.getElementById('cart-coupon-input');
+    if (input) input.value = '';
+    const status = document.getElementById('cart-coupon-status');
+    if (status) {
+      status.textContent = `Coupon ${oldCode} removed (min order ₹${oldMinBill} not met)`;
+      status.className = 'text-[10px] font-bold text-red-500 block';
+      status.classList.remove('hidden');
+    }
+  }
+
+  const discount = getCouponDiscountAmount();
   const delivery = getDeliveryCharge();
   const taxes = getTaxesAmount();
-  const total = subtotal + delivery + taxes;
+  const total = getCartTotal();
+
+  // Render Discount Row
+  const discRow = document.getElementById('cart-discount-row-3');
+  const discPctSpan = document.getElementById('cart-discount-pct-3');
+  const discValSpan = document.getElementById('cart-discount-3');
+  if (discRow) {
+    if (discount > 0) {
+      discRow.classList.remove('hidden');
+      if (discPctSpan) discPctSpan.textContent = appliedCoupon.discount_pct;
+      if (discValSpan) discValSpan.textContent = discount;
+    } else {
+      discRow.classList.add('hidden');
+    }
+  }
 
   // Badges
   const badge = document.getElementById('cart-badge');
@@ -446,6 +500,11 @@ function createMenuCard(item) {
       addToCart(item.id);
     });
   }
+
+  card.style.cursor = 'pointer';
+  card.addEventListener('click', () => {
+    openProductDetailModal(item.id);
+  });
 
   return card;
 }
@@ -1659,6 +1718,102 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 300);
   }
 
+  function initCoupon() {
+    const applyBtn = document.getElementById('cart-coupon-apply-btn');
+    const couponInput = document.getElementById('cart-coupon-input');
+    const couponStatus = document.getElementById('cart-coupon-status');
+
+    function showCouponStatus(msg, type) {
+      if (!couponStatus) return;
+      couponStatus.textContent = msg;
+      couponStatus.className = `text-[10px] font-bold mt-1 block ${type === 'success' ? 'text-emerald-600' : 'text-red-500'}`;
+      couponStatus.classList.remove('hidden');
+    }
+
+    if (applyBtn && couponInput) {
+      applyBtn.addEventListener('click', async () => {
+        const code = couponInput.value.trim().toUpperCase();
+        if (!code) {
+          showCouponStatus('Please enter a coupon code.', 'error');
+          return;
+        }
+
+        applyBtn.disabled = true;
+        applyBtn.textContent = 'Applying...';
+
+        try {
+          const result = await insforge.database
+            .from('coupons')
+            .select('*')
+            .eq('code', code)
+            .single();
+
+          if (result.error || !result.data) {
+            showCouponStatus('Invalid coupon code.', 'error');
+            appliedCoupon = null;
+            updateCartUI();
+            return;
+          }
+
+          const coupon = result.data;
+
+          // Check if active
+          if (!coupon.active) {
+            showCouponStatus('This coupon is currently inactive.', 'error');
+            appliedCoupon = null;
+            updateCartUI();
+            return;
+          }
+
+          // Validate expiry
+          const expiryDate = new Date(coupon.expiry_date);
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          if (expiryDate < today) {
+            showCouponStatus('This coupon has expired.', 'error');
+            appliedCoupon = null;
+            updateCartUI();
+            return;
+          }
+
+          // Validate usage limit
+          if (coupon.max_uses !== null && coupon.used_count >= coupon.max_uses) {
+            showCouponStatus('This coupon has reached its maximum usage limit.', 'error');
+            appliedCoupon = null;
+            updateCartUI();
+            return;
+          }
+
+          // Validate minimum bill
+          const subtotal = getCartSubtotal();
+          if (subtotal < coupon.min_bill) {
+            showCouponStatus(`Min order of ₹${coupon.min_bill} required for this coupon.`, 'error');
+            appliedCoupon = null;
+            updateCartUI();
+            return;
+          }
+
+          // Apply coupon
+          appliedCoupon = {
+            code: coupon.code,
+            discount_pct: parseFloat(coupon.discount_pct),
+            min_bill: parseFloat(coupon.min_bill)
+          };
+
+          showCouponStatus(`Coupon Applied! Get ${coupon.discount_pct}% OFF`, 'success');
+          updateCartUI();
+        } catch (err) {
+          showCouponStatus('Error validating coupon: ' + err.message, 'error');
+          appliedCoupon = null;
+          updateCartUI();
+        } finally {
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply';
+        }
+      });
+    }
+  }
+
   // ── Delivery type toggle ────────────────
   function initDelivery() {
     const btnDeliver = document.getElementById('delivery-type-deliver');
@@ -2099,6 +2254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   initDelivery();
+  initCoupon();
   initStepperNavigation();
 
   // ── Antigravity UPI Verification & Order Tracking Stores ──────────────────
@@ -2521,7 +2677,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cartSnapshot = JSON.parse(JSON.stringify(cart));
     const finalTaxes = getTaxesAmount();
     const finalCharge = isDelivery ? getDeliveryCharge(km) : 0;
+    const finalDiscount = getCouponDiscountAmount();
 
+    if (finalDiscount > 0) {
+      cartSnapshot.push({
+        id: 9997,
+        name: `Promo Discount (${appliedCoupon.code})`,
+        price: -finalDiscount,
+        qty: 1
+      });
+    }
     if (finalTaxes > 0) {
       cartSnapshot.push({
         id: 9999,
@@ -2553,6 +2718,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           locationVerified: locationVerified,
           txnRef: utrVal
         });
+
+        if (appliedCoupon) {
+          try {
+            await insforge.database.rpc('run_raw_sql', {
+              query: `UPDATE coupons SET used_count = used_count + 1 WHERE code = '${appliedCoupon.code}'`
+            });
+          } catch (couponErr) {
+            console.warn('[Checkout] Failed to increment coupon usage count:', couponErr);
+          }
+        }
         const orderLabel = order?.order_number ? `Order #${order.order_number}` : 'Your order';
         statusEl.textContent = `${orderLabel} placed! We will confirm soon.`;
         statusEl.style.color = 'var(--color-accent)';
@@ -2594,7 +2769,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         let waMsg = `Hello! My order is placed successfully at SK Arif (Limra Restaurant).\n\n*Order Details:*\n• Name: ${name}\n• Phone: ${phone}\n• Email: ${email || 'None'}\n`;
         let orderItemsText = '';
         cartSnapshot.forEach(item => {
-          orderItemsText += `• ${item.name} x${item.qty} = ₹${item.price * item.qty}\n`;
+          const totalVal = item.price * item.qty;
+          const formattedPrice = totalVal < 0 ? `-₹${Math.abs(totalVal)}` : `₹${totalVal}`;
+          orderItemsText += `• ${item.name} x${item.qty} = ${formattedPrice}\n`;
         });
         orderItemsText += `\n*Subtotal: ₹${subtotal}*`;
         if (isDelivery) {
@@ -2605,11 +2782,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             orderItemsText += `\n*Delivery Charge: ₹${charge}*`;
           }
           orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
-          orderItemsText += `\n*Grand Total: ₹${subtotal + charge + taxes}*`;
+          orderItemsText += `\n*Grand Total: ₹${getCartTotal()}*`;
           if (address) orderItemsText += `\n📍 *Deliver to:* ${address}`;
         } else {
           orderItemsText += `\n*Taxes (5% GST Incl.): ₹${taxes}*`;
-          orderItemsText += `\n*Total: ₹${subtotal + taxes}* (Self Pickup — Free)`;
+          orderItemsText += `\n*Total: ₹${getCartTotal()}* (Self Pickup — Free)`;
         }
         orderItemsText += `\n💳 *Payment Mode:* ${payment}`;
         waMsg += orderItemsText + `\n\nMy order is successfully booked. Please confirm my order and contact me as soon as possible! Thank you! 🙏`;
@@ -2627,9 +2804,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         emailBody += `Payment Mode: ${payment}\n`;
         emailBody += `\nOrder Summary:\n`;
         cartSnapshot.forEach(item => {
-          emailBody += `• ${item.name} x${item.qty} = Rs ${item.price * item.qty}\n`;
+          const totalVal = item.price * item.qty;
+          const formattedPrice = totalVal < 0 ? `-Rs ${Math.abs(totalVal)}` : `Rs ${totalVal}`;
+          emailBody += `• ${item.name} x${item.qty} = ${formattedPrice}\n`;
         });
-        emailBody += `\nSubtotal: Rs ${subtotal}\nTaxes (5% GST Incl.): Rs ${taxes}\nGrand Total: Rs ${isDelivery ? (subtotal + charge + taxes) : (subtotal + taxes)}\n---------------------------------------------\n\nMy order is successfully booked. Please contact me as soon as possible to confirm and deliver.\n\nBest regards,\n${name}`;
+        emailBody += `\nSubtotal: Rs ${subtotal}\nTaxes (5% GST Incl.): Rs ${taxes}\nGrand Total: Rs ${getCartTotal()}\n---------------------------------------------\n\nMy order is successfully booked. Please contact me as soon as possible to confirm and deliver.\n\nBest regards,\n${name}`;
         const emailUrl = `mailto:limrarestaurant99@gmail.com?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
         // Show Success Modal
@@ -2670,7 +2849,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (payment === 'Pay Online (Razorpay / UPI / Card)') {
       try {
-        const grandTotal = isDelivery ? (subtotal + charge + taxes) : (subtotal + taxes);
+        const grandTotal = getCartTotal();
         const amountInPaise = Math.round(grandTotal * 100);
 
         if (amountInPaise < 100) {
@@ -4246,4 +4425,212 @@ function startPollingFallback(phone) {
       console.warn('[NotificationCenter] Polling error:', e);
     }
   }, 20000);
+}
+
+// ═══════════════════════════════════════
+// PRODUCT DETAILS & RECOMMENDATIONS ENGINE
+// ═══════════════════════════════════════
+
+// Fetch dynamic recommendations for a menu item
+function getRecommendations(item) {
+  if (!item) return [];
+
+  const nameLower = (item.name || '').toLowerCase();
+  const category = item.category || '';
+
+  let recommendedCategories = [];
+  
+  // Rule 1: If they select Naan or Breads -> recommend Gravies/Curries
+  if (category === 'bread' || nameLower.includes('naan') || nameLower.includes('roti') || nameLower.includes('kulcha')) {
+    recommendedCategories = ['veg-curry', 'nonveg-curry'];
+  }
+  // Rule 2: If they select Biryani -> suggest Cold Drinks/Beverages
+  else if (category === 'biryani' || nameLower.includes('biryani') || nameLower.includes('khuska')) {
+    recommendedCategories = ['beverages', 'lassi', 'milkshakes', 'mocktails'];
+  }
+  // Rule 3: If they select Chicken/Mutton dishes -> suggest Roti or Rice
+  else if (
+    category === 'nonveg-curry' || 
+    category === 'nonveg-starters' || 
+    category === 'tandoor-kabab' || 
+    category === 'chinese-nonveg' ||
+    nameLower.includes('chicken') || 
+    nameLower.includes('mutton') || 
+    nameLower.includes('fish') || 
+    nameLower.includes('prawns') || 
+    nameLower.includes('tikka') || 
+    nameLower.includes('kabab')
+  ) {
+    recommendedCategories = ['bread', 'veg-rice', 'nonveg-rice'];
+  }
+  // Fallback: suggest popular Desserts, Momos/Chaat or Mocktails
+  else {
+    recommendedCategories = ['desserts', 'momos-chaat', 'mocktails'];
+  }
+
+  // Filter recommendations matching the target categories (excluding the current item itself)
+  let list = menuItems.filter(m => m.id !== item.id && recommendedCategories.includes(m.category) && m.available !== false);
+
+  // Shuffle list and return up to 2 items for display
+  return list.sort(() => 0.5 - Math.random()).slice(0, 2);
+}
+
+// Open product detail modal
+window.openProductDetailModal = function(itemId) {
+  const item = menuItems.find(m => m.id === itemId);
+  if (!item) return;
+
+  const modal = document.getElementById('product-detail-modal');
+  const innerCard = modal?.querySelector('.relative.w-full.max-w-lg');
+  if (!modal || !innerCard) return;
+
+  // Set standard info
+  const nameEl = document.getElementById('product-modal-name');
+  const emojiEl = document.getElementById('product-modal-emoji');
+  const priceEl = document.getElementById('product-modal-price');
+  const mrpEl = document.getElementById('product-modal-mrp');
+  const descEl = document.getElementById('product-modal-desc');
+  const imgEl = document.getElementById('product-modal-image');
+  const discountEl = document.getElementById('product-modal-discount');
+
+  if (nameEl) nameEl.textContent = item.name;
+  if (emojiEl) emojiEl.textContent = item.emoji || '🍽️';
+  if (priceEl) priceEl.textContent = `₹${item.price}`;
+  if (descEl) descEl.textContent = item.description || `Fresh and authentic ${item.name} prepared with traditional methods at LIMRA Restaurant Egra.`;
+  
+  if (imgEl) imgEl.src = item.image || categoryImages[item.category] || '/images/food_biryani.png';
+  
+  if (mrpEl) {
+    if (item.mrp) {
+      mrpEl.textContent = `₹${item.mrp}`;
+      mrpEl.classList.remove('hidden');
+    } else {
+      mrpEl.classList.add('hidden');
+    }
+  }
+
+  if (discountEl) {
+    if (item.discount) {
+      discountEl.textContent = `${item.discount}% OFF`;
+      discountEl.classList.remove('hidden');
+    } else {
+      discountEl.classList.add('hidden');
+    }
+  }
+
+  // Bind Add to Order button
+  const addBtn = document.getElementById('product-modal-add-btn');
+  if (addBtn) {
+    // Recreate button to strip previous event listeners
+    const newAddBtn = addBtn.cloneNode(true);
+    addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+    
+    newAddBtn.addEventListener('click', () => {
+      addToCart(item.id);
+      closeProductDetailModal();
+    });
+  }
+
+  // Render cross-selling pairings
+  const recGrid = document.getElementById('product-modal-recommendations-grid');
+  const recSection = document.getElementById('product-modal-recommendations-section');
+  const recommendations = getRecommendations(item);
+
+  if (recGrid && recSection) {
+    if (recommendations.length > 0) {
+      recGrid.innerHTML = '';
+      recommendations.forEach(rec => {
+        const recCard = document.createElement('div');
+        recCard.className = 'flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 border dark:border-slate-800 rounded-2xl hover:border-emerald-500 transition-colors cursor-pointer';
+        
+        const recImg = rec.image || categoryImages[rec.category] || '/images/food_biryani.png';
+        
+        recCard.innerHTML = `
+          <img src="${recImg}" alt="${rec.name}" class="w-12 h-12 rounded-xl object-cover shrink-0">
+          <div class="flex-1 min-h-0 text-left">
+            <h5 class="text-xs font-bold text-slate-800 dark:text-white truncate">${rec.emoji || ''} ${rec.name}</h5>
+            <span class="text-[10px] font-black text-emerald-600 dark:text-emerald-400">₹${rec.price}</span>
+          </div>
+          <button class="rec-add-btn shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-emerald-500 hover:bg-emerald-600 active:scale-90 text-white font-bold text-sm shadow-md shadow-emerald-500/10 transition-all">
+            +
+          </button>
+        `;
+
+        // Allow opening the recommendation item detail if the card is clicked (excluding '+' button click)
+        recCard.addEventListener('click', (e) => {
+          if (!e.target.closest('.rec-add-btn')) {
+            openProductDetailModal(rec.id);
+          }
+        });
+
+        // Bind '+' button inside recommendation card
+        recCard.querySelector('.rec-add-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          addToCart(rec.id);
+          
+          // Show subtle micro-interaction check on the button
+          const btn = e.currentTarget;
+          btn.textContent = '✓';
+          btn.classList.replace('bg-emerald-500', 'bg-slate-400');
+          setTimeout(() => {
+            btn.textContent = '+';
+            btn.classList.replace('bg-slate-400', 'bg-emerald-500');
+          }, 1200);
+        });
+
+        recGrid.appendChild(recCard);
+      });
+      recSection.classList.remove('hidden');
+    } else {
+      recSection.classList.add('hidden');
+    }
+  }
+
+  // Show Modal
+  modal.classList.remove('hidden');
+  void modal.offsetWidth; // trigger reflow
+  modal.classList.remove('opacity-0');
+  innerCard.classList.remove('scale-95');
+  innerCard.classList.add('scale-100');
+};
+
+// Close product detail modal
+window.closeProductDetailModal = function() {
+  const modal = document.getElementById('product-detail-modal');
+  const innerCard = modal?.querySelector('.relative.w-full.max-w-lg');
+  if (!modal) return;
+
+  modal.classList.add('opacity-0');
+  if (innerCard) {
+    innerCard.classList.remove('scale-100');
+    innerCard.classList.add('scale-95');
+  }
+  
+  setTimeout(() => {
+    modal.classList.add('hidden');
+  }, 300);
+};
+
+// Setup close listeners for the modal on load
+function setupProductDetailModalListeners() {
+  const modal = document.getElementById('product-detail-modal');
+  const closeBtn = document.getElementById('product-modal-close');
+  if (closeBtn) closeBtn.addEventListener('click', closeProductDetailModal);
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeProductDetailModal();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (modal && !modal.classList.contains('hidden') && e.key === 'Escape') {
+      closeProductDetailModal();
+    }
+  });
+}
+
+// Execute setup
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupProductDetailModalListeners);
+} else {
+  setupProductDetailModalListeners();
 }

@@ -1169,3 +1169,20 @@
   background: #00b074;
 }
 
+/* Date Search Preset Buttons */
+.dash-preset-btn {
+  border-radius: 8px;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.65rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.dash-preset-btn.active {
+  background: var(--adm-green) !important;
+  color: #ffffff !important;
+  border-color: var(--adm-green) !important;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 176, 116, 0.25);
+}
+
+

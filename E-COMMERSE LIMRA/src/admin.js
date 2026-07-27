@@ -1029,10 +1029,145 @@ function renderAnalytics() {
   });
 }
 
+// ── Dashboard Date Search & Summary ──────────────────────────
+
+let activeDashDatePreset = 'today';
+
+function getLocalDateString(dateInput) {
+  if (!dateInput) return '';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDashDateRange() {
+  const customDateVal = $('dash-date-input')?.value;
+  if (customDateVal) {
+    const formatted = new Date(customDateVal + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return {
+      type: 'single',
+      dateStr: customDateVal,
+      label: `Selected Date: ${formatted}`
+    };
+  }
+
+  const now = new Date();
+  const todayStr = getLocalDateString(now);
+
+  if (activeDashDatePreset === 'today') {
+    const formatted = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return { type: 'single', dateStr: todayStr, label: `Summary for Today (${formatted})` };
+  }
+
+  if (activeDashDatePreset === 'yesterday') {
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    const yStr = getLocalDateString(y);
+    const formatted = y.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return { type: 'single', dateStr: yStr, label: `Summary for Yesterday (${formatted})` };
+  }
+
+  if (activeDashDatePreset === 'week') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    const startFmt = start.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const endFmt = end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return { type: 'range', start, end, label: `Summary for Last 7 Days (${startFmt} – ${endFmt})` };
+  }
+
+  if (activeDashDatePreset === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    const monthFmt = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    return { type: 'range', start, end, label: `Summary for ${monthFmt}` };
+  }
+
+  return { type: 'all', label: 'Summary for All Time' };
+}
+
+function renderDashboardDateFilter() {
+  const range = getDashDateRange();
+  let filtered = [];
+
+  if (range.type === 'single') {
+    filtered = orders.filter(o => getLocalDateString(o.created_at) === range.dateStr);
+  } else if (range.type === 'range') {
+    filtered = orders.filter(o => {
+      const d = new Date(o.created_at);
+      return d >= range.start && d <= range.end;
+    });
+  } else {
+    filtered = [...orders];
+  }
+
+  const validOrders = filtered.filter(o => o.status !== 'cancelled');
+  const totalCount = filtered.length;
+  const totalAmount = validOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+  const paidAmount = validOrders.filter(o => o.payment_status === 'paid').reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+  const unpaidAmount = validOrders.filter(o => o.payment_status === 'unpaid' || !o.payment_status).reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+  const onlineCount = filtered.filter(o => o.order_type !== 'table').length;
+  const tableCount = filtered.filter(o => o.order_type === 'table').length;
+
+  if ($('dash-date-summary-label')) $('dash-date-summary-label').textContent = range.label;
+  if ($('dash-date-order-count')) $('dash-date-order-count').textContent = `${totalCount} order${totalCount === 1 ? '' : 's'}`;
+  if ($('dash-date-order-amount')) $('dash-date-order-amount').textContent = fmtMoney(totalAmount);
+  if ($('dash-date-paid-amount')) $('dash-date-paid-amount').textContent = fmtMoney(paidAmount);
+  if ($('dash-date-unpaid-amount')) $('dash-date-unpaid-amount').textContent = fmtMoney(unpaidAmount);
+  if ($('dash-date-type-breakdown')) $('dash-date-type-breakdown').textContent = `${onlineCount} Online · ${tableCount} Table`;
+
+  // Render preview table rows
+  const tbody = $('dash-date-orders-table-body');
+  if (tbody) {
+    if (filtered.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="adm-empty">No orders found for this date selection</td></tr>`;
+    } else {
+      const previewPage = filtered.slice(0, 15);
+      tbody.innerHTML = previewPage.map(order => {
+        const parsedMeta = parseNotesMetadata(order.notes, order);
+        let typeText = '🥡 Pickup';
+        if (parsedMeta.type === 'delivery') {
+          typeText = '🚗 Delivery';
+        } else if (parsedMeta.type === 'table') {
+          typeText = `🍽️ Table ${parsedMeta.tableNumber}`;
+        }
+        const timeStr = new Date(order.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = fmtDateShort(order.created_at);
+
+        return `
+          <tr class="dash-date-order-row" data-order-id="${order.id}" style="cursor: pointer;">
+            <td><strong>#${order.order_number}</strong></td>
+            <td><strong>${escapeHtml(order.customer_name)}</strong> <br/><span class="adm-info-muted" style="font-size: 11px;">${order.customer_phone}</span></td>
+            <td><span class="adm-badge" style="font-size: 11px;">${typeText}</span></td>
+            <td><strong style="color: var(--adm-green);">${fmtMoney(order.total_amount)}</strong></td>
+            <td>${statusPill(order.status, parsedMeta.type === 'table')}</td>
+            <td>${paymentStatusPill(order.payment_status || 'unpaid')}</td>
+            <td>${dateStr} <br/><span class="adm-info-muted" style="font-size: 11px;">${timeStr}</span></td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.querySelectorAll('.dash-date-order-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const id = row.dataset.orderId;
+          if (id) openOrderDetail(id);
+        });
+      });
+    }
+  }
+}
+
 function renderOverview() {
   renderStats();
   renderDonuts();
   renderCharts();
+  renderDashboardDateFilter();
   try {
     initDashboardMap();
     renderDashboardMapMarkers();
@@ -1200,6 +1335,7 @@ function getMarkerIconForStatus(status) {
 function getFilteredOrders() {
   const statusFilter = $('orders-status-filter')?.value || 'all';
   const paymentFilter = $('orders-payment-filter')?.value || 'all';
+  const dateFilter = $('orders-date-filter')?.value || '';
   const search = ($('orders-search')?.value || getGlobalSearch()).toLowerCase().trim();
   let filtered = [...orders];
   
@@ -1217,6 +1353,10 @@ function getFilteredOrders() {
     filtered = filtered.filter(o => (o.payment_status === 'unpaid' || !o.payment_status) && new Date(o.created_at).toDateString() === todayStr);
   }
 
+  if (dateFilter) {
+    filtered = filtered.filter(o => getLocalDateString(o.created_at) === dateFilter);
+  }
+
   if (activeOrderTypeFilter === 'online') {
     filtered = filtered.filter(o => o.order_type !== 'table');
   } else if (activeOrderTypeFilter === 'table') {
@@ -1225,9 +1365,11 @@ function getFilteredOrders() {
   
   if (search) {
     filtered = filtered.filter(o =>
-      o.customer_name.toLowerCase().includes(search) ||
-      o.customer_phone.includes(search) ||
-      String(o.order_number).includes(search)
+      (o.customer_name && o.customer_name.toLowerCase().includes(search)) ||
+      (o.customer_phone && o.customer_phone.includes(search)) ||
+      String(o.order_number).includes(search) ||
+      getLocalDateString(o.created_at).includes(search) ||
+      new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase().includes(search)
     );
   }
   return filtered;
@@ -1235,6 +1377,30 @@ function getFilteredOrders() {
 
 function renderOrdersTable() {
   const filtered = getFilteredOrders();
+
+  // Update Orders Summary Bar
+  const summaryCountEl = $('orders-summary-count');
+  const summaryAmountEl = $('orders-summary-amount');
+  const activeDateBadge = $('orders-date-active-label');
+  
+  const totalAmount = filtered
+    .filter(o => o.status !== 'cancelled')
+    .reduce((s, o) => s + Number(o.total_amount || 0), 0);
+
+  if (summaryCountEl) summaryCountEl.textContent = `${filtered.length} order${filtered.length === 1 ? '' : 's'}`;
+  if (summaryAmountEl) summaryAmountEl.textContent = fmtMoney(totalAmount);
+
+  const dateVal = $('orders-date-filter')?.value || '';
+  if (activeDateBadge) {
+    if (dateVal) {
+      const formattedDate = new Date(dateVal + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      activeDateBadge.textContent = `📅 ${formattedDate}`;
+      show(activeDateBadge);
+    } else {
+      hide(activeDateBadge);
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / ORDERS_PER_PAGE));
   if (ordersPage > totalPages) ordersPage = totalPages;
   const start = (ordersPage - 1) * ORDERS_PER_PAGE;
@@ -2101,16 +2267,94 @@ function buildCustomerAnalysis() {
   return list.sort((a, b) => b.totalSpent - a.totalSpent);
 }
 
-function renderCustomerAnalysis() {
+function getFilteredCustomerAnalysis() {
   const search = ($('analysis-search')?.value || '').toLowerCase().trim();
+  const dateFilter = $('analysis-date-filter')?.value || '';
   let customers = buildCustomerAnalysis();
+
+  if (dateFilter) {
+    customers = customers.map(c => {
+      const matchingOrders = c.ordersList.filter(o => getLocalDateString(o.date) === dateFilter);
+      if (matchingOrders.length === 0) return null;
+      const totalSpent = matchingOrders.reduce((sum, o) => sum + o.amount, 0);
+      return {
+        ...c,
+        totalSpent,
+        orderCount: matchingOrders.length,
+        ordersList: matchingOrders
+      };
+    }).filter(Boolean);
+  }
 
   if (search) {
     customers = customers.filter(c =>
-      c.name.toLowerCase().includes(search) || c.phone.includes(search)
+      c.name.toLowerCase().includes(search) ||
+      c.phone.includes(search) ||
+      c.ordersList.some(o =>
+        getLocalDateString(o.date).includes(search) ||
+        o.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase().includes(search)
+      )
     );
   }
 
+  return customers;
+}
+
+function exportCustomerAnalysisToExcel() {
+  const customers = getFilteredCustomerAnalysis();
+  if (customers.length === 0) {
+    showAdminToast('No customer analysis records to export.', 'info');
+    return;
+  }
+
+  const headers = ['Customer Name', 'Phone Number', 'Total Spent (INR)', 'Total Orders', 'Last Order Date', 'Order History & Details'];
+  
+  const csvRows = [];
+  csvRows.push(headers.map(h => `"${h.replace(/"/g, '""')}"`).join(','));
+
+  customers.forEach(c => {
+    const lastOrderDate = c.ordersList.length > 0 ? getLocalDateString(c.ordersList[0].date) : 'N/A';
+    const historyDetails = c.ordersList.map(o => {
+      const dateStr = o.date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      return `[${dateStr} | ₹${o.amount.toFixed(2)} | ${o.food}]`;
+    }).join('; ');
+
+    const row = [
+      c.name,
+      c.phone,
+      c.totalSpent.toFixed(2),
+      c.orderCount,
+      lastOrderDate,
+      historyDetails
+    ];
+
+    const escapedRow = row.map(val => {
+      const str = String(val !== undefined && val !== null ? val : '');
+      return `"${str.replace(/"/g, '""')}"`;
+    }).join(',');
+
+    csvRows.push(escapedRow);
+  });
+
+  // UTF-8 BOM byte order mark for Excel compatibility
+  const csvContent = '\uFEFF' + csvRows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const dateStr = getLocalDateString(new Date());
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `LIMRA_Customer_Analysis_${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showAdminToast(`Exported ${customers.length} customer records to Excel.`, 'success');
+}
+
+function renderCustomerAnalysis() {
+  const customers = getFilteredCustomerAnalysis();
   const tbody = $('analysis-table-body');
   if (!tbody) return;
 
@@ -2758,6 +3002,36 @@ function initDashboardUI() {
 
   $('orders-status-filter')?.addEventListener('change', () => { ordersPage = 1; renderOrdersTable(); });
   $('orders-payment-filter')?.addEventListener('change', () => { ordersPage = 1; renderOrdersTable(); });
+  $('orders-date-filter')?.addEventListener('change', () => { ordersPage = 1; renderOrdersTable(); });
+
+  // Dashboard Date Search Listeners
+  const dashPresets = document.querySelectorAll('#dash-date-presets .dash-preset-btn');
+  dashPresets.forEach(btn => {
+    btn.addEventListener('click', () => {
+      dashPresets.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeDashDatePreset = btn.dataset.preset;
+      const input = $('dash-date-input');
+      if (input) input.value = '';
+      renderDashboardDateFilter();
+    });
+  });
+
+  $('dash-date-input')?.addEventListener('change', () => {
+    dashPresets.forEach(b => b.classList.remove('active'));
+    activeDashDatePreset = null;
+    renderDashboardDateFilter();
+  });
+
+  $('dash-date-clear')?.addEventListener('click', () => {
+    dashPresets.forEach(b => b.classList.remove('active'));
+    const todayBtn = document.querySelector('#dash-date-presets .dash-preset-btn[data-preset="today"]');
+    if (todayBtn) todayBtn.classList.add('active');
+    activeDashDatePreset = 'today';
+    const input = $('dash-date-input');
+    if (input) input.value = '';
+    renderDashboardDateFilter();
+  });
   
   const typePills = document.querySelectorAll('#order-type-pills .adm-pill');
   typePills.forEach(pill => {
@@ -2779,6 +3053,13 @@ function initDashboardUI() {
   $('orders-search')?.addEventListener('input', () => { ordersPage = 1; renderOrdersTable(); });
   $('customers-search')?.addEventListener('input', renderCustomers);
   $('analysis-search')?.addEventListener('input', renderCustomerAnalysis);
+  $('analysis-date-filter')?.addEventListener('change', renderCustomerAnalysis);
+  $('analysis-date-clear')?.addEventListener('click', () => {
+    const input = $('analysis-date-filter');
+    if (input) input.value = '';
+    renderCustomerAnalysis();
+  });
+  $('export-customer-analysis-btn')?.addEventListener('click', exportCustomerAnalysisToExcel);
   $('bookings-type-filter')?.addEventListener('change', () => { renderBookingsList(); renderBookingCalendar(); });
   $('bookings-status-filter')?.addEventListener('change', renderBookingsList);
   $('foods-category-filter')?.addEventListener('change', renderFoods);
@@ -3890,7 +4171,7 @@ function updateShareMessage() {
   const min = $('share-coupon-min')?.value || '0';
   const expiry = $('share-coupon-expiry')?.value || '';
   
-  const msg = `Hi *${name}*,\n\nHere is a special coupon for you: *${code}*\n\nGet ${pct}% OFF on your next order at Limra Restaurant! (Min bill: ₹${Number(min).toFixed(0)}, Exp: ${expiry}).\n\nOrder now: https://vb9ucr22.insforge.site`;
+  const msg = `Hi *${name}*,\n\nHere is a special coupon for you: *${code}*\n\nGet ${pct}% OFF on your next order at Limra Restaurant! (Min bill: ₹${Number(min).toFixed(0)}, Exp: ${expiry}).\n\nOrder now: https://limraresturent.in/`;
   
   const desc = $('share-coupon-desc');
   if (desc) desc.value = msg;
@@ -3913,12 +4194,40 @@ function setupCouponShareModalListeners() {
   
   copyBtn?.addEventListener('click', () => {
     const msg = $('share-coupon-desc')?.value || '';
-    navigator.clipboard.writeText(msg).then(() => {
-      showAdminToast('Promo message copied to clipboard!', 'success');
-    }).catch(err => {
-      alert('Failed to copy message: ' + err.message);
-    });
+    
+    // Robust copy to clipboard helper supporting mobile in-app browsers
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(msg).then(() => {
+        showAdminToast('Promo message copied to clipboard!', 'success');
+      }).catch(err => {
+        fallbackCopy(msg);
+      });
+    } else {
+      fallbackCopy(msg);
+    }
   });
+
+  function fallbackCopy(text) {
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      textArea.remove();
+      if (successful) {
+        showAdminToast('Promo message copied to clipboard!', 'success');
+      } else {
+        alert('Could not copy text. Please select the text box contents manually.');
+      }
+    } catch (e) {
+      alert('Failed to copy message: ' + e.message);
+    }
+  }
   
   whatsappBtn?.addEventListener('click', () => {
     const msg = $('share-coupon-desc')?.value || '';
