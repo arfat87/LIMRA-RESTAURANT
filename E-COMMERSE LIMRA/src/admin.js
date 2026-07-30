@@ -1637,6 +1637,83 @@ function renderOrderDetailPicker() {
   ].join('');
 }
 
+// ── Detailed WhatsApp Order Message Builder ─────────────────────
+
+function buildDetailedWhatsAppOrderMessage(order, items = [], parsedMeta = {}, promoMsg = '') {
+  const statusText = STATUS_LABEL[order.status] || order.status;
+  const dateFmt = new Date(order.created_at).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+
+  let typeText = '🥡 Self Pickup';
+  if (parsedMeta.type === 'delivery') {
+    typeText = '🛵 Home Delivery';
+  } else if (parsedMeta.type === 'table') {
+    typeText = `🍽️ Table #${parsedMeta.tableNumber || ''}`;
+  }
+
+  let msg = `🍽️ *LIMRA RESTAURANT — ORDER DETAILS* 🍽️\n\n`;
+  msg += `Hi *${order.customer_name || 'Valued Customer'}*, thank you for ordering with LIMRA Restaurant!\n\n`;
+  msg += `📋 *Order ID*: #${order.order_number}\n`;
+  msg += `📌 *Status*: ${statusText}\n`;
+  msg += `🛵 *Order Type*: ${typeText}\n`;
+  msg += `📅 *Date & Time*: ${dateFmt}\n`;
+  msg += `📱 *Phone*: ${order.customer_phone || 'N/A'}\n`;
+
+  if (parsedMeta.address) {
+    msg += `📍 *Delivery Address*: ${parsedMeta.address}\n`;
+  }
+  if (order.landmark) {
+    msg += `🏷️ *Landmark*: ${order.landmark}\n`;
+  }
+  if (order.delivery_notes) {
+    msg += `📝 *Instructions*: ${order.delivery_notes}\n`;
+  }
+
+  msg += `\n----------------------------------------\n`;
+  msg += `🍽️ *ITEMS ORDERED:* \n`;
+
+  if (!items || items.length === 0) {
+    msg += `• Food Items Package\n`;
+  } else {
+    items.forEach(item => {
+      const qty = item.quantity || 1;
+      const price = Number(item.unit_price || 0);
+      const lineTotal = Number(item.line_total || (price * qty));
+      msg += `• ${item.item_name} x ${qty} — ₹${lineTotal.toFixed(2)}\n`;
+    });
+  }
+
+  msg += `----------------------------------------\n\n`;
+
+  const itemsSubtotal = items.reduce((sum, i) => sum + Number(i.line_total || (i.unit_price * i.quantity)), 0);
+  if (itemsSubtotal > 0 && Math.abs(itemsSubtotal - Number(order.total_amount)) > 0.01) {
+    msg += `💵 *Items Subtotal*: ₹${itemsSubtotal.toFixed(2)}\n`;
+  }
+
+  if (parsedMeta.charge && parsedMeta.charge !== '—' && parsedMeta.charge !== 'Free') {
+    msg += `🚚 *Delivery Charge*: ${parsedMeta.charge}\n`;
+  }
+
+  msg += `💰 *GRAND TOTAL*: ₹${Number(order.total_amount).toFixed(2)}\n`;
+  msg += `💳 *Payment Status*: ${(order.payment_status || 'unpaid').toUpperCase()}\n`;
+
+  if (promoMsg && promoMsg.trim()) {
+    msg += `\n🎁 *Special Offer*: ${promoMsg.trim()}\n`;
+  }
+
+  msg += `\n⭐ *Enjoyed your meal? Please leave us a 5-star Google Review:* \nhttps://g.page/r/limra-restaurant/review\n`;
+
+  msg += `\nThank you for choosing LIMRA Restaurant! 🙏\nQuestions or changes? Call us at 097390 83418`;
+
+  return msg;
+}
+
 async function renderOrderDetail(orderId) {
   const id = orderId || $('order-detail-picker')?.value;
   const order = orders.find(o => o.id === id);
@@ -1716,13 +1793,13 @@ async function renderOrderDetail(orderId) {
     console.error('Failed to load auto-send promo coupon in admin:', err);
   }
 
-  const digits = order.customer_phone.replace(/\D/g, '');
-  const formattedPhone = digits.length === 10 ? '91' : '';
-  const whatsappPhone = formattedPhone + digits;
+  const digits = order.customer_phone ? order.customer_phone.replace(/\D/g, '') : '';
+  const whatsappPhone = digits ? (digits.length === 10 ? '91' + digits : digits) : '';
   const statusText = STATUS_LABEL[order.status] || order.status;
-  const promoSuffix = promoMsg || '';
-  const whatsappMsg = `Hi ${order.customer_name}, your LIMRA order #${order.order_number} has been received! Current status: ${statusText}. We are preparing it with care and will contact you as soon as possible. Thank you for choosing LIMRA!${promoSuffix}`;
-  const whatsappLink = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMsg)}`;
+  const detailedWhatsappMsg = buildDetailedWhatsAppOrderMessage(order, items, parsedMeta, promoMsg);
+  const whatsappLink = whatsappPhone 
+    ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(detailedWhatsappMsg)}`
+    : `https://wa.me/?text=${encodeURIComponent(detailedWhatsappMsg)}`;
 
   const emailSubject = `LIMRA Restaurant - Order #${order.order_number} Confirmation`;
   const emailBody = `Hi ${order.customer_name},\n\nThank you for your order! Your order #${order.order_number} for ${fmtMoney(order.total_amount)} has been successfully booked.\n\nWe will contact you as soon as possible to arrange delivery/pickup.\n\nWarm regards,\nLIMRA Restaurant Team`;
@@ -2059,29 +2136,31 @@ async function renderOrderDetail(orderId) {
             navBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${latVal},${lngVal}`;
           }
 
-          // Dynamic sharing text bindings
-          const shareMsg = `*LIMRA Delivery Route Details*\n` +
-            `*Order*: #${order.order_number}\n` +
-            `*Customer*: ${order.customer_name}\n` +
-            `*Phone*: ${order.customer_phone}\n` +
-            `*Address*: ${parsedMeta.address}\n` +
-            `*Landmark*: ${order.landmark || 'N/A'}\n` +
-            `*Notes*: ${order.delivery_notes || 'None'}\n` +
-            `*Location link*: https://maps.google.com/?q=${latVal},${lngVal}`;
+          // Dynamic sharing text bindings with full itemized breakdown
+          let fullShareMsg = detailedWhatsappMsg;
+          if (latVal && lngVal) {
+            fullShareMsg += `\n\n🗺️ *Location Route Pin*: https://maps.google.com/?q=${latVal},${lngVal}`;
+          }
 
-          const shareSms = `LIMRA Order #${order.order_number} Delivery: ${parsedMeta.address}. Landmark: ${order.landmark || 'N/A'}. Location: https://maps.google.com/?q=${latVal},${lngVal}`;
+          const shareSms = `LIMRA Order #${order.order_number} (${fmtMoney(order.total_amount)}). Status: ${statusText}. Items: ${items.map(i => `${i.item_name} x${i.quantity}`).join(', ')}. Delivery: ${parsedMeta.address || 'Pickup'}`;
 
           document.getElementById('detail-share-wa-btn')?.addEventListener('click', () => {
-            window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`, '_blank');
+            const targetUrl = whatsappPhone 
+              ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(fullShareMsg)}` 
+              : `https://wa.me/?text=${encodeURIComponent(fullShareMsg)}`;
+            window.open(targetUrl, '_blank');
           });
 
           document.getElementById('detail-share-sms-btn')?.addEventListener('click', () => {
-            window.open(`sms:?body=${encodeURIComponent(shareSms)}`, '_blank');
+            const smsUrl = whatsappPhone ? `sms:${whatsappPhone}?body=${encodeURIComponent(shareSms)}` : `sms:?body=${encodeURIComponent(shareSms)}`;
+            window.open(smsUrl, '_blank');
           });
 
           document.getElementById('detail-copy-details-btn')?.addEventListener('click', () => {
-            navigator.clipboard.writeText(shareMsg).then(() => {
-              alert('Delivery address details copied to clipboard!');
+            navigator.clipboard.writeText(fullShareMsg).then(() => {
+              showAdminToast('Complete order & item details copied to clipboard!', 'success');
+            }).catch(() => {
+              fallbackCopy(fullShareMsg);
             });
           });
 
