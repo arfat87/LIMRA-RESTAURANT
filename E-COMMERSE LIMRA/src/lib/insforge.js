@@ -1,15 +1,19 @@
 import { createClient } from '@insforge/sdk';
 
-const baseUrl = import.meta.env.VITE_INSFORGE_URL || '';
-const anonKey = import.meta.env.VITE_INSFORGE_ANON_KEY || '';
+const DEFAULT_URL = 'https://vb9ucr22.us-east.insforge.app';
+const DEFAULT_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3OC0xMjM0LTU2NzgtOTBhYi1jZGVmMTIzNDU2NzgiLCJlbWFpbCI6ImFub25AaW5zZm9yZ2UuY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNzQ3MjZ9.CORVtgdxoKKq0AhdUN0RY8s1h3jHMUF3ZOB0CpmnoYk';
 
-if (!baseUrl || !anonKey) {
-  console.warn('InsForge env vars missing. Set VITE_INSFORGE_URL and VITE_INSFORGE_ANON_KEY in .env');
-}
+const baseUrl = (import.meta.env.VITE_INSFORGE_URL && import.meta.env.VITE_INSFORGE_URL !== 'undefined')
+  ? import.meta.env.VITE_INSFORGE_URL
+  : DEFAULT_URL;
+
+const anonKey = (import.meta.env.VITE_INSFORGE_ANON_KEY && import.meta.env.VITE_INSFORGE_ANON_KEY !== 'undefined')
+  ? import.meta.env.VITE_INSFORGE_ANON_KEY
+  : DEFAULT_ANON_KEY;
 
 export const insforge = createClient({ 
-  baseUrl: baseUrl || 'https://placeholder-app.region.insforge.app', 
-  anonKey: anonKey || 'placeholder-anon-key' 
+  baseUrl: baseUrl, 
+  anonKey: anonKey 
 });
 
 function formatInsforgeError(error) {

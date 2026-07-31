@@ -262,14 +262,25 @@ function initAuthUI() {
   $('google-signin-btn')?.addEventListener('click', async () => {
     hide($('login-error'));
     hide($('signup-error'));
-    const redirectTo = window.location.origin + '/admin-login.html';
-    const { error } = await insforge.auth.signInWithOAuth({
-      provider: 'google',
-      redirectTo
-    });
-    if (error) {
-      $('login-error').textContent = error.message;
+    const btn = $('google-signin-btn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const redirectTo = window.location.origin + '/admin-login.html';
+      const { error } = await insforge.auth.signInWithOAuth({
+        provider: 'google',
+        redirectTo
+      });
+      if (error) {
+        $('login-error').textContent = `Google Sign-in error: ${error.message || error.details || 'Unable to connect to Google Auth.'}`;
+        show($('login-error'));
+      }
+    } catch (err) {
+      console.error('[AdminLogin] Google OAuth error:', err);
+      $('login-error').textContent = `Google Sign-in failed: ${err.message || 'Network request failed'}`;
       show($('login-error'));
+    } finally {
+      if (btn) btn.disabled = false;
     }
   });
 }
