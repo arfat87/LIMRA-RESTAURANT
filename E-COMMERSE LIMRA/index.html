@@ -98,13 +98,13 @@
 
     <!-- Desktop nav -->
     <nav class="hidden lg:flex items-center gap-7">
-      <a href="#home"    class="nav-link active">Home</a>
-      <a href="#order"   class="nav-link">Order</a>
-      <a href="#menu"    class="nav-link">Menu</a>
-      <a href="#booking" class="nav-link">Booking</a>
-      <a href="#gallery" class="nav-link">Gallery</a>
-      <a href="#about"   class="nav-link">About</a>
-      <a href="#visit"   class="nav-link">Visit Us</a>
+      <a href="#home"    class="nav-link active" data-i18n="nav_home">Home</a>
+      <a href="#order"   class="nav-link" data-i18n="nav_order">Order</a>
+      <a href="#menu"    class="nav-link" data-i18n="nav_menu">Menu</a>
+      <a href="#booking" class="nav-link" data-i18n="nav_booking">Booking</a>
+      <a href="#gallery" class="nav-link" data-i18n="nav_gallery">Gallery</a>
+      <a href="#about"   class="nav-link" data-i18n="nav_about">About</a>
+      <a href="#visit"   class="nav-link" data-i18n="nav_visit">Visit Us</a>
     </nav>
 
     <!-- Actions -->
@@ -161,7 +161,7 @@
       <!-- Book CTA -->
       <a href="#booking" class="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-white transition-all hover:scale-105" style="background:var(--color-accent)">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        Book Table
+        <span data-i18n="book_table_btn">Book Table</span>
       </a>
 
       <!-- Hamburger -->
@@ -176,13 +176,13 @@
   <!-- Mobile nav -->
   <div id="mobile-nav" class="hidden lg:hidden border-t" style="background:var(--color-white); border-color:var(--color-border)">
     <nav class="flex flex-col px-4 py-3 gap-1">
-      <a href="#home"    class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)">Home</a>
-      <a href="#order"   class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)">Order Online</a>
-      <a href="#menu"    class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)">Menu</a>
-      <a href="#booking" class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)">Booking</a>
-      <a href="#gallery" class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)">Gallery</a>
-      <a href="#about"   class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)">About</a>
-      <a href="#visit"   class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)">Visit Us</a>
+      <a href="#home"    class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_home">Home</a>
+      <a href="#order"   class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_order">Order Online</a>
+      <a href="#menu"    class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_menu">Menu</a>
+      <a href="#booking" class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_booking">Booking</a>
+      <a href="#gallery" class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_gallery">Gallery</a>
+      <a href="#about"   class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_about">About</a>
+      <a href="#visit"   class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_visit">Visit Us</a>
       <a href="#" id="mobile-profile-link" class="mobile-nav-link py-2.5 text-sm font-semibold" style="color:var(--color-accent)">My Account</a>
     </nav>
   </div>
@@ -607,21 +607,21 @@
   </div>
 
   <div class="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-20">
-    <span class="inline-block mb-4 px-4 py-1.5 rounded-full text-xs font-semibold tracking-widest uppercase border anim-fade-up" style="color:var(--color-accent); border-color:var(--color-accent-border); background:var(--color-accent-bg); animation-delay:.1s">
-      Welcome to
+    <span class="inline-block mb-4 px-4 py-1.5 rounded-full text-xs font-semibold tracking-widest uppercase border anim-fade-up" style="color:var(--color-accent); border-color:var(--color-accent-border); background:var(--color-accent-bg); animation-delay:.1s" data-i18n="hero_tagline">
+      Authentic Mughlai & Chinese Restaurant in Egra
     </span>
     <h1 class="hero-title font-display font-black anim-fade-up" style="animation-delay:.2s">
       <span class="hero-letter">L</span><span class="hero-letter">I</span><span class="hero-letter hero-accent">M</span><span class="hero-letter hero-accent">R</span><span class="hero-letter hero-accent">A</span>
     </h1>
-    <p class="font-display italic text-xl md:text-2xl mb-10 anim-fade-up" style="color:var(--color-text-secondary); animation-delay:.3s">
-      "Once you try it, you will love it."
+    <p class="font-display italic text-xl md:text-2xl mb-10 anim-fade-up" style="color:var(--color-text-secondary); animation-delay:.3s" data-i18n="hero_sub">
+      Experience Egra's top-rated restaurant. Order online for instant home delivery or visit us for a memorable dining experience.
     </p>
     <div class="flex flex-col sm:flex-row gap-4 mb-16 anim-fade-up" style="animation-delay:.4s">
-      <a href="#order" class="px-8 py-3.5 rounded-full font-semibold text-white shadow-lg transition-all hover:scale-105" style="background:var(--color-accent)">
-        Order Now
+      <a href="#order" class="px-8 py-3.5 rounded-full font-semibold text-white shadow-lg transition-all hover:scale-105" style="background:var(--color-accent)" data-i18n="hero_btn_order">
+        🛍️ Order Online
       </a>
-      <a href="#booking" class="px-8 py-3.5 rounded-full font-semibold border-2 transition-all hover:scale-105" style="border-color:var(--color-text-primary); color:var(--color-text-primary); background:rgba(255,255,255,0.7)">
-        Book a Table
+      <a href="#booking" class="px-8 py-3.5 rounded-full font-semibold border-2 transition-all hover:scale-105" style="border-color:var(--color-text-primary); color:var(--color-text-primary); background:rgba(255,255,255,0.7)" data-i18n="hero_btn_book">
+        📅 Reserve Table
       </a>
     </div>
     <div class="anim-bounce">
@@ -636,7 +636,7 @@
       <div class="hidden md:block w-px h-4" style="background:var(--color-border)"></div>
       <div class="flex items-center gap-2"><span style="color:var(--color-accent)">📍</span><span style="color:var(--color-text-secondary)">Egra, West Bengal</span></div>
       <div class="hidden md:block w-px h-4" style="background:var(--color-border)"></div>
-      <div class="flex items-center gap-2"><span style="color:var(--color-accent)">⏰</span><span style="color:var(--color-text-secondary)">Open 10 AM – 11 PM Daily</span></div>
+      <div class="flex items-center gap-2"><span style="color:var(--color-accent)">⏰</span><span style="color:var(--color-text-secondary)" data-i18n="footer_timing">Open Daily: 10:30 AM – 10:30 PM</span></div>
       <div class="hidden md:block w-px h-4" style="background:var(--color-border)"></div>
       <div class="flex items-center gap-2"><span style="color:var(--color-accent)">💰</span><span style="color:var(--color-text-secondary)">₹1 – ₹200 per person</span></div>
     </div>
@@ -649,10 +649,10 @@
 <section id="order" class="py-20 md:py-28 px-4" style="background:var(--color-off-white)">
   <div class="max-w-7xl mx-auto">
     <div class="text-center mb-12 reveal">
-      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)">Quick & Easy</p>
+      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)" data-i18n="section_order_title">Online Food Ordering</p>
       <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)">Order <span class="accent-text">Online</span></h2>
       <div class="divider mb-4"></div>
-      <p class="text-sm max-w-md mx-auto" style="color:var(--color-text-muted)">Add items to cart and place your order online — we confirm quickly. WhatsApp also available.</p>
+      <p class="text-sm max-w-md mx-auto" style="color:var(--color-text-muted)" data-i18n="section_order_sub">Choose from our freshly prepared delicious biryanis, kebabs, Chinese specials & combos.</p>
     </div>
 
     <!-- Category tabs (same filters as menu section) -->
@@ -666,7 +666,7 @@
     <div class="max-w-md mx-auto mb-8 px-4 reveal">
       <div class="relative">
         <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
-        <input type="text" id="food-search-input" placeholder="Search Biryani, Kebabs, Desserts..." class="w-full pl-10 pr-10 py-3 text-sm border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent bg-white shadow-sm transition-all placeholder-slate-400">
+        <input type="text" id="food-search-input" placeholder="Search Biryani, Kebabs, Desserts..." data-i18n-placeholder="hero_search_placeholder" class="w-full pl-10 pr-10 py-3 text-sm border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent bg-white shadow-sm transition-all placeholder-slate-400">
         <button id="btn-clear-food-search" type="button" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 hidden text-sm p-1">✕</button>
       </div>
     </div>
@@ -691,7 +691,7 @@
     <div class="text-center mt-10 reveal">
       <button id="view-cart-btn" class="fixed bottom-24 right-6 z-40 inline-flex items-center gap-3 px-6 py-3.5 rounded-full font-bold text-white shadow-xl transition-all hover:scale-105 hidden" style="background:var(--color-accent)">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-        View Cart &amp; Order
+        <span data-i18n="cart_title">Your Order Basket</span>
         <span id="view-cart-badge" class="text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center" style="background:var(--color-white); color:var(--color-accent)">0</span>
       </button>
     </div>
@@ -704,19 +704,18 @@
 <section id="about" class="py-20 md:py-28 px-4" style="background:var(--color-white)">
   <div class="max-w-7xl mx-auto">
     <div class="text-center mb-16 reveal">
-      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)">Our Story</p>
-      <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)">About <span class="accent-text">LIMRA</span></h2>
+      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)" data-i18n="nav_about">Our Story</p>
+      <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)" data-i18n="section_about_title">About LIMRA Restaurant</h2>
       <div class="divider mb-4"></div>
-      <p class="text-sm max-w-xl mx-auto" style="color:var(--color-text-muted)">Also known as SK Arif — a cherished culinary destination in the heart of Egra</p>
+      <p class="text-sm max-w-xl mx-auto" style="color:var(--color-text-muted)" data-i18n="section_about_sub">Egra's Favorite Destination for Authentic Mughlai & Chinese Delicacies.</p>
     </div>
 
     <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
       <!-- Story -->
       <div class="reveal-l space-y-7">
         <div class="space-y-4 leading-relaxed" style="color:var(--color-text-secondary)">
-          <p class="text-lg">Nestled in the vibrant town of Egra, <strong style="color:var(--color-text-primary)">LIMRA Restaurant</strong> — fondly known as <strong style="color:var(--color-accent)">SK Arif</strong> — is more than just a place to eat. It's an experience crafted with love, tradition, and the finest ingredients.</p>
-          <p>From sizzling tandoori platters to aromatic biryanis, our kitchen brings together the rich heritage of Indian cuisine with modern presentation. Every dish tells a story — because here, food is family.</p>
-          <p>With <strong style="color:var(--color-accent)">4.8★</strong> on Google and the trust of our community, we're proud to be Egra's go-to destination for celebrations, family meals, and everyday moments.</p>
+          <p class="text-lg" data-i18n="about_p1">Welcome to LIMRA Restaurant, located at Nimtala, Alangiri, Egra. We take pride in serving authentic, mouth-watering Mughlai biryani, aromatic tandoori breads, juicy kebabs, and rich Chinese specialties prepared with authentic spices and fresh ingredients.</p>
+          <p data-i18n="about_p2">Whether you are dining in with family or ordering online for fast home delivery, our commitment to quality, taste, and hospitality ensures a memorable dining experience every single time.</p>
         </div>
 
         <!-- Services -->
@@ -887,10 +886,10 @@
 <section id="booking" class="py-20 md:py-28 px-4" style="background:var(--color-white)">
   <div class="max-w-4xl mx-auto">
     <div class="text-center mb-12 reveal">
-      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)">Reserve Your Spot</p>
-      <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)">Make a <span class="accent-text">Booking</span></h2>
+      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)" data-i18n="nav_booking">Reserve Your Spot</p>
+      <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)" data-i18n="section_booking_title">Book a Table at LIMRA</h2>
       <div class="divider mb-4"></div>
-      <p class="text-sm max-w-lg mx-auto" style="color:var(--color-text-muted)">Any customer can book here — no login or admin account needed. Just enter your name and phone.</p>
+      <p class="text-sm max-w-lg mx-auto" style="color:var(--color-text-muted)" data-i18n="section_booking_sub">Reserve your table in advance for family dinners, dates, or celebrations.</p>
     </div>
 
     <div class="rounded-2xl border p-4 md:p-5 mb-8 reveal max-w-2xl mx-auto" style="background:var(--color-accent-bg); border-color:var(--color-accent-border)">
@@ -910,7 +909,7 @@
     <!-- TABLE -->
     <div id="tab-table" class="booking-panel reveal">
       <div class="rounded-3xl p-6 md:p-8 border" style="background:var(--color-off-white); border-color:var(--color-border)">
-        <h3 class="font-display text-2xl font-semibold mb-6" style="color:var(--color-text-primary)">Table Reservation</h3>
+        <h3 class="font-display text-2xl font-semibold mb-6" style="color:var(--color-text-primary)" data-i18n="section_booking_title">Table Reservation</h3>
 
         <!-- Seat map -->
         <div class="grid grid-cols-2 gap-6 mb-8">
@@ -948,12 +947,12 @@
         <p id="seat-selected-msg" class="text-sm font-medium mb-4 hidden" style="color:var(--color-accent)">Selected: <span id="seat-selected-label"></span></p>
 
         <form id="table-booking-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)">Full Name *</label><input type="text" name="name" required placeholder="Your name" class="form-input"/></div>
-          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)">Phone *</label><input type="tel" name="phone" required placeholder="10-digit number" class="form-input"/></div>
+          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)" data-i18n="label_name">Full Name *</label><input type="text" name="name" required placeholder="Your name" data-i18n-placeholder="placeholder_name" class="form-input"/></div>
+          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)" data-i18n="label_phone">Phone *</label><input type="tel" name="phone" required placeholder="10-digit number" data-i18n-placeholder="placeholder_phone" class="form-input"/></div>
           <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)">Email *</label><input type="email" name="email" required placeholder="For confirmation receipt" class="form-input"/></div>
-          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)">Date *</label><input type="date" name="date" required class="form-input"/></div>
-          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)">Time *</label><input type="time" name="time" required class="form-input"/></div>
-          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)">Guests *</label><input type="number" name="guests" required min="1" max="20" placeholder="e.g. 4" class="form-input"/></div>
+          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)" data-i18n="label_date">Date *</label><input type="date" name="date" required class="form-input"/></div>
+          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)" data-i18n="label_time">Time *</label><input type="time" name="time" required class="form-input"/></div>
+          <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)" data-i18n="label_guests">Guests *</label><input type="number" name="guests" required min="1" max="20" placeholder="e.g. 4" class="form-input"/></div>
           <div><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)">Preference</label>
             <select name="preference" class="form-input">
               <option value="No preference">No preference</option>
@@ -961,12 +960,12 @@
               <option value="Indoor">Indoor (₹50 fee)</option>
             </select>
           </div>
-          <div class="md:col-span-2"><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)">Special Requests</label><textarea name="notes" rows="2" placeholder="Dietary needs, special occasions..." class="form-input resize-none"></textarea></div>
+          <div class="md:col-span-2"><label class="block text-xs font-medium mb-1.5" style="color:var(--color-text-muted)" data-i18n="label_notes">Special Requests</label><textarea name="notes" rows="2" placeholder="Dietary needs, special occasions..." data-i18n-placeholder="placeholder_instructions" class="form-input resize-none"></textarea></div>
           <div class="md:col-span-2">
             <p class="booking-status-msg hidden text-sm text-center mb-3 py-2 px-3 rounded-lg" role="status"></p>
             <button type="submit" class="booking-submit-btn w-full flex items-center justify-center gap-2 text-white font-bold py-4 rounded-xl transition-all hover:scale-[1.01]" style="background:var(--color-accent)">
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              Confirm Table Booking
+              <span data-i18n="btn_reserve_table">📅 Reserve Table Now</span>
             </button>
             <p class="text-xs text-center mt-2" style="color:var(--color-text-muted)">Saved to our system — no WhatsApp needed. Questions? <a href="tel:+919739083418" style="color:var(--color-accent)">Call 097390 83418</a></p>
           </div>
@@ -1060,20 +1059,21 @@
 <section id="gallery" class="py-20 md:py-28 px-4" style="background:var(--color-off-white)">
   <div class="max-w-7xl mx-auto">
     <div class="text-center mb-12 reveal">
-      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)">Visual Feast</p>
-      <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)">Food <span class="accent-text">Gallery</span></h2>
+      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)" data-i18n="nav_gallery">Visual Feast</p>
+      <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)" data-i18n="section_gallery_title">Food Gallery</h2>
       <div class="divider mb-4"></div>
+      <p class="text-sm max-w-md mx-auto" style="color:var(--color-text-muted)" data-i18n="section_gallery_sub">Take a visual tour of our delicious dishes, dining area, and ambiance.</p>
     </div>
 
     <div class="flex flex-wrap justify-center gap-2 mb-8 reveal">
-      <button class="gal-filter active" data-filter="all">All</button>
-      <button class="gal-filter" data-filter="biryani">Biryani</button>
-      <button class="gal-filter" data-filter="tandoori">Tandoori</button>
-      <button class="gal-filter" data-filter="kababs">Kababs</button>
-      <button class="gal-filter" data-filter="chinese">Chinese</button>
-      <button class="gal-filter" data-filter="breads">Breads</button>
-      <button class="gal-filter" data-filter="starters">Starters</button>
-      <button class="gal-filter" data-filter="gravy">Gravies</button>
+      <button class="gal-filter active" data-filter="all" data-i18n="cat_all">All</button>
+      <button class="gal-filter" data-filter="biryani" data-i18n="cat_biryani">Biryani</button>
+      <button class="gal-filter" data-filter="tandoori" data-i18n="cat_breads">Tandoori</button>
+      <button class="gal-filter" data-filter="kababs" data-i18n="cat_kebabs">Kababs</button>
+      <button class="gal-filter" data-filter="chinese" data-i18n="cat_chinese">Chinese</button>
+      <button class="gal-filter" data-filter="breads" data-i18n="cat_breads">Breads</button>
+      <button class="gal-filter" data-filter="starters" data-i18n="cat_kebabs">Starters</button>
+      <button class="gal-filter" data-filter="gravy" data-i18n="cat_main">Gravies</button>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 reveal">
@@ -1146,9 +1146,10 @@
 <section id="visit" class="py-20 md:py-28 px-4" style="background:var(--color-white)">
   <div class="max-w-7xl mx-auto">
     <div class="text-center mb-12 reveal">
-      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)">Come See Us</p>
-      <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)">Visit <span class="accent-text">Us</span></h2>
+      <p class="text-xs uppercase tracking-widest font-semibold mb-3" style="color:var(--color-accent)" data-i18n="nav_visit">Come See Us</p>
+      <h2 class="font-display text-4xl md:text-5xl font-bold mb-4" style="color:var(--color-text-primary)" data-i18n="section_visit_title">Visit Us in Egra</h2>
       <div class="divider mb-4"></div>
+      <p class="text-sm max-w-md mx-auto text-slate-500" data-i18n="section_visit_sub">We look forward to serving you fresh and hot food daily.</p>
     </div>
 
     <div class="grid lg:grid-cols-2 gap-10 items-start">
@@ -1156,16 +1157,16 @@
         <div class="info-card">
           <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style="background:var(--color-accent-bg)">📍</div>
           <div>
-            <p class="font-semibold text-sm mb-1" style="color:var(--color-text-primary)">Address</p>
-            <p class="text-sm leading-relaxed" style="color:var(--color-text-muted)">Nimtala, Alangiri, Egra Solpatta Road,<br/>Egra, Purba Medinipur 721420, WB</p>
+            <p class="font-semibold text-sm mb-1" style="color:var(--color-text-primary)" data-i18n="visit_location_title">📍 Restaurant Address</p>
+            <p class="text-sm leading-relaxed" style="color:var(--color-text-muted)" data-i18n="footer_address">Nimtala, Alangiri, Egra Solpatta Road, Purba Medinipur, West Bengal 721420</p>
             <a href="https://www.google.com/maps/place/LIMRA+RESTAURANT/@21.8603074,87.4768049,17z/data=!3m1!4b1!4m6!3m5!1s0x3a1d2b2614f3c155:0xdf9ca79af511eaca!8m2!3d21.8603074!4d87.4793798!16s%2Fg%2F11wwq23wgv?authuser=0&entry=ttu&g_ep=EgoyMDI2MDUyNy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener" class="text-xs font-medium mt-1 inline-block" style="color:var(--color-accent)">Get Directions →</a>
           </div>
         </div>
         <div class="info-card">
           <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style="background:var(--color-accent-bg)">📞</div>
           <div>
-            <p class="font-semibold text-sm mb-1" style="color:var(--color-text-primary)">Phone</p>
-            <a href="tel:+919739083418" class="text-sm font-medium" style="color:var(--color-accent)">097390 83418</a>
+            <p class="font-semibold text-sm mb-1" style="color:var(--color-text-primary)" data-i18n="visit_contact_title">📞 Contact & Reservations</p>
+            <a href="tel:+919739083418" class="text-sm font-medium" style="color:var(--color-accent)" data-i18n="visit_contact_val">Call us: 097390 83418 / Direct WhatsApp</a>
           </div>
         </div>
         <div class="info-card">
@@ -1178,9 +1179,8 @@
         <div class="info-card">
           <div class="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style="background:var(--color-accent-bg)">⏰</div>
           <div>
-            <p class="font-semibold text-sm mb-1" style="color:var(--color-text-primary)">Hours</p>
-            <p class="text-sm" style="color:var(--color-text-muted)">Monday – Sunday</p>
-            <p class="font-bold text-sm" style="color:var(--color-accent)">10:00 AM – 11:00 PM</p>
+            <p class="font-semibold text-sm mb-1" style="color:var(--color-text-primary)" data-i18n="visit_hours_title">⏰ Operating Hours</p>
+            <p class="text-sm" style="color:var(--color-text-muted)" data-i18n="footer_timing">Open Daily: 10:30 AM – 10:30 PM</p>
           </div>
         </div>
 
@@ -1228,12 +1228,12 @@
       <div>
         <p class="font-semibold text-xs uppercase tracking-widest mb-4" style="color:var(--color-accent)">Quick Links</p>
         <div class="grid grid-cols-2 gap-y-2 gap-x-4">
-          <a href="#home"    class="text-sm transition-colors hover:text-accent" style="color:var(--color-text-muted)">Home</a>
-          <a href="#menu"    class="text-sm transition-colors" style="color:var(--color-text-muted)">Menu</a>
-          <a href="#order"   class="text-sm transition-colors" style="color:var(--color-text-muted)">Order Online</a>
-          <a href="#booking" class="text-sm transition-colors" style="color:var(--color-text-muted)">Booking</a>
-          <a href="#gallery" class="text-sm transition-colors" style="color:var(--color-text-muted)">Gallery</a>
-          <a href="#visit"   class="text-sm transition-colors" style="color:var(--color-text-muted)">Visit Us</a>
+          <a href="#home"    class="text-sm transition-colors hover:text-accent" style="color:var(--color-text-muted)" data-i18n="nav_home">Home</a>
+          <a href="#menu"    class="text-sm transition-colors" style="color:var(--color-text-muted)" data-i18n="nav_menu">Menu</a>
+          <a href="#order"   class="text-sm transition-colors" style="color:var(--color-text-muted)" data-i18n="nav_order">Order Online</a>
+          <a href="#booking" class="text-sm transition-colors" style="color:var(--color-text-muted)" data-i18n="nav_booking">Booking</a>
+          <a href="#gallery" class="text-sm transition-colors" style="color:var(--color-text-muted)" data-i18n="nav_gallery">Gallery</a>
+          <a href="#visit"   class="text-sm transition-colors" style="color:var(--color-text-muted)" data-i18n="nav_visit">Visit Us</a>
         </div>
       </div>
       <div>
@@ -1247,7 +1247,7 @@
       </div>
     </div>
     <div class="border-t pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs" style="border-color:var(--color-border); color:var(--color-text-muted)">
-      <p>© 2025 LIMRA Restaurant. All rights reserved.</p>
+      <p data-i18n="footer_rights">© LIMRA Restaurant. All rights reserved.</p>
       <p class="flex items-center gap-3">
         <a href="/admin-login.html" class="hover:underline" style="color:var(--color-accent)">Admin</a>
         <span>·</span>
