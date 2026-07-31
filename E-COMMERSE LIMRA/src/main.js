@@ -104,6 +104,14 @@ function applyLanguage(lang) {
     renderMenuGrid('menu-grid', currentMenuCategory || 'all');
     renderMenuGrid('order-grid', currentMenuCategory || 'all');
   }
+
+  if (typeof renderCartItems === 'function') {
+    renderCartItems();
+  }
+
+  if (typeof updateCartUI === 'function') {
+    updateCartUI();
+  }
 }
 
 
@@ -461,10 +469,10 @@ function updateCartUI() {
     const id = parseInt(btn.dataset.id);
     const inCart = cart.find(c => c.id === id);
     if (inCart) {
-      btn.textContent = `✓ In Cart (${inCart.qty})`;
+      btn.textContent = `${t('btn_in_cart', '✓ In Cart')} (${inCart.qty})`;
       btn.classList.add('added');
     } else {
-      btn.textContent = '+ Add to Cart';
+      btn.textContent = t('btn_add_cart', '+ Add to Cart');
       btn.classList.remove('added');
     }
   });
@@ -483,7 +491,7 @@ function renderCartItems() {
     row.innerHTML = `
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium truncate" style="color:var(--color-text-primary)">${item.name}</p>
-        <p class="text-xs" style="color:var(--color-text-muted)">₹${item.price} each</p>
+        <p class="text-xs" style="color:var(--color-text-muted)">₹${item.price} ${t('each_unit', 'each')}</p>
       </div>
       <div class="flex items-center gap-2">
         <button class="qty-btn" data-id="${item.id}" data-delta="-1">−</button>
@@ -492,7 +500,7 @@ function renderCartItems() {
       </div>
       <div class="text-right min-w-[3rem]">
         <p class="text-sm font-semibold" style="color:var(--color-accent)">₹${item.price * item.qty}</p>
-        <button class="remove-btn text-xs transition-colors" style="color:var(--color-text-muted)" data-id="${item.id}">remove</button>
+        <button class="remove-btn text-xs transition-colors" style="color:var(--color-text-muted)" data-id="${item.id}">${t('remove_unit', 'remove')}</button>
       </div>
     `;
     container.appendChild(row);
