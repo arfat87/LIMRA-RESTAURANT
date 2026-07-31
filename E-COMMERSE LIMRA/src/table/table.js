@@ -88,6 +88,13 @@ function applyTableLanguage(lang) {
     }
   });
 
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (key) {
+      el.placeholder = t(key, el.placeholder);
+    }
+  });
+
   if (typeof renderCategoryChips === 'function') {
     renderCategoryChips();
   }

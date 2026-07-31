@@ -88,6 +88,26 @@ export const translations = {
     footer_address: 'Nimtala, Alangiri, Egra Solpatta Road, Purba Medinipur, West Bengal 721420',
     footer_timing: 'Open Daily: 10:30 AM – 10:30 PM',
     footer_rights: '© LIMRA Restaurant. All rights reserved.',
+
+    // Table Ordering Specific
+    table_active: 'Table Ordering Active',
+    table_search_placeholder: 'Search dishes, drinks, desserts...',
+    order_tray: '🛒 Your Order Tray',
+    place_table_order: 'Place Table Order',
+    confirm_table_order: '📝 Confirm Table Order',
+    table_kitchen_btn: 'Confirm & Send to Kitchen',
+    order_linked_notice: 'This order will be automatically linked to your table and sent to the kitchen. You can pay after dining.',
+    order_more: 'Order More Items',
+    table_quantity: 'Quantity',
+    table_perfect_matches: 'Perfect Matches / Pairs Well With',
+    table_add_btn: 'Add to Order',
+    table_order_success: '🎉 Order Sent to Kitchen!',
+    table_order_success_sub: 'Your table order has been received by our chefs and is being freshly prepared.',
+    table_write_review: '⭐ Write a Review',
+    table_maybe_later: 'Maybe Later',
+    table_invalid_title: 'Invalid Table Scan',
+    table_invalid_sub: 'Please scan the QR code placed on your dining table.',
+    table_go_home: 'Go to LIMRA Home',
   },
 
   bn: {
@@ -177,6 +197,26 @@ export const translations = {
     footer_address: 'নিমতলা, আলঙ্গিরি, এগড়া সোলপাট্টা রোড, পূর্ব মেদিনীপুর, পশ্চিমবঙ্গ ৭২১৪২০',
     footer_timing: 'প্রতিদিন খোলা: সকাল ১০:৩০ – রাত ১০:৩০',
     footer_rights: '© লিমরা রেস্তোরাঁ। সর্বস্বত্ব সংরক্ষিত।',
+
+    // Table Ordering Specific
+    table_active: 'টেবিল অর্ডার সক্রিয়',
+    table_search_placeholder: 'খাবার, পানীয়, মিষ্টি খুঁজুন...',
+    order_tray: '🛒 আপনার অর্ডারের ট্রে',
+    place_table_order: 'টেবিল অর্ডার করুন',
+    confirm_table_order: '📝 টেবিল অর্ডার নিশ্চিত করুন',
+    table_kitchen_btn: 'নিশ্চিত করুন ও রান্নাঘরে পাঠান',
+    order_linked_notice: 'এই অর্ডারটি সরাসরি আপনার টেবিলের সাথে যুক্ত হবে এবং রান্নাঘরে পাঠানো হবে। খাওয়া শেষে বিল পরিশোধ করতে পারবেন।',
+    order_more: 'আরও খাবার অর্ডার করুন',
+    table_quantity: 'পরিমাণ',
+    table_perfect_matches: 'একসাথে দুর্দান্ত মিলবে',
+    table_add_btn: 'অর্ডারে যোগ করুন',
+    table_order_success: '🎉 অর্ডার রান্নাঘরে পাঠানো হয়েছে!',
+    table_order_success_sub: 'আপনার টেবিল অর্ডারটি আমাদের রাঁধুনীদের কাছে পৌঁছেছে এবং যত্ন সহকারে তৈরি করা হচ্ছে।',
+    table_write_review: '⭐ গুগলে রিভিউ দিন',
+    table_maybe_later: 'পরে বলবো',
+    table_invalid_title: 'অকার্যকর টেবিল স্ক্যান',
+    table_invalid_sub: 'অনুগ্রহ করে আপনার ডাইনিং টেবিলে থাকা কিউআর (QR) কোডটি স্ক্যান করুন।',
+    table_go_home: 'লিমরা হোম পেজে যান',
   }
 };
 

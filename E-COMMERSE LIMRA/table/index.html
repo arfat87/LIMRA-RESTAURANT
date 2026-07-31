@@ -231,19 +231,18 @@
   <!-- INVALID TABLE ERROR VIEW -->
   <!-- ==================================================== -->
   <div id="error-view" class="hidden min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-md glass-card p-8 text-center space-y-6">
-      <div class="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto text-4xl text-red-500">
+    <div class="relative w-full max-w-md bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-white/10 text-center transform scale-95 transition-transform duration-300 text-slate-100">
+      <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
         ⚠️
       </div>
-      <div class="space-y-2">
-        <h2 class="text-xl font-bold font-outfit text-red-500" style="font-family:'Outfit', sans-serif;">Invalid Table Number</h2>
-        <p class="text-sm text-slate-300">Please scan the QR code located on your dining table to access the ordering menu.</p>
-      </div>
-      <div class="pt-4">
-        <a href="/" class="inline-block px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-sm shadow-lg shadow-amber-500/20">
-          Go to LIMRA Home
-        </a>
-      </div>
+      <h2 class="font-outfit font-extrabold text-xl text-slate-100 mb-2" data-i18n="table_invalid_title">Invalid Table Scan</h2>
+      <p class="text-xs text-slate-400 mb-6 leading-relaxed" data-i18n="table_invalid_sub">
+        Please scan the QR code placed on your dining table.
+      </p>
+
+      <a href="/" class="inline-flex items-center justify-center w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm shadow-lg transition-all active:scale-[0.98]" data-i18n="table_go_home">
+        Go to LIMRA Home
+      </a>
     </div>
   </div>
 
@@ -270,7 +269,7 @@
         </button>
         <div class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold flex items-center gap-1">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          Table Ordering Active
+          <span data-i18n="table_active">Table Ordering Active</span>
         </div>
       </div>
     </header>
@@ -283,7 +282,7 @@
         <!-- Search bar -->
         <div class="relative mb-6">
           <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
-          <input type="text" id="food-search-input" placeholder="Search dishes, drinks, desserts..." class="w-full pl-11 pr-4 py-3 rounded-2xl glass-input text-sm">
+          <input type="text" id="food-search-input" placeholder="Search dishes, drinks, desserts..." data-i18n-placeholder="table_search_placeholder" class="w-full pl-11 pr-4 py-3 rounded-2xl glass-input text-sm">
         </div>
 
         <!-- Horizontal Scrollable Categories -->
@@ -309,7 +308,7 @@
       <div class="w-full md:w-[360px] lg:w-[400px] shrink-0 hidden md:block">
         <div class="glass-card p-5 sticky top-24" style="max-height: calc(100vh - 120px); display: flex; flex-col; height: 100%;">
           <h3 class="text-base font-bold font-outfit mb-4 pb-3 border-b border-white/5 flex items-center justify-between" style="font-family:'Outfit', sans-serif;">
-            <span>🛒 Your Order Tray</span>
+            <span data-i18n="order_tray">🛒 Your Order Tray</span>
             <span class="text-xs px-2 py-0.5 rounded-full bg-white/5 text-slate-300" id="cart-count-desktop">0 items</span>
           </h3>
 
@@ -321,10 +320,10 @@
           <!-- Totals & Place Order -->
           <div class="mt-4 pt-4 border-t border-white/5 space-y-4">
             <div class="flex justify-between items-center text-sm font-semibold">
-              <span class="text-slate-400">Total Amount</span>
+              <span class="text-slate-400" data-i18n="cart_total">Total Amount</span>
               <span class="text-lg text-amber-500 font-bold" id="cart-total-desktop">₹0.00</span>
             </div>
-            <button id="btn-checkout-desktop" class="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-sm shadow-lg shadow-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed">
+            <button id="btn-checkout-desktop" class="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-sm shadow-lg shadow-amber-500/20 disabled:opacity-40 disabled:cursor-not-allowed" data-i18n="place_table_order">
               Place Table Order
             </button>
           </div>
@@ -344,7 +343,7 @@
     <div id="cart-drawer-overlay" class="fixed inset-0 bg-slate-950/80 z-50 backdrop-blur-sm hidden flex items-end justify-center">
       <div class="w-full max-w-lg glass-card rounded-t-3xl p-5 space-y-4 max-h-[85vh] flex flex-col animate-slide-up">
         <div class="flex items-center justify-between pb-2 border-b border-white/5">
-          <h3 class="text-base font-bold font-outfit" style="font-family:'Outfit', sans-serif;">🛒 Your Cart Tray</h3>
+          <h3 class="text-base font-bold font-outfit" style="font-family:'Outfit', sans-serif;" data-i18n="order_tray">🛒 Your Cart Tray</h3>
           <button id="cart-drawer-close" class="text-slate-400 hover:text-slate-200 text-xl font-bold p-1">✕</button>
         </div>
 
@@ -354,10 +353,10 @@
 
         <div class="pt-4 border-t border-white/5 space-y-4">
           <div class="flex justify-between items-center text-sm font-semibold">
-            <span class="text-slate-400">Total Amount</span>
+            <span class="text-slate-400" data-i18n="cart_total">Total Amount</span>
             <span class="text-lg text-amber-500 font-bold" id="cart-total-mobile">₹0.00</span>
           </div>
-          <button id="btn-checkout-mobile" class="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-sm shadow-lg">
+          <button id="btn-checkout-mobile" class="w-full py-3.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-sm shadow-lg" data-i18n="place_table_order">
             Place Table Order
           </button>
         </div>
@@ -372,25 +371,25 @@
     <div class="w-full max-w-md glass-card p-6 space-y-5 animate-scale-up">
       <div class="flex items-center justify-between pb-3 border-b border-white/5">
         <h3 class="text-base font-bold font-outfit flex items-center gap-2" style="font-family:'Outfit', sans-serif;">
-          <span>📝 Confirm Table Order</span>
+          <span data-i18n="confirm_table_order">📝 Confirm Table Order</span>
         </h3>
         <button id="checkout-modal-close" class="text-slate-400 hover:text-slate-200 text-sm font-bold">✕</button>
       </div>
 
       <form id="checkout-form" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Your Name </label>
-          <input type="text" name="name" placeholder="Guest" class="w-full px-4 py-3 rounded-xl glass-input text-sm">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5" data-i18n="label_name">Your Name</label>
+          <input type="text" name="name" placeholder="Guest" data-i18n-placeholder="placeholder_name" class="w-full px-4 py-3 rounded-xl glass-input text-sm">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Phone Number</label>
-          <input type="tel" name="phone" placeholder="Enter 10-digit mobile number" class="w-full px-4 py-3 rounded-xl glass-input text-sm">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5" data-i18n="label_phone">Phone Number</label>
+          <input type="tel" name="phone" placeholder="Enter 10-digit mobile number" data-i18n-placeholder="placeholder_phone" class="w-full px-4 py-3 rounded-xl glass-input text-sm">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Cooking Instructions (Optional)</label>
-          <textarea name="notes" placeholder="E.g., Make it spicy, No onions, etc." rows="2" class="w-full px-4 py-3 rounded-xl glass-input text-sm resize-none"></textarea>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5" data-i18n="label_instructions">Cooking Instructions (Optional)</label>
+          <textarea name="notes" placeholder="E.g., Make it spicy, No onions, etc." data-i18n-placeholder="placeholder_instructions" rows="2" class="w-full px-4 py-3 rounded-xl glass-input text-sm resize-none"></textarea>
         </div>
 
         <div>
@@ -406,34 +405,30 @@
 
         <div class="rounded-xl p-4 space-y-2 bg-slate-900/60 border border-white/5 text-xs text-left">
           <div class="flex justify-between text-slate-400">
-            <span>Subtotal</span>
+            <span data-i18n="cart_subtotal">Subtotal</span>
             <span class="font-semibold text-slate-200" id="modal-subtotal">₹0.00</span>
           </div>
           <div class="flex justify-between text-emerald-500 hidden" id="modal-discount-row">
-            <span>Discount</span>
+            <span data-i18n="cart_discount">Discount</span>
             <span class="font-semibold" id="modal-discount">-₹0.00</span>
           </div>
           <div class="flex justify-between text-slate-400">
             <span>5% GST</span>
             <span class="font-semibold text-slate-200" id="modal-gst">₹0.00</span>
           </div>
-          <!-- <div class="flex justify-between text-slate-400">
-            <span>5% off</span>
-            <span class="font-semibold text-slate-200" id="modal-gst">₹0.00</span>
-          </div> -->
           <hr class="border-white/5 my-1">
           <div class="flex justify-between text-sm font-bold text-slate-200">
-            <span>Total Payable</span>
+            <span data-i18n="cart_total">Total Payable</span>
             <span class="text-amber-500" id="modal-total">₹0.00</span>
           </div>
         </div>
 
         <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 leading-relaxed flex gap-2">
           <span class="text-lg shrink-0">⚡</span>
-          <p>This order will be automatically linked to <strong>Table <span id="checkout-table-display">X</span></strong> (Zone: <span id="checkout-zone-display">Indoor</span>) and immediately sent to the kitchen. You can pay after dining.</p>
+          <p data-i18n="order_linked_notice">This order will be automatically linked to Table (Zone: Indoor) and immediately sent to the kitchen. You can pay after dining.</p>
         </div>
 
-        <button type="submit" id="btn-submit-order" class="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-sm shadow-lg shadow-amber-500/20">
+        <button type="submit" id="btn-submit-order" class="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold transition-all text-sm shadow-lg shadow-amber-500/20" data-i18n="table_kitchen_btn">
           Confirm & Send to Kitchen
         </button>
       </form>
@@ -449,8 +444,8 @@
         ✓
       </div>
       <div class="space-y-2">
-        <h2 class="text-2xl font-bold font-outfit text-emerald-400" style="font-family:'Outfit', sans-serif;">Order Sent to Kitchen!</h2>
-        <p class="text-sm text-slate-300">Your order has been received. Our chefs are preparing your food now.</p>
+        <h2 class="text-2xl font-bold font-outfit text-emerald-400" style="font-family:'Outfit', sans-serif;" data-i18n="table_order_success">Order Sent to Kitchen!</h2>
+        <p class="text-sm text-slate-300" data-i18n="table_order_success_sub">Your order has been received. Our chefs are preparing your food now.</p>
       </div>
 
       <div class="p-4 rounded-xl bg-slate-900/60 border border-white/5 text-left text-xs space-y-2.5">
@@ -473,7 +468,7 @@
         <p class="text-slate-300 text-[11px]">Use code <strong class="text-amber-500 font-bold" id="success-promo-code">CODE</strong> to get <strong class="text-amber-400 font-bold" id="success-promo-pct">X%</strong> off on your next visit! Valid until <span id="success-promo-expiry">Date</span>.</p>
       </div>
 
-      <button id="btn-order-more" class="w-full py-3.5 rounded-xl border border-white/10 hover:border-amber-500/30 text-slate-200 hover:text-amber-500 font-semibold transition-all text-sm">
+      <button id="btn-order-more" class="w-full py-3.5 rounded-xl border border-white/10 hover:border-amber-500/30 text-slate-200 hover:text-amber-500 font-semibold transition-all text-sm" data-i18n="order_more">
         Order More Items
       </button>
     </div>
