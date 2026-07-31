@@ -244,8 +244,8 @@ async function initCustomerView() {
   initTableLanguageSystem();
   const zone = currentTable <= 9 ? 'indoor' : 'outdoor';
   const zoneLabel = zone === 'indoor' ? '🪑 Indoor' : '🌿 Outdoor';
-  $('#customer-table-number-label').textContent = `Serving Table ${currentTable} (${zoneLabel})`;
-  $('#checkout-table-display').textContent = currentTable;
+  if ($('customer-table-number-label')) $('customer-table-number-label').textContent = `Serving Table ${currentTable} (${zoneLabel})`;
+  if ($('checkout-table-display')) $('checkout-table-display').textContent = currentTable;
   if ($('checkout-zone-display')) $('checkout-zone-display').textContent = zoneLabel;
   
   // Load dynamic menu overrides first
