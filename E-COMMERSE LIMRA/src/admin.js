@@ -1707,7 +1707,8 @@ function buildDetailedWhatsAppOrderMessage(order, items = [], parsedMeta = {}, p
     msg += `\n🎁 *Special Offer*: ${promoMsg.trim()}\n`;
   }
 
-  msg += `\n⭐ *Enjoyed your meal? Please leave us a 5-star Google Review:* \nhttps://g.page/r/limra-restaurant/review\n`;
+  msg += `\n⭐ *Enjoyed your meal? Please leave us a 5-star Google Review:* \nhttps://www.google.com/search?q=LIMRA+RESTAURANT+Reviews&si=APenkKm7iecQ4G6P-TsbSMFKIQtv3EFIqRAFw-i8uEbk55Z-_6dIxfmNBwW99EmmQi8qL9XUXBIGdTaYGGEV6j9GaIbMMJLZYHcwcGdpMDluPybR3SZOzvBqx0gc8Uh6gAtJQdgYpnaRRIWykrEWWbdLZoniWAXnEg%3D%3D\n`;
+  msg += `\n📍 *Locate us on Google Maps:* \nhttps://www.google.com/maps/place/LIMRA+RESTAURANT/@21.8603074,87.4768049,859m/data=!3m2!1e3!4b1!4m6!3m5!1s0x3a1d2b2614f3c155:0xdf9ca79af511eaca!8m2!3d21.8603074!4d87.4793798!16s%2Fg%2F11wwq23wgv?entry=ttu\n`;
 
   msg += `\nThank you for choosing LIMRA Restaurant! 🙏\nQuestions or changes? Call us at 097390 83418`;
 

@@ -1,7 +1,7 @@
 import { insforge, saveOrder, getMenuOverrides, validateCouponCode, redeemCoupon, getCombos } from '../lib/insforge.js';
 import { menuItems, categoryTabOrder, categoryLabels, categoryEmojis } from '../data/menu.js';
 
-const GOOGLE_REVIEW_URL = 'https://www.google.com/travel/search?q=limra%20restaurant%20reviews&g2lb=4965990%2C72471280%2C72560029%2C72573224%2C72647020%2C72686036%2C72803964%2C72882230%2C73064764%2C121738283%2C121762713&hl=en-IN&gl=in&cs=1&ssta=1&ts=CAEaKwopEicyJTB4M2ExZDJiMjYxNGYzYzE1NToweGRmOWNhNzlhZjUxMWVhY2E&qs=CAEyFENnc0l5dFhIcUtfenFjN2ZBUkFCOAI&ap=ugEHcmV2aWV3cw&ictx=111&ved=0CAAQ5JsGahcKEwiIhf6ftcyVAxUAAAAAHQAAAAAQBA';
+const GOOGLE_REVIEW_URL = 'https://www.google.com/search?q=LIMRA+RESTAURANT+Reviews&si=APenkKm7iecQ4G6P-TsbSMFKIQtv3EFIqRAFw-i8uEbk55Z-_6dIxfmNBwW99EmmQi8qL9XUXBIGdTaYGGEV6j9GaIbMMJLZYHcwcGdpMDluPybR3SZOzvBqx0gc8Uh6gAtJQdgYpnaRRIWykrEWWbdLZoniWAXnEg%3D%3D';
 
 
 const $ = selector => {
