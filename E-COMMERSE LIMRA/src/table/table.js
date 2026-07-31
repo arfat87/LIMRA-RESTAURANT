@@ -1,7 +1,100 @@
 import { insforge, saveOrder, getMenuOverrides, validateCouponCode, redeemCoupon, getCombos } from '../lib/insforge.js';
 import { menuItems, categoryTabOrder, categoryLabels, categoryEmojis } from '../data/menu.js';
+import { t, getLanguage, setLanguage, translateCategory } from '../data/i18n.js';
 
 const GOOGLE_REVIEW_URL = 'https://www.google.com/search?q=LIMRA+RESTAURANT+Reviews&si=APenkKm7iecQ4G6P-TsbSMFKIQtv3EFIqRAFw-i8uEbk55Z-_6dIxfmNBwW99EmmQi8qL9XUXBIGdTaYGGEV6j9GaIbMMJLZYHcwcGdpMDluPybR3SZOzvBqx0gc8Uh6gAtJQdgYpnaRRIWykrEWWbdLZoniWAXnEg%3D%3D';
+
+// ═══════════════════════════════════════
+// DINE-IN TABLE LANGUAGE ENGINE
+// ═══════════════════════════════════════
+let selectedTableModalLang = 'en';
+
+function initTableLanguageSystem() {
+  const savedLang = localStorage.getItem('limra_lang');
+
+  const btnEn = $('#lang-btn-en');
+  const btnBn = $('#lang-btn-bn');
+  const confirmBtn = $('#lang-confirm-btn');
+  const tableLangBtn = $('#table-lang-btn');
+
+  function updateModalBtnStyles(lang) {
+    selectedTableModalLang = lang;
+    if (btnEn && btnBn) {
+      if (lang === 'en') {
+        btnEn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-500/10 transition-all cursor-pointer shadow-sm';
+        btnBn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-white/10 hover:border-amber-500 hover:bg-amber-500/10 transition-all cursor-pointer shadow-sm';
+      } else {
+        btnBn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-500/10 transition-all cursor-pointer shadow-sm';
+        btnEn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-white/10 hover:border-amber-500 hover:bg-amber-500/10 transition-all cursor-pointer shadow-sm';
+      }
+    }
+  }
+
+  btnEn?.addEventListener('click', () => updateModalBtnStyles('en'));
+  btnBn?.addEventListener('click', () => updateModalBtnStyles('bn'));
+
+  confirmBtn?.addEventListener('click', () => {
+    setLanguage(selectedTableModalLang);
+    hideLanguageModal();
+    applyTableLanguage(selectedTableModalLang);
+  });
+
+  tableLangBtn?.addEventListener('click', () => {
+    const current = getLanguage();
+    const next = current === 'bn' ? 'en' : 'bn';
+    setLanguage(next);
+    applyTableLanguage(next);
+  });
+
+  if (!savedLang) {
+    showLanguageModal();
+    updateModalBtnStyles('en');
+  } else {
+    applyTableLanguage(savedLang);
+  }
+}
+
+function showLanguageModal() {
+  const modal = $('#lang-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.remove('opacity-0');
+    if (modal.children[0]) modal.children[0].classList.remove('scale-95');
+  }, 50);
+}
+
+function hideLanguageModal() {
+  const modal = $('#lang-modal');
+  if (!modal) return;
+  modal.classList.add('opacity-0');
+  if (modal.children[0]) modal.children[0].classList.add('scale-95');
+  setTimeout(() => {
+    modal.classList.add('hidden');
+  }, 300);
+}
+
+function applyTableLanguage(lang) {
+  const current = setLanguage(lang);
+  const tableLangLabel = $('#table-lang-label');
+  if (tableLangLabel) {
+    tableLangLabel.textContent = current === 'bn' ? 'বাংলা' : 'EN';
+  }
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (key) {
+      el.textContent = t(key, el.textContent);
+    }
+  });
+
+  if (typeof renderCategoryChips === 'function') {
+    renderCategoryChips();
+  }
+  if (typeof renderMenu === 'function') {
+    renderMenu();
+  }
+}
 
 
 const $ = selector => {
@@ -141,6 +234,7 @@ async function loadMenuOverridesAndApply() {
 }
 
 async function initCustomerView() {
+  initTableLanguageSystem();
   const zone = currentTable <= 9 ? 'indoor' : 'outdoor';
   const zoneLabel = zone === 'indoor' ? '🪑 Indoor' : '🌿 Outdoor';
   $('#customer-table-number-label').textContent = `Serving Table ${currentTable} (${zoneLabel})`;
@@ -176,25 +270,30 @@ function renderCategoryChips() {
   const container = $('#categories-scroll-container');
   if (!container) return;
 
+  const currentLang = getLanguage();
+  const specialsLabel = currentLang === 'bn' ? 'আজকের স্পেশাল' : "Today's Specials";
+  const allLabel = currentLang === 'bn' ? 'সব খাবার' : 'All Items';
+
   const specialsChipHtml = `
     <button class="category-chip px-5 py-2.5 rounded-full text-xs font-semibold border border-white/5 bg-slate-900/60 text-slate-300 hover:border-white/10 ${selectedCategory === 'featured' ? 'active' : ''}" data-category="featured">
-      ⭐ Today's Specials
+      ⭐ ${specialsLabel}
     </button>
   `;
 
   const allChipHtml = `
     <button class="category-chip px-5 py-2.5 rounded-full text-xs font-semibold border border-white/5 bg-slate-900/60 text-slate-300 hover:border-white/10 ${selectedCategory === 'all' ? 'active' : ''}" data-category="all">
-      🍽️ All Items
+      🍽️ ${allLabel}
     </button>
   `;
 
   const chipsHtml = categoryTabOrder.map(cat => {
     const label = categoryLabels[cat] || cat;
+    const transLabel = currentLang === 'bn' ? translateCategory(cat) : label;
     const emoji = categoryEmojis[cat] || '🍛';
     const isActive = selectedCategory === cat;
     return `
       <button class="category-chip px-5 py-2.5 rounded-full text-xs font-semibold border border-white/5 bg-slate-900/60 text-slate-300 hover:border-white/10 ${isActive ? 'active' : ''}" data-category="${cat}">
-        ${emoji} ${label}
+        ${emoji} ${transLabel}
       </button>
     `;
   }).join('');

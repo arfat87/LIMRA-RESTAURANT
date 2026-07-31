@@ -3,6 +3,101 @@ import { insforge, saveOrder, saveBooking, getCustomerBookings, getCustomerOrder
 import { menuItems, categoryImages, categoryLabels, categoryEmojis, categoryTabOrder } from './data/menu.js';
 import { sendEmailNotification, generateOrderPlacedHtml } from './lib/email-service.js';
 import { NotificationService } from './lib/notifications.js';
+import { t, getLanguage, setLanguage, translateCategory } from './data/i18n.js';
+
+// ═══════════════════════════════════════
+// LANGUAGE SELECTION & TRANSLATION ENGINE
+// ═══════════════════════════════════════
+let selectedModalLang = 'en';
+
+function initLanguageSystem() {
+  const savedLang = localStorage.getItem('limra_lang');
+  
+  const btnEn = document.getElementById('lang-btn-en');
+  const btnBn = document.getElementById('lang-btn-bn');
+  const confirmBtn = document.getElementById('lang-confirm-btn');
+  const headerBtn = document.getElementById('header-lang-btn');
+
+  function updateModalBtnStyles(lang) {
+    selectedModalLang = lang;
+    if (btnEn && btnBn) {
+      if (lang === 'en') {
+        btnEn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-50/50 transition-all cursor-pointer shadow-sm';
+        btnBn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all cursor-pointer shadow-sm';
+      } else {
+        btnBn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-50/50 transition-all cursor-pointer shadow-sm';
+        btnEn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all cursor-pointer shadow-sm';
+      }
+    }
+  }
+
+  btnEn?.addEventListener('click', () => updateModalBtnStyles('en'));
+  btnBn?.addEventListener('click', () => updateModalBtnStyles('bn'));
+
+  confirmBtn?.addEventListener('click', () => {
+    setLanguage(selectedModalLang);
+    hideLanguageModal();
+    applyLanguage(selectedModalLang);
+  });
+
+  headerBtn?.addEventListener('click', () => {
+    const current = getLanguage();
+    const next = current === 'bn' ? 'en' : 'bn';
+    setLanguage(next);
+    applyLanguage(next);
+  });
+
+  if (!savedLang) {
+    showLanguageModal();
+    updateModalBtnStyles('en');
+  } else {
+    applyLanguage(savedLang);
+  }
+}
+
+function showLanguageModal() {
+  const modal = document.getElementById('lang-modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.remove('opacity-0');
+    if (modal.children[0]) modal.children[0].classList.remove('scale-95');
+  }, 50);
+}
+
+function hideLanguageModal() {
+  const modal = document.getElementById('lang-modal');
+  if (!modal) return;
+  modal.classList.add('opacity-0');
+  if (modal.children[0]) modal.children[0].classList.add('scale-95');
+  setTimeout(() => {
+    modal.classList.add('hidden');
+  }, 300);
+}
+
+function applyLanguage(lang) {
+  const current = setLanguage(lang);
+  const headerLabel = document.getElementById('header-lang-label');
+  if (headerLabel) {
+    headerLabel.textContent = current === 'bn' ? 'বাংলা' : 'EN';
+  }
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (key) {
+      el.textContent = t(key, el.textContent);
+    }
+  });
+
+  if (typeof buildCategoryTabButtons === 'function') {
+    buildCategoryTabButtons();
+  }
+
+  if (typeof renderMenuGrid === 'function') {
+    renderMenuGrid('menu-grid', currentMenuCategory || 'all');
+    renderMenuGrid('order-grid', currentMenuCategory || 'all');
+  }
+}
 
 
 // ═══════════════════════════════════════
@@ -1353,6 +1448,7 @@ async function loadMenuOverridesAndApply() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  initLanguageSystem();
   initScrollAnimations();
 
   // Load database delivery areas and menu overrides before rendering grids

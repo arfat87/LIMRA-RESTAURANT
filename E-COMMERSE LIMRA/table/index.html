@@ -264,9 +264,14 @@
           <p class="text-xs text-slate-400 font-semibold" id="customer-table-number-label">Loading Table...</p>
         </div>
       </div>
-      <div class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold flex items-center gap-1">
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        Table Ordering Active
+      <div class="flex items-center gap-2">
+        <button id="table-lang-btn" type="button" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center gap-1 cursor-pointer transition-all active:scale-95" title="Switch Language / ভাষা পরিবর্তন">
+          🌐 <span id="table-lang-label">EN</span>
+        </button>
+        <div class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Table Ordering Active
+        </div>
       </div>
     </header>
 
@@ -718,6 +723,39 @@
           <!-- Recommendations will render here -->
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- MODAL: LANGUAGE SELECTION (ENGLISH / BENGALI) -->
+  <!-- ═══════════════════════════════════════ -->
+  <div id="lang-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+    <div class="relative w-full max-w-md bg-slate-900 rounded-3xl p-6 md:p-8 shadow-2xl border border-white/10 text-center transform scale-95 transition-transform duration-300 text-slate-100">
+      <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl bg-amber-500/10 border border-amber-500/20 text-amber-500">
+        🌐
+      </div>
+      <h2 class="font-outfit font-extrabold text-xl text-slate-100 mb-2" data-i18n="lang_modal_title">Welcome to LIMRA Restaurant</h2>
+      <p class="text-xs text-slate-400 mb-6 leading-relaxed" data-i18n="lang_modal_sub">
+        Please select your preferred language to continue / অনুগ্রহ করে আপনার ভাষা নির্বাচন করুন:
+      </p>
+
+      <div class="grid grid-cols-2 gap-3.5 mb-6">
+        <button id="lang-btn-en" type="button" class="group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-all cursor-pointer shadow-sm">
+          <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">🇬🇧</span>
+          <span class="font-bold text-sm text-slate-100">English</span>
+          <span class="text-[10px] text-slate-400 font-medium">Default</span>
+        </button>
+
+        <button id="lang-btn-bn" type="button" class="group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-white/10 hover:border-amber-500 hover:bg-amber-500/10 transition-all cursor-pointer shadow-sm">
+          <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">🇧🇩</span>
+          <span class="font-bold text-sm text-slate-100">বাংলা</span>
+          <span class="text-[10px] text-slate-400 font-medium">Bengali</span>
+        </button>
+      </div>
+
+      <button id="lang-confirm-btn" type="button" class="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm shadow-lg transition-all active:scale-[0.98] cursor-pointer" data-i18n="lang_confirm">
+        Continue / এগিয়ে যান ➔
+      </button>
     </div>
   </div>
 
