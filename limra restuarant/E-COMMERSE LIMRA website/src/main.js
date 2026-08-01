@@ -4628,9 +4628,63 @@ function setupProductDetailModalListeners() {
   });
 }
 
+// ═══════════════════════════════════════
+// GLOBAL LANGUAGE SWITCHER SYSTEM (EN / BN / HI)
+// ═══════════════════════════════════════
+function initLanguageSwitcher() {
+  const select = document.getElementById('global-lang-select');
+  if (!select) return;
+
+  const savedLang = localStorage.getItem('limra-lang') || 'en';
+  select.value = savedLang;
+
+  if (!document.getElementById('google-translate-script')) {
+    const div = document.createElement('div');
+    div.id = 'google_translate_element';
+    div.style.display = 'none';
+    document.body.appendChild(div);
+
+    window.googleTranslateElementInit = function() {
+      new window.google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'en,bn,hi',
+        layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+        autoDisplay: false
+      }, 'google_translate_element');
+    };
+
+    const s = document.createElement('script');
+    s.id = 'google-translate-script';
+    s.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+    document.body.appendChild(s);
+  }
+
+  select.addEventListener('change', (e) => {
+    const lang = e.target.value;
+    localStorage.setItem('limra-lang', lang);
+
+    const targetCode = lang === 'en' ? '/en/en' : `/en/${lang}`;
+    document.cookie = `googtrans=${targetCode}; path=/; domain=${window.location.hostname}`;
+    document.cookie = `googtrans=${targetCode}; path=/`;
+
+    const frame = document.querySelector('.goog-te-combo');
+    if (frame) {
+      frame.value = lang;
+      frame.dispatchEvent(new Event('change'));
+    } else {
+      window.location.reload();
+    }
+  });
+}
+
 // Execute setup
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupProductDetailModalListeners);
+  document.addEventListener('DOMContentLoaded', () => {
+    setupProductDetailModalListeners();
+    initLanguageSwitcher();
+  });
 } else {
   setupProductDetailModalListeners();
+  initLanguageSwitcher();
 }
+

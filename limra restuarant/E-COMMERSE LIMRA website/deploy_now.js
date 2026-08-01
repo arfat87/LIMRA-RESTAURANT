@@ -1,4 +1,5 @@
 import { registerInsforgeTools } from "./package/dist/chunk-VMC7ZO3K.js";
+import path from "path";
 
 const tools = {};
 const mockServer = {
@@ -20,9 +21,10 @@ async function main() {
 
   console.log("Available tools:", Object.keys(tools));
 
-  console.log("Invoking create-deployment tool...");
+  const distPath = path.resolve(process.cwd(), "dist");
+  console.log("Invoking create-deployment tool for path:", distPath);
   const result = await tools["create-deployment"]({
-    sourceDirectory: "c:\\MY_ALL_ITEM\\ALL_PROJECT\\biuld with Ai\\E-COMMERSE LIMRA\\dist"
+    sourceDirectory: distPath
   });
 
   console.log("Deployment Call Finished.");
