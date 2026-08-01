@@ -2,10 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
-// Read config from .insforge/project.json
-const projectConfig = JSON.parse(fs.readFileSync('.insforge/project.json', 'utf8'));
-const API_BASE_URL = projectConfig.oss_host; // e.g. https://vb9ucr22.us-east.insforge.app
-const API_KEY = projectConfig.api_key;
+const API_BASE_URL = 'https://vb9ucr22.us-east.insforge.app';
+const API_KEY = 'ik_799af068e8f4fb05944d04497229fe7d';
 const SOURCE_DIR = path.resolve('dist');
 
 console.log(`Deploying from: ${SOURCE_DIR}`);

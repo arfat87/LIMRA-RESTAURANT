@@ -183,6 +183,10 @@
       <a href="#gallery" class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_gallery">Gallery</a>
       <a href="#about"   class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_about">About</a>
       <a href="#visit"   class="mobile-nav-link py-2.5 text-sm font-medium border-b" style="color:var(--color-text-secondary); border-color:var(--color-border)" data-i18n="nav_visit">Visit Us</a>
+      <button type="button" id="mobile-lang-btn" class="mobile-nav-link py-2.5 text-sm font-semibold flex items-center justify-between border-b cursor-pointer" style="color:var(--color-text-primary); border-color:var(--color-border)">
+        <span>🌐 <span data-i18n="select_lang">Language / ভাষা:</span></span>
+        <span id="mobile-lang-label" class="font-bold text-amber-600">EN</span>
+      </button>
       <a href="#" id="mobile-profile-link" class="mobile-nav-link py-2.5 text-sm font-semibold" style="color:var(--color-accent)">My Account</a>
     </nav>
   </div>
@@ -1591,6 +1595,9 @@
 <!-- ═══════════════════════════════════════ -->
 <div id="lang-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
   <div class="relative w-full max-w-md bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 text-center transform scale-95 transition-transform duration-300">
+    <button id="lang-modal-close" type="button" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer" aria-label="Close">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
     <div class="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl shadow-inner" style="background:var(--color-light-peach); color:var(--color-accent)">
       🌐
     </div>

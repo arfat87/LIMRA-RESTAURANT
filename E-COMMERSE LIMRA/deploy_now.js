@@ -2,7 +2,6 @@ import { spawn } from 'child_process';
 import path from 'path';
 
 const distDir = path.resolve('dist');
-
 console.log(`Starting InsForge deployment for build directory: ${distDir}`);
 
 const proc = spawn('npx', [
@@ -16,62 +15,82 @@ const proc = spawn('npx', [
 
 let buffer = '';
 
+function sendJson(obj) {
+  const str = JSON.stringify(obj) + '\n';
+  console.log('>>> SENDING:', str.trim());
+  proc.stdin.write(str);
+}
+
 proc.stdout.on('data', (data) => {
-  const str = data.toString();
-  buffer += str;
-  console.log(str);
-  
-  try {
-    const lines = buffer.split('\n');
-    for (let i = 0; i < lines.length - 1; i++) {
-      const line = lines[i].trim();
-      if (line.startsWith('{') && line.endsWith('}')) {
-        const json = JSON.parse(line);
-        if (json.id === 4) {
-          console.log('=== DEPLOYMENT RESULT ===');
-          console.log(JSON.stringify(json.result, null, 2));
-          proc.kill();
-          process.exit(0);
-        }
+  buffer += data.toString();
+  const lines = buffer.split('\n');
+  buffer = lines.pop(); // keep unfinished fragment
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    console.log('<<< RECV:', trimmed);
+    try {
+      const msg = JSON.parse(trimmed);
+
+      // Response to initialize (id: 1)
+      if (msg.id === 1) {
+        console.log('✓ MCP Initialized! Sending initialized notification & listing tools...');
+        sendJson({ jsonrpc: '2.0', method: 'notifications/initialized' });
+        sendJson({ jsonrpc: '2.0', method: 'tools/list', id: 2 });
       }
+
+      // Response to tools/list (id: 2)
+      if (msg.id === 2 && msg.result && msg.result.tools) {
+        console.log('✓ Registered tools:', msg.result.tools.map(t => t.name));
+        const deployTool = msg.result.tools.find(t => t.name.includes('deploy'));
+        const toolName = deployTool ? deployTool.name : 'create-deployment';
+        console.log(`Calling deployment tool "${toolName}"...`);
+        sendJson({
+          jsonrpc: '2.0',
+          method: 'tools/call',
+          params: {
+            name: toolName,
+            arguments: {
+              sourceDirectory: distDir
+            }
+          },
+          id: 3
+        });
+      }
+
+      // Response to tools/call (id: 3)
+      if (msg.id === 3) {
+        console.log('🎉 DEPLOYMENT SUCCESSFUL!');
+        console.log(JSON.stringify(msg.result, null, 2));
+        proc.kill();
+        process.exit(0);
+      }
+    } catch (e) {
+      // not JSON line, ignore
     }
-    buffer = lines[lines.length - 1];
-  } catch (e) {
-    // Wait for more data
   }
 });
 
 proc.stderr.on('data', (data) => {
   const errStr = data.toString();
-  console.error(errStr);
+  console.error('[STDERR]', errStr.trim());
   if (errStr.includes('Insforge MCP server started')) {
-    setTimeout(() => {
-      console.log('Sending create-deployment request...');
-      const req = JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'tools/call',
-        params: {
-          name: 'create-deployment',
-          arguments: {
-            sourceDirectory: distDir
-          }
-        },
-        id: 4
-      }) + '\n';
-      proc.stdin.write(req);
-    }, 1000);
+    console.log('Sending MCP initialize request...');
+    sendJson({
+      jsonrpc: '2.0',
+      method: 'initialize',
+      params: {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'insforge-deployer', version: '1.0.0' }
+      },
+      id: 1
+    });
   }
 });
 
 proc.on('close', (code) => {
   console.log(`Process exited with code ${code}`);
-  if (buffer.trim()) {
-    try {
-      const json = JSON.parse(buffer.trim());
-      console.log('=== FINAL BUFFER ===', JSON.stringify(json, null, 2));
-    } catch (e) {
-      console.log('=== RAW BUFFER ===', buffer);
-    }
-  }
   process.exit(0);
 });

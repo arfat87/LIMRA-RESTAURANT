@@ -16,17 +16,20 @@ function initLanguageSystem() {
   const btnEn = document.getElementById('lang-btn-en');
   const btnBn = document.getElementById('lang-btn-bn');
   const confirmBtn = document.getElementById('lang-confirm-btn');
+  const closeBtn = document.getElementById('lang-modal-close');
+  const modal = document.getElementById('lang-modal');
   const headerBtn = document.getElementById('header-lang-btn');
+  const mobileLangBtn = document.getElementById('mobile-lang-btn');
 
   function updateModalBtnStyles(lang) {
     selectedModalLang = lang;
     if (btnEn && btnBn) {
       if (lang === 'en') {
-        btnEn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-50/50 transition-all cursor-pointer shadow-sm';
-        btnBn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all cursor-pointer shadow-sm';
+        btnEn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-50/80 shadow-md transition-all cursor-pointer';
+        btnBn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all cursor-pointer';
       } else {
-        btnBn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-50/50 transition-all cursor-pointer shadow-sm';
-        btnEn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all cursor-pointer shadow-sm';
+        btnBn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-amber-500 bg-amber-50/80 shadow-md transition-all cursor-pointer';
+        btnEn.className = 'group flex flex-col items-center justify-center p-4 rounded-2xl border-2 border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all cursor-pointer';
       }
     }
   }
@@ -40,19 +43,26 @@ function initLanguageSystem() {
     applyLanguage(selectedModalLang);
   });
 
-  headerBtn?.addEventListener('click', () => {
-    const current = getLanguage();
-    const next = current === 'bn' ? 'en' : 'bn';
-    setLanguage(next);
-    applyLanguage(next);
+  closeBtn?.addEventListener('click', () => {
+    hideLanguageModal();
   });
 
-  if (!savedLang) {
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) hideLanguageModal();
+  });
+
+  const openModalHandler = (e) => {
+    if (e) e.preventDefault();
+    updateModalBtnStyles(getLanguage());
     showLanguageModal();
-    updateModalBtnStyles('en');
-  } else {
-    applyLanguage(savedLang);
-  }
+  };
+
+  headerBtn?.addEventListener('click', openModalHandler);
+  mobileLangBtn?.addEventListener('click', openModalHandler);
+
+  const initialLang = savedLang || 'en';
+  applyLanguage(initialLang);
+  openModalHandler();
 }
 
 function showLanguageModal() {
@@ -64,6 +74,7 @@ function showLanguageModal() {
     if (modal.children[0]) modal.children[0].classList.remove('scale-95');
   }, 50);
 }
+window.showLanguageModal = showLanguageModal;
 
 function hideLanguageModal() {
   const modal = document.getElementById('lang-modal');
@@ -78,9 +89,10 @@ function hideLanguageModal() {
 function applyLanguage(lang) {
   const current = setLanguage(lang);
   const headerLabel = document.getElementById('header-lang-label');
-  if (headerLabel) {
-    headerLabel.textContent = current === 'bn' ? 'বাংলা' : 'EN';
-  }
+  const mobileLabel = document.getElementById('mobile-lang-label');
+  const labelText = current === 'bn' ? 'বাংলা' : 'EN';
+  if (headerLabel) headerLabel.textContent = labelText;
+  if (mobileLabel) mobileLabel.textContent = labelText;
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
@@ -4741,7 +4753,11 @@ function setupProductDetailModalListeners() {
 
 // Execute setup
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupProductDetailModalListeners);
+  document.addEventListener('DOMContentLoaded', () => {
+    initLanguageSystem();
+    setupProductDetailModalListeners();
+  });
 } else {
+  initLanguageSystem();
   setupProductDetailModalListeners();
 }

@@ -15,6 +15,8 @@ function initTableLanguageSystem() {
   const btnEn = $('#lang-btn-en');
   const btnBn = $('#lang-btn-bn');
   const confirmBtn = $('#lang-confirm-btn');
+  const closeBtn = $('#lang-modal-close');
+  const modal = $('#lang-modal');
   const tableLangBtn = $('#table-lang-btn');
 
   function updateModalBtnStyles(lang) {
@@ -39,19 +41,25 @@ function initTableLanguageSystem() {
     applyTableLanguage(selectedTableModalLang);
   });
 
-  tableLangBtn?.addEventListener('click', () => {
-    const current = getLanguage();
-    const next = current === 'bn' ? 'en' : 'bn';
-    setLanguage(next);
-    applyTableLanguage(next);
+  closeBtn?.addEventListener('click', () => {
+    hideLanguageModal();
   });
 
-  if (!savedLang) {
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) hideLanguageModal();
+  });
+
+  const openModalHandler = (e) => {
+    if (e) e.preventDefault();
+    updateModalBtnStyles(getLanguage());
     showLanguageModal();
-    updateModalBtnStyles('en');
-  } else {
-    applyTableLanguage(savedLang);
-  }
+  };
+
+  tableLangBtn?.addEventListener('click', openModalHandler);
+
+  const initialLang = savedLang || 'en';
+  applyTableLanguage(initialLang);
+  openModalHandler();
 }
 
 function showLanguageModal() {
@@ -63,6 +71,7 @@ function showLanguageModal() {
     if (modal.children[0]) modal.children[0].classList.remove('scale-95');
   }, 50);
 }
+window.showLanguageModal = showLanguageModal;
 
 function hideLanguageModal() {
   const modal = $('#lang-modal');

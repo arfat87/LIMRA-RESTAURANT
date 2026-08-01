@@ -17,6 +17,7 @@ export default defineConfig({
         privacy: 'privacy.html',
         table: 'table/index.html',
         qrAdmin: 'table/qr-admin.html',
+        stockManager: 'stock-manager/index.html',
       },
     },
   },
