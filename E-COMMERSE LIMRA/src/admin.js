@@ -528,6 +528,12 @@ async function loadData() {
             n.description,
             'info'
           );
+        } else if (n.type === 'table_bill_request') {
+          showDashboardToast(
+            `🛎️ Table Final Bill Requested!`,
+            n.description,
+            'success'
+          );
         } else if (n.type === 'order_status') {
           showDashboardToast(
             `🍽️ Order Status Updated!`,
@@ -558,35 +564,30 @@ async function loadData() {
 
 async function autoAcceptTableOrders() {
   if (!Array.isArray(orders)) return;
-  const tableOrdersToComplete = orders.filter(order => {
-    if (order.status === 'delivered' || order.status === 'cancelled') return false;
+  const tableOrdersToConfirm = orders.filter(order => {
+    if (order.status !== 'pending') return false;
     const meta = parseNotesMetadata(order.notes, order);
     return meta.type === 'table';
   });
 
-  for (const order of tableOrdersToComplete) {
-    console.log(`[Auto-Accept] Dine-in Table order #${order.order_number} auto-completing...`);
+  for (const order of tableOrdersToConfirm) {
+    console.log(`[Auto-Accept] Dine-in Table order #${order.order_number} auto-confirming...`);
     try {
-      await insforge.database.from('orders').update({ status: 'delivered' }).eq('id', order.id);
-      order.status = 'delivered';
+      await insforge.database.from('orders').update({ status: 'confirmed' }).eq('id', order.id);
+      order.status = 'confirmed';
       
-      const cleanPhone = order.customer_phone.replace(/\D/g, '');
+      const cleanPhone = String(order.customer_phone).replace(/\D/g, '');
       if (cleanPhone) {
         insforge.realtime.publish(`customer-notifications:${cleanPhone}`, 'notification_created', {
           id: Date.now(),
           type: 'order_status',
-          title: 'Order Served/Completed',
-          message: `Your table order #${order.order_number} has been completed!`,
+          title: 'Order Confirmed',
+          message: `Your table order #${order.order_number} has been received by kitchen!`,
           created_at: new Date().toISOString()
         }).catch(console.warn);
       }
-      
-      insforge.realtime.publish(`order-updates:${order.id}`, 'order_status_updated', {
-        orderId: order.id,
-        status: 'delivered'
-      }).catch(console.warn);
     } catch (err) {
-      console.warn(`[Auto-Accept] Failed to auto-complete table order #${order.id}:`, err);
+      console.warn(`[Auto-Accept] Failed to auto-confirm table order #${order.id}:`, err);
     }
   }
 }
@@ -809,6 +810,13 @@ function renderStats() {
   const pendingBook = bookings.filter(b => b.status === 'pending').length;
   if (pendingBook > 0) { bookBadge.textContent = pendingBook; show(bookBadge); }
   else hide(bookBadge);
+
+  const billBadge = $('bill-requests-badge');
+  const activeBillReqs = activeNotifications.filter(n => n.type === 'table_bill_request' && !n.is_read).length;
+  if (billBadge) {
+    if (activeBillReqs > 0) { billBadge.textContent = activeBillReqs; show(billBadge); }
+    else hide(billBadge);
+  }
 }
 
 function renderDonuts() {
@@ -1375,6 +1383,187 @@ function getFilteredOrders() {
   return filtered;
 }
 
+async function settleTableSession(tableNumber) {
+  if (!tableNumber) return;
+  const tableOrders = orders.filter(o => {
+    const meta = parseNotesMetadata(o.notes, o);
+    return meta.type === 'table' && String(meta.tableNumber) === String(tableNumber) && o.status !== 'cancelled' && o.status !== 'delivered';
+  });
+
+  if (tableOrders.length === 0) {
+    alert(`No open active orders for Table #${tableNumber}.`);
+    return;
+  }
+
+  if (!confirm(`Settle final bill & complete Table #${tableNumber}? (${tableOrders.length} order rounds)`)) return;
+
+  try {
+    for (const order of tableOrders) {
+      await insforge.database.from('orders').update({
+        status: 'delivered',
+        payment_status: 'paid'
+      }).eq('id', order.id);
+      order.status = 'delivered';
+      order.payment_status = 'paid';
+    }
+
+    const tableNotifId = `table_${tableNumber}`;
+    activeNotifications.forEach(n => {
+      if (n.item_id === tableNotifId) n.is_read = true;
+    });
+
+    // Persist notification is_read status to database so dashboard stays clean
+    try {
+      await insforge.database.from('notifications')
+        .update({ is_read: true })
+        .eq('item_id', tableNotifId);
+    } catch (notifErr) {
+      console.warn('[Admin] Failed to update notification is_read in database:', notifErr);
+    }
+
+    // Broadcast realtime event so customer devices reset session for Table #tableNumber
+    try {
+      await insforge.realtime.publish(`table-notifications:${tableNumber}`, 'table_session_settled', {
+        tableNumber: tableNumber,
+        settledAt: Date.now()
+      });
+    } catch (realtimeErr) {
+      console.warn('[Admin] Realtime table settlement broadcast failed:', realtimeErr);
+    }
+
+    showAdminToast(`✅ Table #${tableNumber} session settled & completed!`, 'success');
+    refreshDashboard(false);
+  } catch (err) {
+    alert('Failed to settle table session: ' + err.message);
+  }
+}
+
+function renderTableBillsPanel() {
+  const container = $('table-bills-container');
+  const badge = $('bill-requests-badge');
+  if (!container) return;
+
+  // Find all table orders
+  const tableOrders = orders.filter(o => {
+    const meta = parseNotesMetadata(o.notes, o);
+    return meta.type === 'table';
+  });
+
+  // Group orders by tableNumber
+  const tableMap = new Map();
+  tableOrders.forEach(o => {
+    const meta = parseNotesMetadata(o.notes, o);
+    const tbl = String(meta.tableNumber || '1');
+    if (!tableMap.has(tbl)) {
+      tableMap.set(tbl, []);
+    }
+    tableMap.get(tbl).push({ order: o, meta });
+  });
+
+  // Find active bill requests from notifications
+  const activeBillRequests = activeNotifications.filter(n => n.type === 'table_bill_request' && !n.is_read);
+  if (badge) {
+    if (activeBillRequests.length > 0) {
+      badge.textContent = activeBillRequests.length;
+      show(badge);
+    } else {
+      hide(badge);
+    }
+  }
+
+  if (tableMap.size === 0) {
+    container.innerHTML = `
+      <div class="adm-card adm-empty" style="padding: 3rem; text-align: center;">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🍽️</div>
+        <h3 style="font-weight: 700; color: var(--adm-text);">No Active Customer Table Bills</h3>
+        <p style="font-size: 0.85rem; color: var(--adm-muted); margin-top: 0.25rem;">When dine-in customers place orders or request their final bill, their live totals and itemized rounds will appear here.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Render cards sorted by tables with active bill requests first
+  const sortedTables = Array.from(tableMap.entries()).sort((a, b) => {
+    const aReq = activeBillRequests.some(n => n.item_id === `table_${a[0]}`);
+    const bReq = activeBillRequests.some(n => n.item_id === `table_${b[0]}`);
+    if (aReq && !bReq) return -1;
+    if (!aReq && bReq) return 1;
+    return Number(a[0]) - Number(b[0]);
+  });
+
+  container.innerHTML = sortedTables.map(([tblNum, entries]) => {
+    const isRequested = activeBillRequests.some(n => n.item_id === `table_${tblNum}`);
+    const activeEntries = entries.filter(e => e.order.status !== 'cancelled' && e.order.status !== 'delivered');
+    const grandTotal = activeEntries.reduce((sum, e) => sum + Number(e.order.total_amount || 0), 0);
+    const customerName = entries[0]?.order?.customer_name || 'Guest Dining';
+    const firstOrderTime = entries[entries.length - 1]?.order?.created_at;
+
+    // Render round breakdown
+    const roundsHtml = entries.map((e, idx) => {
+      const items = getOrderItems(e.order.id);
+      const roundLabel = e.meta.notes && e.meta.notes.includes('[ROUND:') 
+        ? e.meta.notes.match(/\[ROUND:\s*(\d+)\]/)?.[0] || `Round #${entries.length - idx}`
+        : `Round #${entries.length - idx}`;
+
+      const itemsStr = items.length > 0
+        ? items.map(i => `<span style="display:inline-block; background:rgba(0,0,0,0.04); padding:2px 8px; border-radius:6px; margin:2px; font-size:0.75rem;">${escapeHtml(i.item_name)} <b style="color:var(--adm-green)">×${i.quantity}</b> (₹${Number(i.line_total).toFixed(2)})</span>`).join('')
+        : `<span style="font-size:0.75rem; color:var(--adm-muted)">Items total: ₹${Number(e.order.total_amount).toFixed(2)}</span>`;
+
+      return `
+        <div style="background: var(--adm-card-bg-sub, #f8faf9); padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--adm-border); margin-top: 0.5rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+            <span style="font-weight:700; font-size:0.8rem; color:#f59e0b;">${roundLabel} (Order #${e.order.order_number})</span>
+            <span style="font-size:0.75rem; font-weight:600; color:var(--adm-green)">₹${Number(e.order.total_amount).toFixed(2)}</span>
+          </div>
+          <div>${itemsStr}</div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="adm-card" style="border: 2px solid ${isRequested ? '#f59e0b' : 'var(--adm-border)'}; ${isRequested ? 'box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);' : ''}">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; border-bottom: 1px solid var(--adm-border); padding-bottom: 0.85rem; margin-bottom: 0.85rem;">
+          <div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--adm-text);">🍽️ Table #${tblNum}</h3>
+              ${isRequested ? `<span class="adm-badge" style="background:#f59e0b; color:#0f172a; font-weight:900; font-size:0.75rem; padding:3px 10px;">🛎️ FINAL BILL REQUESTED</span>` : ''}
+              ${activeEntries.length === 0 ? `<span class="adm-badge" style="background:#00b074; color:#fff;">SETTLED & PAID</span>` : `<span class="adm-badge" style="background:rgba(59,130,246,0.15); color:#3b82f6; border:1px solid rgba(59,130,246,0.3);">${activeEntries.length} Active Round${activeEntries.length > 1 ? 's' : ''}</span>`}
+            </div>
+            <p style="margin:0.25rem 0 0 0; font-size:0.8rem; color:var(--adm-muted);">
+              Guest: <b>${escapeHtml(customerName)}</b> • Seated ${firstOrderTime ? fmtDateShort(firstOrderTime) : ''}
+            </p>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-size:0.75rem; color:var(--adm-muted); display:block;">Combined Table Bill</span>
+            <span style="font-size:1.6rem; font-weight:900; color:${isRequested ? '#f59e0b' : 'var(--adm-green)'};">₹${grandTotal.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <h4 style="margin:0 0 0.4rem 0; font-size:0.8rem; font-weight:700; color:var(--adm-muted); text-transform:uppercase; letter-spacing:0.05em;">Order Rounds & Item Breakdown (${entries.length} Total)</h4>
+          ${roundsHtml}
+        </div>
+
+        ${activeEntries.length > 0 ? `
+          <div style="display:flex; justify-content:flex-end; gap:0.75rem; padding-top:0.75rem; border-top:1px dashed var(--adm-border);">
+            <button class="adm-btn adm-btn-primary btn-settle-table-bills" data-table-num="${tblNum}" style="background:#f59e0b; color:#0f172a; font-weight:800; padding:0.6rem 1.25rem; font-size:0.85rem; border-radius:10px;">
+              ✅ Collect Bill & Complete Table #${tblNum}
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Add click handlers to "Collect Bill & Complete Table" buttons
+  container.querySelectorAll('.btn-settle-table-bills').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tblNum = btn.dataset.tableNum;
+      settleTableSession(tblNum);
+    });
+  });
+}
+
 function renderOrdersTable() {
   const filtered = getFilteredOrders();
 
@@ -1416,14 +1605,25 @@ function renderOrdersTable() {
       if (parsedMeta.type === 'delivery') {
         typeText = '🚗 Delivery';
       } else if (parsedMeta.type === 'table') {
-        typeText = `🍽️ Table ${parsedMeta.tableNumber}`;
+        const roundMatch = parsedMeta.notes ? parsedMeta.notes.match(/\[ROUND:\s*(\d+)\]/) : null;
+        const roundNum = roundMatch ? roundMatch[1] : null;
+        const roundBadge = roundNum 
+          ? `<span class="adm-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-weight:800; padding:2px 8px; margin-left:4px;">🔄 Round ${roundNum}</span>` 
+          : '';
+        typeText = `🍽️ Table #${parsedMeta.tableNumber} ${roundBadge}`;
       }
+
+      const hasBillReq = parsedMeta.type === 'table' && activeNotifications.some(n => n.item_id === `table_${parsedMeta.tableNumber}` && !n.is_read);
+
       return `
         <tr data-order-id="${order.id}">
-          <td><strong>#${order.order_number}</strong></td>
+          <td>
+            <strong>#${order.order_number}</strong>
+            ${hasBillReq ? '<span class="adm-badge" style="background:rgba(245,158,11,0.2); color:#f59e0b; margin-left:4px; font-weight:bold">🛎️ Bill Req</span>' : ''}
+          </td>
           <td>
             ${escapeHtml(order.customer_name)}
-            <div class="adm-info-muted" style="margin-top: 2px; font-size: 11px;">
+            <div class="adm-info-muted" style="margin-top: 4px; font-size: 11px; display:flex; items-center; gap:4px; flex-wrap:wrap;">
               ${typeText}
             </div>
           </td>
@@ -1435,13 +1635,22 @@ function renderOrdersTable() {
           <td>
             <div style="display:flex; gap:0.5rem; align-items:center;">
               <button class="adm-btn adm-btn-primary adm-btn-sm view-order-btn" data-order-id="${order.id}">View</button>
-              ${(order.payment_status || 'unpaid') === 'unpaid' ? `<button class="adm-btn adm-btn-outline adm-btn-sm inline-mark-paid-btn" data-order-id="${order.id}" style="padding:0.4rem 0.6rem; font-size:0.75rem; border-color:var(--adm-green); color:var(--adm-green)">✓ Mark Paid</button>` : ''}
+              ${parsedMeta.type === 'table' && order.status !== 'delivered' ? `<button class="adm-btn adm-btn-outline adm-btn-sm inline-settle-table-btn" data-table-num="${parsedMeta.tableNumber}" style="padding:0.4rem 0.6rem; font-size:0.75rem; border-color:#f59e0b; color:#f59e0b; font-weight:bold">🛎️ Settle Table #${parsedMeta.tableNumber}</button>` : ''}
+              ${(order.payment_status || 'unpaid') === 'unpaid' && parsedMeta.type !== 'table' ? `<button class="adm-btn adm-btn-outline adm-btn-sm inline-mark-paid-btn" data-order-id="${order.id}" style="padding:0.4rem 0.6rem; font-size:0.75rem; border-color:var(--adm-green); color:var(--adm-green)">✓ Mark Paid</button>` : ''}
             </div>
           </td>
         </tr>
       `;
     }).join('');
   }
+
+  tbody.querySelectorAll('.inline-settle-table-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const tableNum = btn.dataset.tableNum;
+      settleTableSession(tableNum);
+    });
+  });
 
   tbody.querySelectorAll('.inline-mark-paid-btn').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -1814,8 +2023,13 @@ async function renderOrderDetail(orderId) {
             <div class="adm-customer-avatar">${initials(order.customer_name)}</div>
             <div>
               <p class="adm-customer-name">${escapeHtml(order.customer_name)}</p>
-              <span class="adm-pill confirmed">${parsedMeta.type === 'delivery' ? '🚗 Delivery' : (parsedMeta.type === 'table' ? `🍽️ Table ${parsedMeta.tableNumber}` : '🥡 Pickup')}</span>
-              <p class="adm-customer-phone"><a href="tel:${order.customer_phone}">${escapeHtml(order.customer_phone)}</a></p>
+              <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap; margin-top:4px;">
+                <span class="adm-pill confirmed">${parsedMeta.type === 'delivery' ? '🚗 Delivery' : (parsedMeta.type === 'table' ? `🍽️ Table ${parsedMeta.tableNumber}` : '🥡 Pickup')}</span>
+                ${parsedMeta.type === 'table' && parsedMeta.notes && parsedMeta.notes.match(/\[ROUND:\s*(\d+)\]/) 
+                  ? `<span class="adm-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-weight:800; padding:2px 8px;">🔄 Round ${parsedMeta.notes.match(/\[ROUND:\s*(\d+)\]/)[1]}</span>`
+                  : ''}
+              </div>
+              <p class="adm-customer-phone" style="margin-top:4px;"><a href="tel:${order.customer_phone}">${escapeHtml(order.customer_phone)}</a></p>
               ${parsedMeta.email ? `<span class="adm-email-badge">${escapeHtml(parsedMeta.email)}</span>` : ''}
             </div>
           </div>
@@ -1846,7 +2060,12 @@ async function renderOrderDetail(orderId) {
           <div class="adm-card" style="border: 2px solid var(--adm-green); background: rgba(0, 176, 116, 0.02);">
             <div class="flex items-center justify-between mb-3" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
               <h3 class="adm-card-title" style="margin:0; color:var(--adm-green)">🪑 Dine-in Table Info</h3>
-              <span class="adm-pill confirmed">Table ${parsedMeta.tableNumber}</span>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span class="adm-pill confirmed">Table ${parsedMeta.tableNumber}</span>
+                ${parsedMeta.notes && parsedMeta.notes.match(/\[ROUND:\s*(\d+)\]/)
+                  ? `<span class="adm-badge" style="background:#f59e0b; color:#0f172a; font-weight:900;">🔄 Round ${parsedMeta.notes.match(/\[ROUND:\s*(\d+)\]/)[1]}</span>`
+                  : ''}
+              </div>
             </div>
             <div class="adm-info-grid">
               <div class="adm-info-item"><label>Table Number</label><p class="text-sm font-bold">Table ${parsedMeta.tableNumber}</p></div>
@@ -2843,6 +3062,7 @@ function setupEditModalListeners() {
 const PANEL_TITLES = {
   dashboard: 'Dashboard',
   orders: 'Order List',
+  'table-bills': 'Bill of Customer',
   'order-detail': 'Order Detail',
   customers: 'Customer',
   'customer-analysis': 'Customer Analysis',
@@ -2876,6 +3096,7 @@ function switchPanel(panelId) {
     }
   }
 
+  if (panelId === 'table-bills') renderTableBillsPanel();
   if (panelId === 'customer-analysis') renderCustomerAnalysis();
   if (panelId === 'analytics') renderAnalytics();
   if (panelId === 'foods') { initFoodsFilters(); loadAndRenderFoods(); }

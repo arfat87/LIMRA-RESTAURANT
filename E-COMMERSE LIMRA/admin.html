@@ -87,6 +87,11 @@
         Order List
         <span id="pending-orders-badge" class="adm-nav-badge adm-hidden">0</span>
       </button>
+      <button data-panel="table-bills" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Bill of Customer
+        <span id="bill-requests-badge" class="adm-nav-badge adm-hidden" style="background:#f59e0b; color:#0f172a; font-weight:800">0</span>
+      </button>
       <button data-panel="order-detail" class="adm-nav-item">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         Order Detail
@@ -112,6 +117,10 @@
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
         Foods
       </button>
+      <a href="/stock-manager/index.html" class="adm-nav-item" style="text-decoration:none; display:flex; align-items:center; gap:0.5rem">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        Stock Manager
+      </a>
       <!-- Editor Zone Collapsible Menu -->
       <div class="adm-nav-group">
         <button type="button" class="adm-nav-group-trigger" id="editor-zone-trigger">
@@ -479,6 +488,22 @@
           </table>
         </div>
         <div id="orders-pagination" class="adm-pagination"></div>
+      </section>
+
+      <!-- Bill of Customer (Table Requests & Running Bills) -->
+      <section id="panel-table-bills" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title" style="display:flex; align-items:center; gap:0.5rem;">
+              🧾 Bill of Customer (Table Requests)
+            </h1>
+            <p class="adm-page-sub">Real-time table bill requests, round-by-round items, and final session settlements</p>
+          </div>
+        </div>
+
+        <div id="table-bills-container" style="display:flex; flex-direction:column; gap:1.25rem;">
+          <!-- Injected dynamically via JS -->
+        </div>
       </section>
 
       <!-- Order Detail -->
