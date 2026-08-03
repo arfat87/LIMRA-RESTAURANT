@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 export default defineConfig({
-  base: './',
+  base: '/',
   root: fs.realpathSync.native(path.resolve('./')),
   plugins: [
     tailwindcss(),
