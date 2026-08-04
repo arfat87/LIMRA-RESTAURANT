@@ -1,7 +1,4 @@
-// ═════════════════════════════════════════════════════════════════════
-// LIMRA RESTAURANT — STANDALONE STOCK MANAGER ENGINE
-// WITH AUTOMATIC IN-OUT & BALANCE SPREADSHEET SYSTEM
-// ═════════════════════════════════════════════════════════════════════
+import { insforge } from '../lib/insforge.js';
 
 const STORAGE_KEY_ITEMS = 'limra_stock_inventory_items';
 const STORAGE_KEY_LOGS = 'limra_stock_inventory_logs';
@@ -169,25 +166,123 @@ let stockOutEntries = [];
 let activeCategoryFilter = 'all';
 let searchQuery = '';
 
-// Load data from LocalStorage
-function loadStockData() {
+// DB Mappers
+function mapDbToItem(row) {
+  return {
+    id: row.id,
+    sku: row.sku,
+    name: row.name,
+    category: row.category,
+    unit: row.unit,
+    qty: Number(row.qty) || 0,
+    minQty: Number(row.min_qty) || 0,
+    costPrice: Number(row.cost_price) || 0,
+    supplier: row.supplier || '',
+    isAvailable: row.is_available !== false
+  };
+}
+
+function mapItemToDb(item) {
+  return {
+    id: item.id,
+    sku: item.sku,
+    name: item.name,
+    category: item.category,
+    unit: item.unit,
+    qty: Number(item.qty) || 0,
+    min_qty: Number(item.minQty) || 0,
+    cost_price: Number(item.costPrice) || 0,
+    supplier: item.supplier || '',
+    is_available: item.isAvailable !== false,
+    updated_at: new Date().toISOString()
+  };
+}
+
+function mapDbToInEntry(row) {
+  return {
+    id: row.id,
+    date: row.date,
+    sku: row.item_sku || '',
+    description: row.item_name || '',
+    qty: Number(row.qty) || 0,
+    unit: row.unit || '',
+    costPrice: Number(row.cost_price) || 0,
+    supplier: row.supplier || '',
+    notes: row.notes || '',
+    createdAt: row.created_at
+  };
+}
+
+function mapInEntryToDb(entry) {
+  return {
+    id: String(entry.id || ('in_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4))),
+    date: entry.date,
+    item_id: entry.itemId || entry.sku || '',
+    item_sku: entry.sku || '',
+    item_name: entry.description || '',
+    qty: Number(entry.qty) || 0,
+    unit: entry.unit || '',
+    cost_price: Number(entry.costPrice) || 0,
+    supplier: entry.supplier || '',
+    notes: entry.notes || '',
+    created_at: entry.createdAt || new Date().toISOString()
+  };
+}
+
+function mapDbToOutEntry(row) {
+  return {
+    id: row.id,
+    date: row.date,
+    sku: row.item_sku || '',
+    description: row.item_name || '',
+    qty: Number(row.qty) || 0,
+    unit: row.unit || '',
+    usedBy: row.used_by || '',
+    notes: row.notes || '',
+    createdAt: row.created_at
+  };
+}
+
+function mapOutEntryToDb(entry) {
+  return {
+    id: String(entry.id || ('out_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4))),
+    date: entry.date,
+    item_id: entry.itemId || entry.sku || '',
+    item_sku: entry.sku || '',
+    item_name: entry.description || '',
+    qty: Number(entry.qty) || 0,
+    unit: entry.unit || '',
+    used_by: entry.usedBy || '',
+    notes: entry.notes || '',
+    created_at: entry.createdAt || new Date().toISOString()
+  };
+}
+
+function mapDbToLog(row) {
+  return {
+    id: row.id,
+    date: new Date(row.created_at || Date.now()).toLocaleString(),
+    item: row.action,
+    type: row.action,
+    qty: '',
+    notes: row.details || ''
+  };
+}
+
+function mapLogToDb(log) {
+  return {
+    id: String(log.id || ('log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4))),
+    action: `${log.item || ''} ${log.type ? '(' + log.type + ')' : ''}`,
+    details: `${log.qty ? log.qty + ' | ' : ''}${log.notes || ''}`,
+    created_at: new Date().toISOString()
+  };
+}
+
+// Local Fallback loader in case of offline/network failure
+function loadLocalFallback() {
   try {
     const rawItems = localStorage.getItem(STORAGE_KEY_ITEMS);
     let stored = rawItems ? JSON.parse(rawItems) : [];
-
-    // Filter out old dummy test items (Mouse, CPU, Desktop, Laptop, Smartwatch, Key Board, Monitor)
-    stored = stored.filter(item => {
-      const name = item.name || '';
-      return !name.startsWith('Mouse') &&
-             !name.startsWith('CPU') &&
-             !name.startsWith('Desktop') &&
-             !name.startsWith('Laptop') &&
-             !name.startsWith('Smartwatch') &&
-             !name.startsWith('Key Board') &&
-             !name.startsWith('Monitor');
-    });
-
-    // Ensure all 132 default items exist in stockItems
     if (!stored || stored.length < DEFAULT_ITEMS.length) {
       stockItems = DEFAULT_ITEMS.map(def => {
         const match = stored.find(s => s.sku === def.sku || s.name === def.name);
@@ -199,38 +294,108 @@ function loadStockData() {
   } catch (e) {
     stockItems = [...DEFAULT_ITEMS];
   }
+}
 
-  // Ensure all items have correct SKU
-  stockItems.forEach((item, index) => {
-    if (!item.sku) {
-      item.sku = `J${String(index + 1).padStart(3, '0')}`;
+// Load data from InsForge PostgreSQL (With Zero Data Loss Initial Migration)
+async function loadStockData() {
+  try {
+    const { data: dbItems, error: itemsErr } = await insforge.database
+      .from('stock_items')
+      .select('*')
+      .order('sku', { ascending: true });
+
+    if (itemsErr) {
+      console.warn('[StockManager] Notice fetching stock_items from InsForge:', itemsErr);
     }
-  });
 
-  try {
-    const rawLogs = localStorage.getItem(STORAGE_KEY_LOGS);
-    stockLogs = rawLogs ? JSON.parse(rawLogs) : [];
-  } catch (e) {
-    stockLogs = [];
-  }
+    const { data: dbIn } = await insforge.database.from('stock_in_entries').select('*').order('created_at', { ascending: false });
+    const { data: dbOut } = await insforge.database.from('stock_out_entries').select('*').order('created_at', { ascending: false });
+    const { data: dbLogs } = await insforge.database.from('stock_logs').select('*').order('created_at', { ascending: false }).limit(50);
 
-  try {
-    const rawIn = localStorage.getItem(STORAGE_KEY_IN_ENTRIES);
-    stockInEntries = rawIn ? JSON.parse(rawIn) : [];
-    stockInEntries = stockInEntries.filter(e => !e.description?.startsWith('Mouse') && !e.description?.startsWith('CPU'));
-  } catch (e) {
-    stockInEntries = [];
-  }
+    // ZERO DATA LOSS MIGRATION & SEEDING LOGIC:
+    if (!dbItems || dbItems.length === 0) {
+      console.log('[StockManager] InsForge stock_items table is empty. Performing initial migration & seed from LocalStorage/Defaults...');
+      let localStored = [];
+      try {
+        const rawLocal = localStorage.getItem(STORAGE_KEY_ITEMS);
+        if (rawLocal) localStored = JSON.parse(rawLocal);
+      } catch (e) {}
 
-  try {
-    const rawOut = localStorage.getItem(STORAGE_KEY_OUT_ENTRIES);
-    stockOutEntries = rawOut ? JSON.parse(rawOut) : [];
-    stockOutEntries = stockOutEntries.filter(e => !e.description?.startsWith('Mouse') && !e.description?.startsWith('CPU'));
-  } catch (e) {
-    stockOutEntries = [];
+      localStored = localStored.filter(item => {
+        const name = item.name || '';
+        return !name.startsWith('Mouse') &&
+               !name.startsWith('CPU') &&
+               !name.startsWith('Desktop') &&
+               !name.startsWith('Laptop') &&
+               !name.startsWith('Smartwatch') &&
+               !name.startsWith('Key Board') &&
+               !name.startsWith('Monitor');
+      });
+
+      stockItems = DEFAULT_ITEMS.map((def, idx) => {
+        const match = localStored.find(s => s.sku === def.sku || s.name === def.name || s.id === def.id);
+        const sku = def.sku || `J${String(idx + 1).padStart(3, '0')}`;
+        return match ? { ...def, sku, qty: Number(match.qty) || 0, minQty: Number(match.minQty) || def.minQty, costPrice: Number(match.costPrice) || def.costPrice, supplier: match.supplier || def.supplier } : { ...def, sku };
+      });
+
+      try {
+        const rawIn = localStorage.getItem(STORAGE_KEY_IN_ENTRIES);
+        if (rawIn) stockInEntries = JSON.parse(rawIn);
+      } catch (e) {}
+
+      try {
+        const rawOut = localStorage.getItem(STORAGE_KEY_OUT_ENTRIES);
+        if (rawOut) stockOutEntries = JSON.parse(rawOut);
+      } catch (e) {}
+
+      try {
+        const rawLogs = localStorage.getItem(STORAGE_KEY_LOGS);
+        if (rawLogs) stockLogs = JSON.parse(rawLogs);
+      } catch (e) {}
+
+      // Bulk Insert into InsForge PostgreSQL database
+      try {
+        const dbItemsToInsert = stockItems.map(mapItemToDb);
+        await insforge.database.from('stock_items').insert(dbItemsToInsert);
+
+        if (stockInEntries.length > 0) {
+          const dbInToInsert = stockInEntries.map(mapInEntryToDb);
+          await insforge.database.from('stock_in_entries').insert(dbInToInsert);
+        }
+
+        if (stockOutEntries.length > 0) {
+          const dbOutToInsert = stockOutEntries.map(mapOutEntryToDb);
+          await insforge.database.from('stock_out_entries').insert(dbOutToInsert);
+        }
+
+        if (stockLogs.length > 0) {
+          const dbLogsToInsert = stockLogs.map(mapLogToDb);
+          await insforge.database.from('stock_logs').insert(dbLogsToInsert);
+        }
+        console.log('[StockManager] ✅ Initial migration & seed to InsForge database completed successfully!');
+      } catch (seedErr) {
+        console.error('[StockManager] Error during initial InsForge seed:', seedErr);
+      }
+    } else {
+      stockItems = dbItems.map(mapDbToItem);
+      stockInEntries = (dbIn || []).map(mapDbToInEntry);
+      stockOutEntries = (dbOut || []).map(mapDbToOutEntry);
+      stockLogs = (dbLogs || []).map(mapDbToLog);
+    }
+  } catch (err) {
+    console.error('[StockManager] Unexpected error loading InsForge stock data:', err);
+    loadLocalFallback();
   }
 
   saveItemsToStorage();
+  renderAllViews();
+}
+
+function renderAllViews() {
+  renderInOutBalanceTables();
+  renderKPIs();
+  renderGrid();
+  renderLogs();
 }
 
 function saveItemsToStorage() {
@@ -239,7 +404,7 @@ function saveItemsToStorage() {
     localStorage.setItem(STORAGE_KEY_IN_ENTRIES, JSON.stringify(stockInEntries));
     localStorage.setItem(STORAGE_KEY_OUT_ENTRIES, JSON.stringify(stockOutEntries));
   } catch (e) {
-    console.warn('[StockManager] Failed to save items:', e);
+    console.warn('[StockManager] Failed to save items to local mirror:', e);
   }
 }
 
@@ -247,11 +412,44 @@ function saveLogsToStorage() {
   try {
     localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(stockLogs));
   } catch (e) {
-    console.warn('[StockManager] Failed to save logs:', e);
+    console.warn('[StockManager] Failed to save logs to local mirror:', e);
   }
 }
 
-function addAuditLog(itemName, type, qty, unit, notes = '') {
+// Database Persistence Helpers
+async function syncItemToDb(item) {
+  try {
+    await insforge.database.from('stock_items').upsert([mapItemToDb(item)]);
+  } catch (err) {
+    console.warn('[StockManager] Failed to sync item to InsForge:', err);
+  }
+}
+
+async function deleteItemFromDb(itemId) {
+  try {
+    await insforge.database.from('stock_items').delete().eq('id', itemId);
+  } catch (err) {
+    console.warn('[StockManager] Failed to delete item from InsForge:', err);
+  }
+}
+
+async function syncInEntryToDb(entry) {
+  try {
+    await insforge.database.from('stock_in_entries').insert([mapInEntryToDb(entry)]);
+  } catch (err) {
+    console.warn('[StockManager] Failed to sync IN entry to InsForge:', err);
+  }
+}
+
+async function syncOutEntryToDb(entry) {
+  try {
+    await insforge.database.from('stock_out_entries').insert([mapOutEntryToDb(entry)]);
+  } catch (err) {
+    console.warn('[StockManager] Failed to sync OUT entry to InsForge:', err);
+  }
+}
+
+async function addAuditLog(itemName, type, qty, unit, notes = '') {
   const log = {
     id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
     date: new Date().toLocaleString(),
@@ -264,6 +462,12 @@ function addAuditLog(itemName, type, qty, unit, notes = '') {
   if (stockLogs.length > 50) stockLogs = stockLogs.slice(0, 50);
   saveLogsToStorage();
   renderLogs();
+
+  try {
+    await insforge.database.from('stock_logs').insert([mapLogToDb(log)]);
+  } catch (err) {
+    console.warn('[StockManager] Failed to sync log to InsForge:', err);
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -572,6 +776,7 @@ function bindGridEvents() {
       if (item) {
         item.isAvailable = e.target.checked;
         saveItemsToStorage();
+        syncItemToDb(item);
         renderKPIs();
         renderGrid();
         showToast(`${item.name} status updated to ${item.isAvailable ? 'In Stock' : 'Out of Stock'}`);
@@ -886,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('inout-cancel-btn')?.addEventListener('click', closeInOutModal);
 
   // Form Submit: Record IN/OUT Entry
-  document.getElementById('form-inout-entry')?.addEventListener('submit', (e) => {
+  document.getElementById('form-inout-entry')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const mode = document.getElementById('inout-mode').value;
     const rawDate = document.getElementById('inout-date').value;
@@ -903,6 +1108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const newEntry = {
       id: (mode === 'IN' ? 'in_' : 'out_') + Date.now(),
       date: formattedDate,
+      itemId: item.id,
       sku,
       description: item.name,
       unit: item.unit,
@@ -910,15 +1116,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (mode === 'IN') {
+      item.qty += qty;
       stockInEntries.unshift(newEntry);
+      syncInEntryToDb(newEntry);
+      syncItemToDb(item);
       addAuditLog(item.name, 'Stock IN (+)', qty, item.unit, `Manual IN entry recorded for ${sku}`);
       showToast(`Logged IN: ${qty} ${item.unit} for [${sku}] ${item.name}`);
     } else {
+      item.qty = Math.max(0, item.qty - qty);
       stockOutEntries.unshift(newEntry);
+      syncOutEntryToDb(newEntry);
+      syncItemToDb(item);
       addAuditLog(item.name, 'Stock OUT (-)', qty, item.unit, `Manual OUT entry recorded for ${sku}`);
       showToast(`Logged OUT: ${qty} ${item.unit} for [${sku}] ${item.name}`);
     }
 
+    saveItemsToStorage();
     renderInOutBalanceTables();
     renderKPIs();
     renderGrid();
@@ -934,7 +1147,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('adjust-cancel-btn')?.addEventListener('click', closeAdjustModal);
 
   // Form submit: Add/Edit Item
-  document.getElementById('form-stock-item')?.addEventListener('submit', (e) => {
+  document.getElementById('form-stock-item')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('form-item-id').value;
     const name = document.getElementById('form-name').value.trim();
@@ -955,11 +1168,12 @@ document.addEventListener('DOMContentLoaded', () => {
         item.minQty = minQty;
         item.costPrice = costPrice;
         item.supplier = supplier;
+        syncItemToDb(item);
         showToast(`Updated ${name}`);
       }
     } else {
       const skuCount = stockItems.length + 1;
-      const nextSku = `J00${skuCount}`;
+      const nextSku = `J${String(skuCount).padStart(3, '0')}`;
       const newItem = {
         id: 'stk_' + Date.now(),
         sku: nextSku,
@@ -967,23 +1181,28 @@ document.addEventListener('DOMContentLoaded', () => {
         isAvailable: true
       };
       stockItems.unshift(newItem);
+      syncItemToDb(newItem);
 
       // Add corresponding IN entry for initial stock quantity
       if (qty > 0) {
-        stockInEntries.unshift({
+        const initIn = {
           id: 'in_' + Date.now(),
           date: new Date().toISOString().split('T')[0].split('-').reverse().join('-'),
+          itemId: newItem.id,
           sku: nextSku,
           description: name,
           unit,
           qty
-        });
+        };
+        stockInEntries.unshift(initIn);
+        syncInEntryToDb(initIn);
       }
 
       addAuditLog(name, 'Add Item', qty, unit, 'Created new stock item with SKU ' + nextSku);
       showToast(`Added new item: [${nextSku}] ${name}`);
     }
 
+    saveItemsToStorage();
     renderInOutBalanceTables();
     renderKPIs();
     renderGrid();
@@ -991,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Form submit: Adjust Stock
-  document.getElementById('form-adjust-stock')?.addEventListener('submit', (e) => {
+  document.getElementById('form-adjust-stock')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('adjust-item-id').value;
     const type = document.getElementById('adjust-type').value;
@@ -1002,26 +1221,37 @@ document.addEventListener('DOMContentLoaded', () => {
     if (item && adjustQty > 0) {
       const todayStr = new Date().toISOString().split('T')[0].split('-').reverse().join('-');
       if (type === 'add') {
-        stockInEntries.unshift({
+        item.qty += adjustQty;
+        const entry = {
           id: 'in_' + Date.now(),
           date: todayStr,
+          itemId: item.id,
           sku: item.sku,
           description: item.name,
           unit: item.unit,
           qty: adjustQty
-        });
+        };
+        stockInEntries.unshift(entry);
+        syncInEntryToDb(entry);
+        syncItemToDb(item);
         addAuditLog(item.name, 'Add Stock (+)', adjustQty, item.unit, notes);
       } else {
-        stockOutEntries.unshift({
+        item.qty = Math.max(0, item.qty - adjustQty);
+        const entry = {
           id: 'out_' + Date.now(),
           date: todayStr,
+          itemId: item.id,
           sku: item.sku,
           description: item.name,
           unit: item.unit,
           qty: adjustQty
-        });
+        };
+        stockOutEntries.unshift(entry);
+        syncOutEntryToDb(entry);
+        syncItemToDb(item);
         addAuditLog(item.name, 'Reduce Stock (-)', adjustQty, item.unit, notes);
       }
+      saveItemsToStorage();
       renderInOutBalanceTables();
       renderKPIs();
       renderGrid();
@@ -1041,4 +1271,14 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Audit logs cleared');
     }
   });
+
+  // Realtime InsForge sync
+  try {
+    insforge.realtime.subscribe('stock_items', () => {
+      console.log('[StockManager] Realtime stock change notification received.');
+      loadStockData();
+    });
+  } catch (err) {
+    console.warn('[StockManager] Realtime subscription notice:', err);
+  }
 });
