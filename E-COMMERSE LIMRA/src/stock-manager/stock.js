@@ -1,3 +1,5 @@
+import '../style.css';
+import '../admin.css';
 import { insforge } from '../lib/insforge.js';
 
 const STORAGE_KEY_ITEMS = 'limra_stock_inventory_items';
