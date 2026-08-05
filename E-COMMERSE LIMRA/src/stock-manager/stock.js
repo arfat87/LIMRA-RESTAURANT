@@ -484,8 +484,24 @@ function renderInOutBalanceTables() {
   const badgeOut = document.getElementById('badge-out-count');
   const badgeBalance = document.getElementById('badge-balance-count');
 
-  const filteredIn = searchQuery ? stockInEntries.filter(e => e.description?.toLowerCase().includes(searchQuery.toLowerCase()) || e.sku?.toLowerCase().includes(searchQuery.toLowerCase())) : stockInEntries;
-  const filteredOut = searchQuery ? stockOutEntries.filter(e => e.description?.toLowerCase().includes(searchQuery.toLowerCase()) || e.sku?.toLowerCase().includes(searchQuery.toLowerCase())) : stockOutEntries;
+  const filteredIn = stockInEntries.filter(entry => {
+    const item = stockItems.find(i => i.sku === entry.sku);
+    const matchesCat = activeCategoryFilter === 'all' || (item && item.category === activeCategoryFilter);
+    const matchesSearch = !searchQuery || 
+      entry.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      entry.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
+
+  const filteredOut = stockOutEntries.filter(entry => {
+    const item = stockItems.find(i => i.sku === entry.sku);
+    const matchesCat = activeCategoryFilter === 'all' || (item && item.category === activeCategoryFilter);
+    const matchesSearch = !searchQuery || 
+      entry.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      entry.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
+
   const filteredItemsForBalance = getFilteredItems();
 
   if (badgeIn) badgeIn.textContent = `${filteredIn.length} entries`;
@@ -1091,8 +1107,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const label = document.getElementById('active-category-label');
       if (label) label.textContent = activeCategoryFilter === 'all' ? 'All Items' : activeCategoryFilter;
 
+      renderInOutBalanceTables();
       renderKPIs();
       renderGrid();
+      renderCriticalStockSection();
     });
   });
 

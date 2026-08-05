@@ -137,9 +137,25 @@
   <!-- Main Body -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6 sm:space-y-8">
 
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- 1. TOP SECTION: STOCK IN & STOCK OUT SPREADSHEET LOGS -->
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- Category Filter Chips (7 Stock Groups - Global Section Control) -->
+    <div class="space-y-2 bg-slate-900/60 p-3 sm:p-4 rounded-2xl border border-slate-800 backdrop-blur-md">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+          <span>🏷️</span> Filter Stock Category:
+        </span>
+        <span id="active-category-label" class="text-xs font-extrabold text-emerald-400 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-500/30">All Items</span>
+      </div>
+      <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" id="category-chips-container">
+        <button class="stock-pill-btn active" data-category="all">All Items (7 Groups)</button>
+        <button class="stock-pill-btn" data-category="Bhusimal & Spices">🌾 Bhusimal & Spices</button>
+        <button class="stock-pill-btn" data-category="Dairy Items">🥛 Dairy Items</button>
+        <button class="stock-pill-btn" data-category="Cold Drinks">🥤 Cold Drinks</button>
+        <button class="stock-pill-btn" data-category="Fresh Vegetables">🥦 Fresh Vegetables</button>
+        <button class="stock-pill-btn" data-category="Ice Cream">🍦 Ice Cream</button>
+        <button class="stock-pill-btn" data-category="Packaging & Carry Bags">📦 Carry Bags & Packaging</button>
+        <button class="stock-pill-btn" data-category="Cleaning & Washings">🧹 Washings & Cleaning</button>
+      </div>
+    </div>
     <div class="space-y-3">
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -297,24 +313,6 @@
       <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
       <input type="text" id="global-stock-search" placeholder="Search any stock item by name or SKU (e.g. Rice, Milk, Paneer, Campa, Thums Up, Potato)..." class="w-full pl-11 pr-20 py-3 rounded-2xl bg-slate-900 border border-slate-700/80 text-sm text-white font-medium focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-inner" />
       <button id="btn-clear-search" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white font-bold text-xs px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 hidden cursor-pointer">✕ Clear</button>
-    </div>
-
-    <!-- Category Filter Chips (7 Stock Groups) -->
-    <div class="space-y-2">
-      <div class="flex items-center justify-between">
-        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Stock Categories</span>
-        <span id="active-category-label" class="text-xs font-bold text-emerald-400">All Items</span>
-      </div>
-      <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="category-chips-container">
-        <button class="stock-pill-btn active" data-category="all">All Items (7 Groups)</button>
-        <button class="stock-pill-btn" data-category="Bhusimal & Spices">🌾 Bhusimal & Spices</button>
-        <button class="stock-pill-btn" data-category="Dairy Items">🥛 Dairy Items</button>
-        <button class="stock-pill-btn" data-category="Cold Drinks">🥤 Cold Drinks</button>
-        <button class="stock-pill-btn" data-category="Fresh Vegetables">🥦 Fresh Vegetables</button>
-        <button class="stock-pill-btn" data-category="Ice Cream">🍦 Ice Cream</button>
-        <button class="stock-pill-btn" data-category="Packaging & Carry Bags">📦 Carry Bags & Packaging</button>
-        <button class="stock-pill-btn" data-category="Cleaning & Washings">🧹 Washings & Cleaning</button>
-      </div>
     </div>
 
     <!-- Inventory Feed Grid -->
