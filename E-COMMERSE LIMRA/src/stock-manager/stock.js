@@ -628,7 +628,7 @@ function renderCriticalStockSection() {
   const badgeEl = document.getElementById('critical-count-badge');
   if (!sectionEl || !gridEl) return;
 
-  const criticalItems = stockItems.filter(item => item.qty <= item.minQty);
+  const criticalItems = stockItems.filter(item => item.qty <= item.minQty || !item.isAvailable);
 
   if (badgeEl) badgeEl.textContent = `${criticalItems.length} critical item${criticalItems.length === 1 ? '' : 's'}`;
 
@@ -638,22 +638,32 @@ function renderCriticalStockSection() {
   } else {
     sectionEl.classList.remove('hidden');
     gridEl.innerHTML = criticalItems.map(item => {
+      const isOutOfStock = item.qty === 0 || !item.isAvailable;
+      const borderClass = isOutOfStock ? 'border-rose-500/40 bg-rose-950/30' : 'border-amber-500/40 bg-amber-950/20';
+      const badgeClass = isOutOfStock ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+      const badgeText = isOutOfStock ? '🔴 OUT OF STOCK' : '⚠️ LOW STOCK';
+
       return `
-        <div class="bg-rose-950/40 border border-rose-500/50 p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-lg">
-          <div class="min-w-0">
-            <div class="flex items-center gap-1.5 mb-1">
-              <span class="font-bold text-xs text-rose-300 font-mono">${item.sku}</span>
-              <span class="text-[10px] px-2 py-0.2 rounded-full bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30 truncate">${item.category}</span>
+        <div class="${borderClass} border p-3 rounded-2xl flex flex-col justify-between gap-2 shadow-lg backdrop-blur-md hover:scale-[1.02] transition-transform">
+          <div>
+            <div class="flex items-center justify-between gap-1 mb-1.5">
+              <span class="font-mono text-[11px] font-extrabold text-slate-300">${item.sku}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded-full font-black border uppercase tracking-wider ${badgeClass}">
+                ${badgeText}
+              </span>
             </div>
-            <h4 class="font-bold text-xs text-white truncate">${item.name}</h4>
-            <p class="text-[11px] text-rose-300 font-semibold mt-1">
-              Actual Balance: <span class="font-black text-rose-200 text-xs">${item.qty} ${item.unit}</span> 
-              <span class="text-slate-400 font-normal">(Min Required: ${item.minQty})</span>
-            </p>
+            <h4 class="font-extrabold text-xs text-white truncate title="${item.name}">${item.name}</h4>
           </div>
-          <button class="px-3 py-1.5 bg-rose-500 hover:bg-rose-400 text-slate-950 font-extrabold text-[11px] rounded-xl shadow transition-all cursor-pointer btn-quick-in shrink-0" data-sku="${item.sku}">
-            ➕ Add IN
-          </button>
+
+          <div class="flex items-center justify-between pt-1 border-t border-slate-800/80 mt-1">
+            <div class="text-[10px] leading-tight">
+              <span class="text-slate-400 block">Balance:</span>
+              <span class="font-black text-xs ${isOutOfStock ? 'text-rose-400' : 'text-amber-300'}">${item.qty} ${item.unit}</span>
+            </div>
+            <button class="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[10px] rounded-lg shadow transition-all cursor-pointer btn-quick-in active:scale-95 flex items-center gap-0.5 shrink-0" data-sku="${item.sku}">
+              <span>+</span> IN
+            </button>
+          </div>
         </div>
       `;
     }).join('');

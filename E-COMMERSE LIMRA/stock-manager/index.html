@@ -135,65 +135,47 @@
   </header>
 
   <!-- Main Body -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6">
-
-    <!-- KPI Banner -->
-    <div class="stock-kpi-banner">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center divide-y sm:divide-y-0 sm:divide-x divide-slate-800/80">
-        <div class="py-1.5 sm:py-0">
-          <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Stock Items</span>
-          <span id="kpi-total-items" class="stock-kpi-val mt-0.5 block">0</span>
-        </div>
-        <div class="py-1.5 sm:py-0 sm:pl-3">
-          <span class="block text-[11px] font-bold text-rose-400 uppercase tracking-wider">Low Stock / Out</span>
-          <span id="kpi-low-stock" class="stock-kpi-val val-red mt-0.5 block">0</span>
-        </div>
-        <div class="py-1.5 sm:py-0 sm:pl-3">
-          <span class="block text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Estimated Stock Value</span>
-          <span id="kpi-total-value" class="stock-kpi-val text-emerald-300 mt-0.5 block">₹ 0.00</span>
-        </div>
-      </div>
-    </div>
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-6 sm:space-y-8">
 
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- SPREADSHEET SECTION: STOCK IN-OUT & BALANCE -->
+    <!-- 1. TOP SECTION: STOCK IN & STOCK OUT SPREADSHEET LOGS -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div class="space-y-4">
+    <div class="space-y-3">
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h2 class="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
-            <span>📊</span> STOCK IN-OUT & BALANCE
+            <span class="text-emerald-400">📥</span> STOCK IN & <span class="text-amber-400">📤</span> STOCK OUT ENTRIES
           </h2>
-          <p class="text-xs text-slate-400">Record IN & OUT stock entries manually. Balance Qty is automatically calculated (IN - OUT).</p>
+          <p class="text-xs text-slate-400">Record daily stock intake and kitchen dispatch entries. Balance is recalculated live below.</p>
         </div>
         <div class="flex items-center gap-2">
-          <button id="btn-record-in" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1 cursor-pointer">
-            ➕ Record IN Stock
+          <button id="btn-record-in" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95">
+            <span>➕</span> Record IN Stock
           </button>
-          <button id="btn-record-out" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1 cursor-pointer">
-            ➖ Record OUT Stock
+          <button id="btn-record-out" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95">
+            <span>➖</span> Record OUT Stock
           </button>
         </div>
       </div>
 
-      <!-- 3 Side-by-Side Tables Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+      <!-- 2 Side-by-Side Tables Grid for IN and OUT -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         
-        <!-- TABLE 1: IN (Green Theme) -->
-        <div class="stock-glass-card border border-emerald-500/30 overflow-hidden">
-          <div class="bg-emerald-600 px-3 py-2 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
-            <span class="flex items-center gap-1.5">📥 IN</span>
-            <span id="badge-in-count" class="text-[10px] sm:text-xs bg-emerald-950/60 px-2 py-0.5 rounded-full font-bold">0 entries</span>
+        <!-- TABLE 1: STOCK IN (Green Theme) -->
+        <div class="stock-glass-card border border-emerald-500/30 overflow-hidden shadow-xl">
+          <div class="bg-gradient-to-r from-emerald-600 to-emerald-700 px-3.5 py-2.5 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
+            <span class="flex items-center gap-1.5">📥 Stock IN Log</span>
+            <span id="badge-in-count" class="text-[10px] sm:text-xs bg-emerald-950/80 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full font-bold">0 entries</span>
           </div>
-          <div class="max-h-72 overflow-y-auto">
+          <div class="max-h-64 overflow-y-auto scrollbar-thin">
             <table class="w-full text-left text-[11px] sm:text-xs">
-              <thead class="bg-slate-900 text-slate-300 font-bold border-b border-emerald-500/20">
+              <thead class="bg-slate-900/90 text-slate-300 font-bold border-b border-emerald-500/20 sticky top-0 backdrop-blur-md">
                 <tr>
-                  <th class="py-2 px-1.5 sm:px-2.5">DATE</th>
-                  <th class="py-2 px-1.5 sm:px-2.5">SKU</th>
-                  <th class="py-2 px-1.5 sm:px-2.5">DESCRIPTION</th>
-                  <th class="py-2 px-1.5 sm:px-2.5">UNIT</th>
-                  <th class="py-2 px-1.5 sm:px-2.5 text-right">QTY</th>
+                  <th class="py-2 px-2">DATE</th>
+                  <th class="py-2 px-2">SKU</th>
+                  <th class="py-2 px-2">DESCRIPTION</th>
+                  <th class="py-2 px-2">UNIT</th>
+                  <th class="py-2 px-2 text-right">QTY</th>
                   <th class="py-2 px-1 text-center">DEL</th>
                 </tr>
               </thead>
@@ -204,21 +186,21 @@
           </div>
         </div>
 
-        <!-- TABLE 2: OUT (Orange/Brown Theme) -->
-        <div class="stock-glass-card border border-amber-500/30 overflow-hidden">
-          <div class="bg-amber-600 px-3 py-2 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
-            <span class="flex items-center gap-1.5">📤 OUT</span>
-            <span id="badge-out-count" class="text-[10px] sm:text-xs bg-amber-950/60 px-2 py-0.5 rounded-full font-bold">0 entries</span>
+        <!-- TABLE 2: STOCK OUT (Amber Theme) -->
+        <div class="stock-glass-card border border-amber-500/30 overflow-hidden shadow-xl">
+          <div class="bg-gradient-to-r from-amber-600 to-amber-700 px-3.5 py-2.5 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
+            <span class="flex items-center gap-1.5">📤 Stock OUT Log</span>
+            <span id="badge-out-count" class="text-[10px] sm:text-xs bg-amber-950/80 text-amber-200 border border-amber-400/30 px-2.5 py-0.5 rounded-full font-bold">0 entries</span>
           </div>
-          <div class="max-h-72 overflow-y-auto">
+          <div class="max-h-64 overflow-y-auto scrollbar-thin">
             <table class="w-full text-left text-[11px] sm:text-xs">
-              <thead class="bg-slate-900 text-slate-300 font-bold border-b border-amber-500/20">
+              <thead class="bg-slate-900/90 text-slate-300 font-bold border-b border-amber-500/20 sticky top-0 backdrop-blur-md">
                 <tr>
-                  <th class="py-2 px-1.5 sm:px-2.5">DATE</th>
-                  <th class="py-2 px-1.5 sm:px-2.5">SKU</th>
-                  <th class="py-2 px-1.5 sm:px-2.5">DESCRIPTION</th>
-                  <th class="py-2 px-1.5 sm:px-2.5">UNIT</th>
-                  <th class="py-2 px-1.5 sm:px-2.5 text-right">QTY</th>
+                  <th class="py-2 px-2">DATE</th>
+                  <th class="py-2 px-2">SKU</th>
+                  <th class="py-2 px-2">DESCRIPTION</th>
+                  <th class="py-2 px-2">UNIT</th>
+                  <th class="py-2 px-2 text-right">QTY</th>
                   <th class="py-2 px-1 text-center">DEL</th>
                 </tr>
               </thead>
@@ -229,45 +211,87 @@
           </div>
         </div>
 
-        <!-- TABLE 3: BALANCE (Blue Theme) -->
-        <div class="stock-glass-card border border-sky-500/30 overflow-hidden">
-          <div class="bg-sky-700 px-3 py-2 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
-            <span class="flex items-center gap-1.5">⚖️ BALANCE</span>
-            <span id="badge-balance-count" class="text-[10px] sm:text-xs bg-sky-950/60 px-2 py-0.5 rounded-full font-bold">0 items</span>
+      </div>
+    </div>
+
+    <!-- ⬇️ DOWN SECTION SPACING BREAK ⬇️ -->
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- 2. MIDDLE SECTION: THE BALANCE BOX & SUMMARY KPI CARDS -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div class="stock-glass-card border border-sky-500/30 p-4 sm:p-6 space-y-5 shadow-2xl relative overflow-hidden">
+      <!-- Glow Accent -->
+      <div class="absolute -right-20 -top-20 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Balance Box Header -->
+      <div class="flex items-center justify-between flex-wrap gap-2 border-b border-slate-800 pb-3">
+        <div>
+          <h2 class="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+            <span>⚖️</span> REAL-TIME STOCK BALANCE BOX
+          </h2>
+          <p class="text-xs text-slate-400">Live net stock balance calculated from total IN minus total OUT entries.</p>
+        </div>
+        <span id="badge-balance-count" class="text-xs bg-sky-950 text-sky-300 border border-sky-600/40 px-3 py-1 rounded-full font-bold">0 items</span>
+      </div>
+
+      <!-- KPI Summary Cards Grid inside Balance Box -->
+      <div class="stock-kpi-banner">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center divide-y sm:divide-y-0 sm:divide-x divide-slate-800/80">
+          <div class="py-1.5 sm:py-0">
+            <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Stock Items</span>
+            <span id="kpi-total-items" class="stock-kpi-val mt-0.5 block">0</span>
           </div>
-          <div class="max-h-72 overflow-y-auto">
-            <table class="w-full text-left text-[11px] sm:text-xs">
-              <thead class="bg-slate-900 text-slate-300 font-bold border-b border-sky-500/20">
-                <tr>
-                  <th class="py-2 px-1.5 sm:px-2.5">SKU</th>
-                  <th class="py-2 px-1.5 sm:px-2.5">DESCRIPTION</th>
-                  <th class="py-2 px-1.5 sm:px-2.5">UNIT</th>
-                  <th class="py-2 px-1.5 sm:px-2.5 text-right">QTY</th>
-                </tr>
-              </thead>
-              <tbody id="table-balance-body" class="divide-y divide-slate-800/60 text-slate-200">
-                <!-- Injected dynamically via JS -->
-              </tbody>
-            </table>
+          <div class="py-1.5 sm:py-0 sm:pl-3">
+            <span class="block text-[11px] font-bold text-rose-400 uppercase tracking-wider">Low Stock / Out</span>
+            <span id="kpi-low-stock" class="stock-kpi-val val-red mt-0.5 block">0</span>
+          </div>
+          <div class="py-1.5 sm:py-0 sm:pl-3">
+            <span class="block text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Estimated Stock Value</span>
+            <span id="kpi-total-value" class="stock-kpi-val text-emerald-300 mt-0.5 block">₹ 0.00</span>
           </div>
         </div>
+      </div>
 
+      <!-- Balance Table -->
+      <div class="max-h-72 overflow-y-auto scrollbar-thin rounded-xl border border-slate-800 bg-slate-950/60">
+        <table class="w-full text-left text-[11px] sm:text-xs">
+          <thead class="bg-slate-900 text-slate-300 font-bold border-b border-sky-500/20 sticky top-0 backdrop-blur-md">
+            <tr>
+              <th class="py-2.5 px-3">SKU</th>
+              <th class="py-2.5 px-3">DESCRIPTION</th>
+              <th class="py-2.5 px-3">UNIT</th>
+              <th class="py-2.5 px-3 text-right">ACTUAL BALANCE QTY</th>
+            </tr>
+          </thead>
+          <tbody id="table-balance-body" class="divide-y divide-slate-800/60 text-slate-200">
+            <!-- Injected dynamically via JS -->
+          </tbody>
+        </table>
       </div>
     </div>
 
-    <!-- CRITICAL STOCK & LOW BALANCE ALERT SECTION -->
-    <div id="critical-stock-section" class="stock-glass-card border border-rose-500/30 p-5 space-y-3 hidden">
+    <!-- ⬇️ DOWN SECTION SPACING BREAK ⬇️ -->
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- 3. COMPACT MINI-CARDS: OUT-OF-STOCK & LOW-STOCK ALERTS -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div id="critical-stock-section" class="stock-glass-card border border-rose-500/30 p-4 sm:p-5 space-y-3.5 hidden">
       <div class="flex items-center justify-between border-b border-rose-500/20 pb-2.5">
         <h3 class="text-sm font-extrabold text-rose-400 flex items-center gap-2">
-          <span>🚨</span> CRITICAL STOCK ALERTS (Actual Balance ≤ Minimum Balance Qty)
+          <span>🚨</span> OUT-OF-STOCK & LOW-STOCK ALERTS
         </h3>
-        <span id="critical-count-badge" class="text-xs bg-rose-950/80 text-rose-300 border border-rose-800 px-2.5 py-0.5 rounded-full font-bold">0 critical items</span>
+        <span id="critical-count-badge" class="text-xs bg-rose-950/90 text-rose-300 border border-rose-700 px-3 py-0.5 rounded-full font-bold">0 critical items</span>
       </div>
-      <div id="critical-items-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <!-- Injected dynamically via JS -->
+      
+      <!-- Compact High-Density Grid of Small Mini-Cards (3-4/row) -->
+      <div id="critical-items-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <!-- Injected dynamically via JS as compact square cards -->
       </div>
     </div>
 
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- 4. BOTTOM SECTION: MASTER INVENTORY DIRECTORY & LOGS -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
     <!-- PROMINENT GLOBAL SEARCH BAR -->
     <div class="relative w-full">
       <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
