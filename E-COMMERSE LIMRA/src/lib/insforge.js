@@ -21,6 +21,31 @@ function formatInsforgeError(error) {
   return error.message || error.details || error.hint || JSON.stringify(error);
 }
 
+/** Dispatch order payload to n8n Webhook */
+export async function sendN8nWebhook(orderPayload) {
+  const webhookUrl = (import.meta.env.VITE_N8N_WEBHOOK_URL && import.meta.env.VITE_N8N_WEBHOOK_URL !== 'undefined')
+    ? import.meta.env.VITE_N8N_WEBHOOK_URL
+    : (typeof window !== 'undefined' ? (window.LIMRA_N8N_WEBHOOK_URL || localStorage.getItem('limra_n8n_webhook_url') || '') : '');
+
+  if (!webhookUrl) return;
+
+  try {
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'order.created',
+        timestamp: new Date().toISOString(),
+        source: orderPayload.table_number ? 'LIMRA Table QR System' : 'LIMRA Website Storefront',
+        ...orderPayload
+      })
+    });
+    console.log('[n8n Webhook] Dispatched order webhook successfully:', orderPayload.order_id);
+  } catch (err) {
+    console.warn('[n8n Webhook] Failed to dispatch order payload:', err);
+  }
+}
+
 /** Place order via RPC */
 export async function saveOrder({
   customerName,
@@ -68,7 +93,25 @@ export async function saveOrder({
     p_txn_ref: txnRef
   });
 
-  if (!result.error) return result.data;
+  if (!result.error) {
+    const orderRes = result.data;
+    // Dispatch webhook to n8n asynchronously
+    sendN8nWebhook({
+      order_id: orderRes.id || orderRes.order_id || `ORD-${Date.now()}`,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      order_type: orderType,
+      table_number: tableNumber,
+      table_zone: tableZone,
+      notes: notes,
+      landmark: landmark,
+      delivery_notes: deliveryNotes,
+      items: p_items,
+      raw_result: orderRes
+    });
+
+    return result.data;
+  }
 
   throw new Error(formatInsforgeError(result.error));
 }

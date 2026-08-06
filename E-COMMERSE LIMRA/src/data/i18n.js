@@ -15,7 +15,7 @@ export const translations = {
     lang_modal_title: 'Welcome to LIMRA Restaurant',
     lang_modal_sub: 'Please select your preferred language to continue / অনুগ্রহ করে আপনার ভাষা নির্বাচন করুন:',
     lang_en: '🇬🇧 English',
-    lang_bn: '🇧🇩 বাংলা (Bengali)',
+    lang_bn: '🇮🇳 বাংলা (Bengali)',
     lang_confirm: 'Continue / এগিয়ে যান',
 
     // Hero Section
@@ -184,7 +184,7 @@ export const translations = {
     lang_modal_title: 'লিমরা রেস্তোরাঁয় স্বাগতম',
     lang_modal_sub: 'অনুগ্রহ করে এগিয়ে যেতে আপনার পছন্দের ভাষা নির্বাচন করুন:',
     lang_en: '🇬🇧 English',
-    lang_bn: '🇧🇩 বাংলা (Bengali)',
+    lang_bn: '🇮🇳 বাংলা (Bengali)',
     lang_confirm: 'এগিয়ে যান ➔',
 
     // Hero Section
