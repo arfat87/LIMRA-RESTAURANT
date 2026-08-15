@@ -1,5 +1,7 @@
 import '../style.css';
 import './stock-manager.css';
+import { insforge } from '../lib/insforge.js';
+import { INITIAL_STOCK_ITEMS } from './data/initialStockData.js';
 
 // Safe number & currency helpers
 function safeNum(val, fallback = 0) {
@@ -13,90 +15,11 @@ function safeMoney(val) {
   return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Storage Keys
-const STORAGE_KEY_ITEMS = 'limra_stock_items_v2';
-const STORAGE_KEY_IN = 'limra_stock_in_entries_v2';
-const STORAGE_KEY_OUT = 'limra_stock_out_entries_v2';
-const STORAGE_KEY_LOGS = 'limra_stock_logs_v2';
-
-// 7 Master Stock Categories for LIMRA Restaurant Raw Materials & Supplies:
-// 1. Bhusimal & Spices
-// 2. Dairy Items
-// 3. Cold Drinks
-// 4. Fresh Vegetables
-// 5. Ice Cream
-// 6. Packaging & Carry Bags
-// 7. Cleaning & Washings
-const DEFAULT_ITEMS = [
-  // 1. Bhusimal & Spices
-  { id: 'stk_01', sku: 'J001', name: 'Basmati Biryani Rice (Special Grade)', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'kg', baseQty: 100, qty: 100, min: 30, cost: 110, salePrice: 150, supplier: 'Royal Rice Traders (9876543212)' },
-  { id: 'stk_02', sku: 'J002', name: 'Staff Rice / স্টাফ রাইস', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'kg', baseQty: 50, qty: 50, min: 20, cost: 65, salePrice: 85, supplier: 'Bengal Grain Wholesalers' },
-  { id: 'stk_03', sku: 'J003', name: 'Palm Oil / পাম অয়েল', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'L', baseQty: 30, qty: 30, min: 10, cost: 120, salePrice: 150, supplier: 'Fortune Oils' },
-  { id: 'stk_04', sku: 'J004', name: 'Refined Soyabean Oil', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'L', baseQty: 40, qty: 40, min: 15, cost: 145, salePrice: 175, supplier: 'Fortune Oils' },
-  { id: 'stk_05', sku: 'J005', name: 'Mustard Oil / মাস্টার অয়েল', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'L', baseQty: 25, qty: 25, min: 10, cost: 160, salePrice: 195, supplier: 'Engine Brand Oils' },
-  { id: 'stk_06', sku: 'J006', name: 'Maida / মাইদা', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'kg', baseQty: 40, qty: 40, min: 15, cost: 38, salePrice: 50, supplier: 'Ganesh Flour Mills' },
-  { id: 'stk_07', sku: 'J007', name: 'Atta / আটা', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'kg', baseQty: 60, qty: 60, min: 20, cost: 42, salePrice: 55, supplier: 'Aashirvaad Atta Supplier' },
-  { id: 'stk_08', sku: 'J008', name: 'Chowmein / চাউমিন (Noodles)', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'packet', baseQty: 30, qty: 30, min: 10, cost: 35, salePrice: 50, supplier: 'Metro Food Distributors' },
-  { id: 'stk_09', sku: 'J009', name: 'Tomato Ketchup / টমেটো সস', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'L', baseQty: 15, qty: 15, min: 5, cost: 95, salePrice: 130, supplier: 'Kissan Distributors' },
-  { id: 'stk_10', sku: 'J010', name: 'Chilli Sauce / চিলি সস', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'Btl', baseQty: 12, qty: 12, min: 4, cost: 85, salePrice: 110, supplier: 'Ching\'s Secret Supplies' },
-  { id: 'stk_11', sku: 'J011', name: 'Soy Sauce / সয়া সস', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'Btl', baseQty: 10, qty: 10, min: 3, cost: 90, salePrice: 120, supplier: 'Ching\'s Secret Supplies' },
-  { id: 'stk_12', sku: 'J012', name: 'Vinegar / ভিনেগার', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'Btl', baseQty: 8, qty: 8, min: 3, cost: 60, salePrice: 85, supplier: 'Metro Food Distributors' },
-  { id: 'stk_13', sku: 'J013', name: 'Corn Flour / কর্ন ফ্লাওয়ার', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'kg', baseQty: 10, qty: 10, min: 4, cost: 70, salePrice: 95, supplier: 'Weikfield Distributors' },
-  { id: 'stk_14', sku: 'J014', name: 'Kasuri Methi / কস্তুরী মেথী', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'packet', baseQty: 15, qty: 15, min: 5, cost: 45, salePrice: 65, supplier: 'MDH Spices' },
-  { id: 'stk_15', sku: 'J015', name: 'Chaat Masala / চাট মশলা', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'packet', baseQty: 10, qty: 10, min: 3, cost: 65, salePrice: 85, supplier: 'Everest Spices' },
-  { id: 'stk_16', sku: 'J016', name: 'Kashmiri Red Chilli Powder', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'kg', baseQty: 5, qty: 5, min: 2, cost: 380, salePrice: 480, supplier: 'Everest Spices' },
-  { id: 'stk_17', sku: 'J017', name: 'Ajinomoto / টেস্ট লবন', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'kg', baseQty: 4, qty: 4, min: 2, cost: 140, salePrice: 180, supplier: 'Metro Food Distributors' },
-  { id: 'stk_18', sku: 'J018', name: 'Chilli Powder / লঙ্কা গুঁড়ো', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'kg', baseQty: 8, qty: 8, min: 3, cost: 260, salePrice: 320, supplier: 'Everest Spices' },
-  { id: 'stk_19', sku: 'J019', name: 'Turmeric Powder (Haldi) / হলুদ', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'kg', baseQty: 10, qty: 10, min: 3, cost: 220, salePrice: 280, supplier: 'Everest Spices' },
-  { id: 'stk_20', sku: 'J020', name: 'Cumin (Jeera) / জিরা', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'kg', baseQty: 8, qty: 8, min: 3, cost: 340, salePrice: 420, supplier: 'Spice Mart Kolkata' },
-  { id: 'stk_21', sku: 'J021', name: 'Sugar / চিনি', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'kg', baseQty: 50, qty: 50, min: 20, cost: 44, salePrice: 55, supplier: 'Metro Sugar Depot' },
-  { id: 'stk_22', sku: 'J022', name: 'Cashew Nuts (Kaju) / কাজু', category: 'Bhusimal & Spices', godown: 'Main Godown', unit: 'kg', baseQty: 6, qty: 6, min: 2, cost: 750, salePrice: 950, supplier: 'Dry Fruit Traders' },
-  { id: 'stk_23', sku: 'J023', name: 'Pure Desi Ghee / ঘি', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'L', baseQty: 5, qty: 5, min: 3, cost: 680, salePrice: 850, supplier: 'Amul Dairy Distributor' },
-  { id: 'stk_24', sku: 'J024', name: 'Eggs / ডিম', category: 'Bhusimal & Spices', godown: 'Kitchen Store', unit: 'pcs', baseQty: 150, qty: 150, min: 50, cost: 6, salePrice: 8, supplier: 'Bengal Poultry Farm' },
-
-  // 2. Dairy Items
-  { id: 'stk_25', sku: 'J025', name: 'Fresh Milk / দুধ', category: 'Dairy Items', godown: 'Kitchen Store', unit: 'L', baseQty: 20, qty: 20, min: 10, cost: 66, salePrice: 75, supplier: 'Mother Dairy' },
-  { id: 'stk_26', sku: 'J026', name: 'Dahi (Curd) / দই', category: 'Dairy Items', godown: 'Kitchen Store', unit: 'kg', baseQty: 15, qty: 15, min: 5, cost: 80, salePrice: 100, supplier: 'Amul Dairy Distributor' },
-  { id: 'stk_27', sku: 'J027', name: 'Amul Paneer / পনির', category: 'Dairy Items', godown: 'Kitchen Store', unit: 'kg', baseQty: 12, qty: 12, min: 4, cost: 360, salePrice: 440, supplier: 'Amul Dairy Distributor' },
-  { id: 'stk_28', sku: 'J028', name: 'Amul Butter / মাখন', category: 'Dairy Items', godown: 'Kitchen Store', unit: 'kg', baseQty: 8, qty: 8, min: 3, cost: 540, salePrice: 620, supplier: 'Amul Dairy Distributor' },
-  { id: 'stk_29', sku: 'J029', name: 'Amul Fresh Cream / ক্রিম', category: 'Dairy Items', godown: 'Kitchen Store', unit: 'pack', baseQty: 10, qty: 10, min: 3, cost: 180, salePrice: 220, supplier: 'Amul Dairy Distributor' },
-  { id: 'stk_30', sku: 'J030', name: 'Cheese Block / চিজ', category: 'Dairy Items', godown: 'Kitchen Store', unit: 'kg', baseQty: 6, qty: 6, min: 2, cost: 420, salePrice: 520, supplier: 'Amul Dairy Distributor' },
-
-  // 3. Cold Drinks
-  { id: 'stk_31', sku: 'J031', name: 'Campa White (250ml)', category: 'Cold Drinks', godown: 'Storage 1', unit: 'pcs', baseQty: 48, qty: 48, min: 24, cost: 18, salePrice: 20, supplier: 'Reliance Beverages' },
-  { id: 'stk_32', sku: 'J032', name: 'Campa Black (500ml)', category: 'Cold Drinks', godown: 'Storage 1', unit: 'pcs', baseQty: 36, qty: 36, min: 12, cost: 24, salePrice: 30, supplier: 'Reliance Beverages' },
-  { id: 'stk_33', sku: 'J033', name: 'Kinley Water (1L)', category: 'Cold Drinks', godown: 'Storage 1', unit: 'Btl', baseQty: 60, qty: 60, min: 24, cost: 14, salePrice: 20, supplier: 'Coca Cola Distributor' },
-  { id: 'stk_34', sku: 'J034', name: 'Bisleri Water (1L)', category: 'Cold Drinks', godown: 'Storage 1', unit: 'Btl', baseQty: 48, qty: 48, min: 24, cost: 14, salePrice: 20, supplier: 'Bisleri Agency Kolkata' },
-  { id: 'stk_35', sku: 'J035', name: 'Thums Up (500ml)', category: 'Cold Drinks', godown: 'Storage 1', unit: 'pcs', baseQty: 48, qty: 48, min: 24, cost: 38, salePrice: 45, supplier: 'Coca Cola Distributor' },
-  { id: 'stk_36', sku: 'J036', name: 'Sprite (500ml)', category: 'Cold Drinks', godown: 'Storage 1', unit: 'pcs', baseQty: 48, qty: 48, min: 24, cost: 38, salePrice: 45, supplier: 'Coca Cola Distributor' },
-  { id: 'stk_37', sku: 'J037', name: 'Kinley Soda / সোডা', category: 'Cold Drinks', godown: 'Storage 1', unit: 'Btl', baseQty: 12, qty: 12, min: 12, cost: 14, salePrice: 20, supplier: 'Coca Cola Distributor' },
-
-  // 4. Fresh Vegetables
-  { id: 'stk_38', sku: 'J038', name: 'Potato / আলু', category: 'Fresh Vegetables', godown: 'Main Godown', unit: 'kg', baseQty: 80, qty: 80, min: 30, cost: 26, salePrice: 35, supplier: 'Kolkata Sabji Mandi' },
-  { id: 'stk_39', sku: 'J039', name: 'Onion / পেঁয়াজ', category: 'Fresh Vegetables', godown: 'Main Godown', unit: 'kg', baseQty: 60, qty: 60, min: 25, cost: 35, salePrice: 45, supplier: 'Kolkata Sabji Mandi' },
-  { id: 'stk_40', sku: 'J040', name: 'Ginger / আদা', category: 'Fresh Vegetables', godown: 'Kitchen Store', unit: 'kg', baseQty: 10, qty: 10, min: 4, cost: 160, salePrice: 210, supplier: 'Kolkata Sabji Mandi' },
-  { id: 'stk_41', sku: 'J041', name: 'Garlic / রসুন', category: 'Fresh Vegetables', godown: 'Kitchen Store', unit: 'kg', baseQty: 12, qty: 12, min: 4, cost: 210, salePrice: 270, supplier: 'Kolkata Sabji Mandi' },
-  { id: 'stk_42', sku: 'J042', name: 'Capsicum / ক্যাপসিকাম', category: 'Fresh Vegetables', godown: 'Kitchen Store', unit: 'kg', baseQty: 8, qty: 8, min: 3, cost: 90, salePrice: 120, supplier: 'Kolkata Sabji Mandi' },
-  { id: 'stk_43', sku: 'J043', name: 'Carrot / গাজর', category: 'Fresh Vegetables', godown: 'Kitchen Store', unit: 'kg', baseQty: 10, qty: 10, min: 3, cost: 40, salePrice: 60, supplier: 'Kolkata Sabji Mandi' },
-  { id: 'stk_44', sku: 'J044', name: 'Green Beans / বিনস', category: 'Fresh Vegetables', godown: 'Kitchen Store', unit: 'kg', baseQty: 6, qty: 6, min: 2, cost: 55, salePrice: 80, supplier: 'Kolkata Sabji Mandi' },
-  { id: 'stk_45', sku: 'J045', name: 'Green Chilli / কাঁচা লঙ্কা', category: 'Fresh Vegetables', godown: 'Kitchen Store', unit: 'kg', baseQty: 5, qty: 5, min: 2, cost: 80, salePrice: 110, supplier: 'Kolkata Sabji Mandi' },
-  { id: 'stk_46', sku: 'J046', name: 'Fresh Tomato / টমেটো', category: 'Fresh Vegetables', godown: 'Kitchen Store', unit: 'kg', baseQty: 15, qty: 15, min: 5, cost: 35, salePrice: 50, supplier: 'Kolkata Sabji Mandi' },
-
-  // 5. Ice Cream
-  { id: 'stk_47', sku: 'J047', name: '₹10 Rabdi Ice Cream', category: 'Ice Cream', godown: 'Storage 1', unit: 'pcs', baseQty: 30, qty: 30, min: 10, cost: 7, salePrice: 10, supplier: 'Amul Ice Cream Agency' },
-  { id: 'stk_48', sku: 'J048', name: '₹20 Ice Cream Cone', category: 'Ice Cream', godown: 'Storage 1', unit: 'pcs', baseQty: 24, qty: 24, min: 8, cost: 14, salePrice: 20, supplier: 'Amul Ice Cream Agency' },
-  { id: 'stk_49', sku: 'J049', name: '1L Gallon Vanilla Ice Cream', category: 'Ice Cream', godown: 'Storage 1', unit: 'box', baseQty: 4, qty: 4, min: 2, cost: 190, salePrice: 250, supplier: 'Amul Ice Cream Agency' },
-
-  // 6. Packaging & Carry Bags
-  { id: 'stk_50', sku: 'J050', name: '1000ml Food Container', category: 'Packaging & Carry Bags', godown: 'Storage 1', unit: 'pcs', baseQty: 250, qty: 250, min: 100, cost: 6.5, salePrice: 10, supplier: 'PackWell Solutions' },
-  { id: 'stk_51', sku: 'J051', name: '500ml Food Container', category: 'Packaging & Carry Bags', godown: 'Storage 1', unit: 'pcs', baseQty: 400, qty: 400, min: 150, cost: 4.2, salePrice: 7, supplier: 'PackWell Solutions' },
-  { id: 'stk_52', sku: 'J052', name: '16x20 Carry Bag', category: 'Packaging & Carry Bags', godown: 'Storage 1', unit: 'pcs', baseQty: 500, qty: 500, min: 100, cost: 2.1, salePrice: 3.5, supplier: 'PackWell Solutions' },
-
-  // 7. Cleaning & Washings
-  { id: 'stk_53', sku: 'J053', name: 'Vim Soap / ভিম সাবান', category: 'Cleaning & Washings', godown: 'Main Godown', unit: 'pcs', baseQty: 30, qty: 30, min: 10, cost: 12, salePrice: 15, supplier: 'Hindustan Unilever Wholesale' },
-  { id: 'stk_54', sku: 'J054', name: 'Vim Liquid Dishwash', category: 'Cleaning & Washings', godown: 'Main Godown', unit: 'Btl', baseQty: 10, qty: 10, min: 4, cost: 115, salePrice: 145, supplier: 'Hindustan Unilever Wholesale' },
-  { id: 'stk_55', sku: 'J055', name: 'Harpic Toilet Cleaner', category: 'Cleaning & Washings', godown: 'Main Godown', unit: 'Btl', baseQty: 8, qty: 8, min: 3, cost: 100, salePrice: 130, supplier: 'Reckitt Benckiser Distributor' }
-];
+// Storage Keys for fast instant local caching
+const STORAGE_KEY_ITEMS = 'limra_stock_items_v3';
+const STORAGE_KEY_IN = 'limra_stock_in_entries_v3';
+const STORAGE_KEY_OUT = 'limra_stock_out_entries_v3';
+const STORAGE_KEY_LOGS = 'limra_stock_logs_v3';
 
 // Global State
 let stockItems = [];
@@ -111,27 +34,24 @@ let selectedGodown = 'all';
 let activeLogFilter = 'all';
 let searchQuery = '';
 let viewMode = 'feed'; // 'feed' or 'table'
+let isDatabaseLoading = false;
 
-// Load data
-function loadState() {
+// ═════════════════════════════════════════════════════════════════════
+// DATABASE STATE & OFFLINE CACHE SYNCHRONIZATION
+// ═════════════════════════════════════════════════════════════════════
+
+// 1. Initial Instant Cache Load
+function loadLocalCache() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_ITEMS);
-    if (raw) {
-      stockItems = JSON.parse(raw);
+    const rawItems = localStorage.getItem(STORAGE_KEY_ITEMS);
+    if (rawItems) {
+      stockItems = JSON.parse(rawItems);
     } else {
-      stockItems = JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+      stockItems = JSON.parse(JSON.stringify(INITIAL_STOCK_ITEMS));
     }
   } catch (e) {
-    stockItems = JSON.parse(JSON.stringify(DEFAULT_ITEMS));
+    stockItems = JSON.parse(JSON.stringify(INITIAL_STOCK_ITEMS));
   }
-
-  // Ensure every item has SKU
-  stockItems.forEach((item, index) => {
-    if (!item.sku) {
-      item.sku = `J${String(index + 1).padStart(3, '0')}`;
-    }
-    if (item.baseQty === undefined) item.baseQty = item.qty || 0;
-  });
 
   try {
     const rawIn = localStorage.getItem(STORAGE_KEY_IN);
@@ -154,56 +74,166 @@ function loadState() {
     stockLogs = [];
   }
 
-  // Calculate actual balances
   recalculateBalances();
-  saveState();
 }
 
-function saveState() {
+function saveLocalCache() {
   try {
     localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(stockItems));
     localStorage.setItem(STORAGE_KEY_IN, JSON.stringify(stockInEntries));
     localStorage.setItem(STORAGE_KEY_OUT, JSON.stringify(stockOutEntries));
     localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(stockLogs));
   } catch (e) {
-    console.warn('[StockManager] Save state failed:', e);
+    console.warn('[StockManager] Save local cache failed:', e);
+  }
+}
+
+// 2. Fetch Fresh Data Directly from InsForge PostgreSQL Database
+async function fetchDatabaseState() {
+  const statusBadge = document.getElementById('db-status-badge');
+  const statusText = document.getElementById('db-status-text');
+
+  if (statusText) statusText.textContent = 'Syncing DB...';
+  if (statusBadge) statusBadge.className = 'px-2.5 py-1 bg-amber-950/80 border border-amber-700/60 text-amber-300 font-bold text-[10px] rounded-xl flex items-center gap-1.5 shadow-sm';
+
+  isDatabaseLoading = true;
+
+  try {
+    const [itemsRes, inRes, outRes, logsRes] = await Promise.all([
+      insforge.database.from('stock_items').select('*').order('sku', { ascending: true }),
+      insforge.database.from('stock_in').select('*').order('created_at', { ascending: false }),
+      insforge.database.from('stock_out').select('*').order('created_at', { ascending: false }),
+      insforge.database.from('stock_logs').select('*').order('created_at', { ascending: false }).limit(100)
+    ]);
+
+    if (itemsRes.data && itemsRes.data.length > 0) {
+      stockItems = itemsRes.data.map(item => ({
+        id: item.id,
+        sku: item.sku,
+        name: item.name,
+        category: item.category || 'Bhusimal & Spices',
+        godown: item.godown || 'Main Godown',
+        unit: item.unit || 'pcs',
+        min: safeNum(item.min_qty, 5),
+        cost: safeNum(item.cost_price, 0),
+        salePrice: safeNum(item.sale_price, 0),
+        supplier: item.supplier || '',
+        isAvailable: item.is_available ?? true,
+        storedQty: safeNum(item.qty, 0),
+        updatedAt: item.updated_at
+      }));
+    }
+
+    if (inRes.data) {
+      stockInEntries = inRes.data.map(entry => ({
+        id: entry.id,
+        date: entry.date || new Date(entry.created_at || Date.now()).toLocaleDateString('en-GB'),
+        sku: entry.item_sku || entry.sku || '',
+        description: entry.item_name || entry.description || 'Stock IN',
+        unit: entry.unit || 'pcs',
+        qty: safeNum(entry.qty, 0),
+        costPrice: safeNum(entry.cost_price, 0),
+        supplier: entry.supplier || '',
+        notes: entry.notes || '',
+        createdAt: entry.created_at
+      }));
+    }
+
+    if (outRes.data) {
+      stockOutEntries = outRes.data.map(entry => ({
+        id: entry.id,
+        date: entry.date || new Date(entry.created_at || Date.now()).toLocaleDateString('en-GB'),
+        sku: entry.item_sku || entry.sku || '',
+        description: entry.item_name || entry.description || 'Stock OUT',
+        unit: entry.unit || 'pcs',
+        qty: safeNum(entry.qty, 0),
+        usedBy: entry.used_by || '',
+        notes: entry.notes || '',
+        createdAt: entry.created_at
+      }));
+    }
+
+    if (logsRes.data) {
+      stockLogs = logsRes.data.map(log => ({
+        id: log.id,
+        date: new Date(log.created_at).toLocaleDateString('en-GB') + ' ' + new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        itemName: log.action ? log.action.split('(')[0].trim() : 'Stock Action',
+        type: log.action || 'Movement',
+        qtyText: log.details ? (log.details.split('|')[0] || '').trim() : '',
+        notes: log.details || '',
+        createdAt: log.created_at
+      }));
+    }
+
+    recalculateBalances();
+    saveLocalCache();
+
+    if (statusText) statusText.textContent = 'DB Connected';
+    if (statusBadge) statusBadge.className = 'px-2.5 py-1 bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 font-bold text-[10px] rounded-xl flex items-center gap-1.5 shadow-sm';
+
+    renderAll();
+  } catch (err) {
+    console.error('[StockManager] Database fetch error:', err);
+    if (statusText) statusText.textContent = 'Offline (Cached)';
+    if (statusBadge) statusBadge.className = 'px-2.5 py-1 bg-rose-950/80 border border-rose-700/60 text-rose-300 font-bold text-[10px] rounded-xl flex items-center gap-1.5 shadow-sm';
+  } finally {
+    isDatabaseLoading = false;
   }
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// CALCULATION ENGINE: Actual Balance = Base Qty + Total IN - Total OUT
+// CALCULATION ENGINE: Actual Balance = Total IN - Total OUT (from DB)
 // ═════════════════════════════════════════════════════════════════════
 function recalculateBalances() {
   stockItems.forEach(item => {
-    const totalIn = stockInEntries
-      .filter(e => e.sku === item.sku)
-      .reduce((sum, e) => sum + safeNum(e.qty), 0);
+    const matchingIn = stockInEntries.filter(e => e.sku === item.sku);
+    const matchingOut = stockOutEntries.filter(e => e.sku === item.sku);
 
-    const totalOut = stockOutEntries
-      .filter(e => e.sku === item.sku)
-      .reduce((sum, e) => sum + safeNum(e.qty), 0);
+    const totalIn = matchingIn.reduce((sum, e) => sum + safeNum(e.qty), 0);
+    const totalOut = matchingOut.reduce((sum, e) => sum + safeNum(e.qty), 0);
 
-    const base = safeNum(item.baseQty, 0);
-    item.totalIn = totalIn;
-    item.totalOut = totalOut;
-    item.qty = parseFloat((base + totalIn - totalOut).toFixed(2));
+    item.totalIn = parseFloat(totalIn.toFixed(2));
+    item.totalOut = parseFloat(totalOut.toFixed(2));
+
+    // If transactions exist in DB, balance is Total IN - Total OUT.
+    // Otherwise fallback to stored quantity in DB.
+    if (matchingIn.length > 0 || matchingOut.length > 0) {
+      item.qty = parseFloat((totalIn - totalOut).toFixed(2));
+    } else {
+      item.qty = safeNum(item.storedQty, 0);
+    }
   });
 }
 
-function addLog(itemName, location, actionType, qtyText, notes = '') {
-  const log = {
-    id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-    date: new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-    itemName,
-    location: location || 'Main Godown',
-    type: actionType,
-    qtyText,
-    notes: notes || 'Entry record'
+async function addLogToDB(action, details) {
+  const logId = 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+  const logObj = {
+    id: logId,
+    action,
+    details,
+    created_at: new Date().toISOString()
   };
-  stockLogs.unshift(log);
+
+  // Add locally immediately
+  stockLogs.unshift({
+    id: logId,
+    date: new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    itemName: action.split('(')[0].trim(),
+    type: action,
+    qtyText: details.split('|')[0]?.trim() || '',
+    notes: details,
+    createdAt: logObj.created_at
+  });
   if (stockLogs.length > 80) stockLogs = stockLogs.slice(0, 80);
-  saveState();
+  saveLocalCache();
   renderLogs();
+
+  // Async sync to InsForge DB
+  try {
+    await insforge.database.from('stock_logs').insert([logObj]);
+  } catch (err) {
+    console.warn('[StockManager] Log sync to DB error:', err);
+  }
 }
 
 // Toast Notifications
@@ -405,7 +435,10 @@ function renderInOutBalanceTables() {
   renderCriticalStockSection();
 }
 
-function deleteStockInEntry(entryId) {
+// ═════════════════════════════════════════════════════════════════════
+// DELETE STOCK IN / OUT ENTRIES WITH DATABASE PERSISTENCE
+// ═════════════════════════════════════════════════════════════════════
+async function deleteStockInEntry(entryId) {
   const index = stockInEntries.findIndex(e => e.id === entryId);
   if (index === -1) return;
   const entry = stockInEntries[index];
@@ -414,15 +447,36 @@ function deleteStockInEntry(entryId) {
     return;
   }
 
+  // Remove locally
   stockInEntries.splice(index, 1);
   recalculateBalances();
-  saveState();
-  addLog(entry.description, 'Main Godown', 'Delete Stock IN', `-${entry.qty} ${entry.unit}`, `Removed Stock IN entry for SKU ${entry.sku}`);
+  saveLocalCache();
   renderAll();
   showToast(`Deleted Stock IN entry for "${entry.description}"`, 'info');
+
+  // Database operations
+  try {
+    await insforge.database.from('stock_in').delete().eq('id', entryId);
+    await addLogToDB(
+      `${entry.description} (Delete Stock IN)`,
+      `-${entry.qty} ${entry.unit} | Removed Stock IN entry for SKU ${entry.sku}`
+    );
+
+    // Sync updated item qty
+    const targetItem = stockItems.find(i => i.sku === entry.sku);
+    if (targetItem) {
+      await insforge.database.from('stock_items').update({
+        qty: targetItem.qty,
+        updated_at: new Date().toISOString()
+      }).eq('id', targetItem.id);
+    }
+  } catch (err) {
+    console.error('[StockManager] Error deleting Stock IN from DB:', err);
+    showToast('Failed to sync deletion to database.', 'error');
+  }
 }
 
-function deleteStockOutEntry(entryId) {
+async function deleteStockOutEntry(entryId) {
   const index = stockOutEntries.findIndex(e => e.id === entryId);
   if (index === -1) return;
   const entry = stockOutEntries[index];
@@ -431,12 +485,33 @@ function deleteStockOutEntry(entryId) {
     return;
   }
 
+  // Remove locally
   stockOutEntries.splice(index, 1);
   recalculateBalances();
-  saveState();
-  addLog(entry.description, 'Main Godown', 'Delete Stock OUT', `+${entry.qty} ${entry.unit}`, `Removed Stock OUT entry for SKU ${entry.sku}`);
+  saveLocalCache();
   renderAll();
   showToast(`Deleted Stock OUT entry for "${entry.description}"`, 'info');
+
+  // Database operations
+  try {
+    await insforge.database.from('stock_out').delete().eq('id', entryId);
+    await addLogToDB(
+      `${entry.description} (Delete Stock OUT)`,
+      `+${entry.qty} ${entry.unit} | Removed Stock OUT entry for SKU ${entry.sku}`
+    );
+
+    // Sync updated item qty
+    const targetItem = stockItems.find(i => i.sku === entry.sku);
+    if (targetItem) {
+      await insforge.database.from('stock_items').update({
+        qty: targetItem.qty,
+        updated_at: new Date().toISOString()
+      }).eq('id', targetItem.id);
+    }
+  } catch (err) {
+    console.error('[StockManager] Error deleting Stock OUT from DB:', err);
+    showToast('Failed to sync deletion to database.', 'error');
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -699,7 +774,7 @@ function renderAll() {
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// RECORD STOCK IN / OUT ENTRY MODAL WORKFLOW
+// RECORD STOCK IN / OUT ENTRY MODAL WORKFLOW WITH DATABASE PERSISTENCE
 // ═════════════════════════════════════════════════════════════════════
 function openInOutModal(mode = 'IN') {
   const modal = document.getElementById('modal-inout-entry');
@@ -717,8 +792,8 @@ function openInOutModal(mode = 'IN') {
   title.textContent = mode === 'IN' ? '📥 Record Stock IN Entry' : '📤 Record Stock OUT Entry';
   submitBtn.textContent = mode === 'IN' ? 'Save IN Entry' : 'Save OUT Entry';
   submitBtn.className = mode === 'IN'
-    ? 'px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg transition-all'
-    : 'px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl shadow-lg transition-all';
+    ? 'px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg transition-all cursor-pointer'
+    : 'px-5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl shadow-lg transition-all cursor-pointer';
 
   dateInput.value = new Date().toISOString().slice(0, 10);
   qtyInput.value = '';
@@ -726,7 +801,7 @@ function openInOutModal(mode = 'IN') {
   // Sort and populate options
   const sorted = [...stockItems].sort((a, b) => (a.sku || '').localeCompare(b.sku || ''));
   itemSelect.innerHTML = sorted.map(item => `
-    <option value="${item.sku}" data-unit="${item.unit}" data-name="${item.name}">${item.sku} — ${item.name} (${item.category})</option>
+    <option value="${item.sku}" data-id="${item.id}" data-unit="${item.unit}" data-name="${item.name}">${item.sku} — ${item.name} (${item.category})</option>
   `).join('');
 
   // Set unit display for currently selected item
@@ -749,7 +824,7 @@ function closeInOutModal() {
   document.getElementById('modal-inout-entry')?.classList.add('hidden');
 }
 
-function handleInOutSubmit(e) {
+async function handleInOutSubmit(e) {
   e.preventDefault();
   const mode = document.getElementById('inout-mode').value;
   const date = document.getElementById('inout-date').value;
@@ -757,6 +832,7 @@ function handleInOutSubmit(e) {
   const selectedOpt = itemSelect.options[itemSelect.selectedIndex];
   const sku = itemSelect.value;
   const description = selectedOpt.dataset.name || 'Item';
+  const itemId = selectedOpt.dataset.id || '';
   const unit = selectedOpt.dataset.unit || 'pcs';
   const qty = safeNum(document.getElementById('inout-qty').value, 0);
 
@@ -765,29 +841,85 @@ function handleInOutSubmit(e) {
     return;
   }
 
-  const entry = {
-    id: 'entry_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+  const targetItem = stockItems.find(i => i.sku === sku) || { id: itemId, cost: 0, supplier: '' };
+
+  const entryId = (mode === 'IN' ? 'in_' : 'out_') + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+  const nowIso = new Date().toISOString();
+
+  const entryLocal = {
+    id: entryId,
     date,
     sku,
     description,
     unit,
-    qty
+    qty,
+    createdAt: nowIso
   };
 
   if (mode === 'IN') {
-    stockInEntries.unshift(entry);
-    addLog(description, 'Main Godown', 'Stock IN', `+${qty} ${unit}`, `Manual IN record for SKU ${sku}`);
+    stockInEntries.unshift(entryLocal);
     showToast(`Recorded Stock IN: +${qty} ${unit} for "${description}"`, 'success');
   } else {
-    stockOutEntries.unshift(entry);
-    addLog(description, 'Main Godown', 'Stock OUT', `-${qty} ${unit}`, `Manual OUT record for SKU ${sku}`);
+    stockOutEntries.unshift(entryLocal);
     showToast(`Recorded Stock OUT: -${qty} ${unit} for "${description}"`, 'warning');
   }
 
   recalculateBalances();
-  saveState();
+  saveLocalCache();
   closeInOutModal();
   renderAll();
+
+  // Async Database Synchronization
+  try {
+    if (mode === 'IN') {
+      await insforge.database.from('stock_in').insert([{
+        id: entryId,
+        date,
+        item_id: targetItem.id,
+        item_sku: sku,
+        item_name: description,
+        qty,
+        unit,
+        cost_price: targetItem.cost || 0,
+        supplier: targetItem.supplier || '',
+        notes: `Manual Stock IN entry for ${sku}`,
+        created_at: nowIso
+      }]);
+      await addLogToDB(
+        `${description} (Stock IN (+))`,
+        `+${qty} ${unit} | Manual IN entry recorded for ${sku}`
+      );
+    } else {
+      await insforge.database.from('stock_out').insert([{
+        id: entryId,
+        date,
+        item_id: targetItem.id,
+        item_sku: sku,
+        item_name: description,
+        qty,
+        unit,
+        used_by: 'Kitchen / Counter',
+        notes: `Manual Stock OUT entry for ${sku}`,
+        created_at: nowIso
+      }]);
+      await addLogToDB(
+        `${description} (Stock OUT (-))`,
+        `-${qty} ${unit} | Manual OUT entry recorded for ${sku}`
+      );
+    }
+
+    // Update calculated qty in stock_items table
+    const updatedItem = stockItems.find(i => i.sku === sku);
+    if (updatedItem) {
+      await insforge.database.from('stock_items').update({
+        qty: updatedItem.qty,
+        updated_at: nowIso
+      }).eq('id', updatedItem.id);
+    }
+  } catch (err) {
+    console.error('[StockManager] Error saving IN/OUT entry to DB:', err);
+    showToast('Warning: Entry saved locally, but database sync encountered an issue.', 'warning');
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -866,7 +998,7 @@ function closeItemDetailsModal() {
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// QUICK ADJUST MODAL
+// QUICK ADJUST MODAL WITH DATABASE PERSISTENCE
 // ═════════════════════════════════════════════════════════════════════
 function openAdjustModal(itemId) {
   const item = stockItems.find(i => i.id === itemId);
@@ -897,7 +1029,7 @@ function closeAdjustModal() {
   document.getElementById('modal-adjust-stock')?.classList.add('hidden');
 }
 
-function handleAdjustSubmit(e) {
+async function handleAdjustSubmit(e) {
   e.preventDefault();
   const itemId = document.getElementById('adjust-target-id').value;
   const item = stockItems.find(i => i.id === itemId);
@@ -908,39 +1040,88 @@ function handleAdjustSubmit(e) {
   const notes = document.getElementById('adjust-workflow-notes').value || 'Workflow Adjustment';
   const godown = document.getElementById('adjust-godown-select').value;
   const date = new Date().toISOString().slice(0, 10);
+  const nowIso = new Date().toISOString();
 
   if (qty <= 0) {
     showToast('Please enter a valid quantity greater than 0.', 'error');
     return;
   }
 
-  const entry = {
-    id: 'entry_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+  const entryId = (mode === 'add' ? 'in_' : 'out_') + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+
+  const entryLocal = {
+    id: entryId,
     date,
     sku: item.sku,
     description: item.name,
     unit: item.unit,
-    qty
+    qty,
+    createdAt: nowIso
   };
 
   if (mode === 'add') {
-    stockInEntries.unshift(entry);
-    addLog(item.name, godown, 'Stock IN (+)', `+${qty} ${item.unit}`, notes);
+    stockInEntries.unshift(entryLocal);
     showToast(`Added +${qty} ${item.unit} to "${item.name}"`, 'success');
   } else {
-    stockOutEntries.unshift(entry);
-    addLog(item.name, godown, 'Stock OUT (-)', `-${qty} ${item.unit}`, notes);
+    stockOutEntries.unshift(entryLocal);
     showToast(`Reduced -${qty} ${item.unit} from "${item.name}"`, 'warning');
   }
 
   recalculateBalances();
-  saveState();
+  saveLocalCache();
   closeAdjustModal();
   renderAll();
+
+  // Async sync to Database
+  try {
+    if (mode === 'add') {
+      await insforge.database.from('stock_in').insert([{
+        id: entryId,
+        date,
+        item_id: item.id,
+        item_sku: item.sku,
+        item_name: item.name,
+        qty,
+        unit: item.unit,
+        cost_price: item.cost,
+        supplier: item.supplier || '',
+        notes,
+        created_at: nowIso
+      }]);
+      await addLogToDB(
+        `${item.name} (Stock IN (+))`,
+        `+${qty} ${item.unit} | ${notes}`
+      );
+    } else {
+      await insforge.database.from('stock_out').insert([{
+        id: entryId,
+        date,
+        item_id: item.id,
+        item_sku: item.sku,
+        item_name: item.name,
+        qty,
+        unit: item.unit,
+        used_by: godown,
+        notes,
+        created_at: nowIso
+      }]);
+      await addLogToDB(
+        `${item.name} (Stock OUT (-))`,
+        `-${qty} ${item.unit} | ${notes}`
+      );
+    }
+
+    await insforge.database.from('stock_items').update({
+      qty: item.qty,
+      updated_at: nowIso
+    }).eq('id', item.id);
+  } catch (err) {
+    console.error('[StockManager] Adjust sync to DB failed:', err);
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// ADD / EDIT STOCK ITEM MODAL
+// ADD / EDIT STOCK ITEM MODAL WITH DATABASE PERSISTENCE
 // ═════════════════════════════════════════════════════════════════════
 function openItemModal(itemId = null) {
   const modal = document.getElementById('modal-item');
@@ -957,7 +1138,7 @@ function openItemModal(itemId = null) {
   document.getElementById('form-item-category').value = item ? item.category : 'Bhusimal & Spices';
   document.getElementById('form-item-godown').value = item ? item.godown : 'Main Godown';
   document.getElementById('form-item-unit').value = item ? item.unit : 'kg';
-  document.getElementById('form-item-qty').value = item ? item.baseQty : '';
+  document.getElementById('form-item-qty').value = item ? (item.qty ?? '') : '';
   document.getElementById('form-item-min').value = item ? item.min : '10';
   document.getElementById('form-item-sale-price').value = item ? item.salePrice || '' : '';
   document.getElementById('form-item-cost').value = item ? item.cost : '';
@@ -970,7 +1151,7 @@ function closeItemModal() {
   document.getElementById('modal-item')?.classList.add('hidden');
 }
 
-function handleItemSubmit(e) {
+async function handleItemSubmit(e) {
   e.preventDefault();
   const id = document.getElementById('form-item-id').value;
   const name = document.getElementById('form-item-name').value.trim();
@@ -983,6 +1164,7 @@ function handleItemSubmit(e) {
   const salePrice = safeNum(document.getElementById('form-item-sale-price').value, 0);
   const cost = safeNum(document.getElementById('form-item-cost').value, 0);
   const supplier = document.getElementById('form-item-supplier').value.trim();
+  const nowIso = new Date().toISOString();
 
   if (!sku) {
     sku = `J${String(stockItems.length + 1).padStart(3, '0')}`;
@@ -996,38 +1178,123 @@ function handleItemSubmit(e) {
       item.category = category;
       item.godown = godown;
       item.unit = unit;
-      item.baseQty = baseQty;
       item.min = min;
       item.salePrice = salePrice;
       item.cost = cost;
       item.supplier = supplier;
-      addLog(name, godown, 'Edit Item Details', `${baseQty} ${unit}`, 'Item parameters updated');
       showToast(`Updated item "${name}"`, 'success');
+
+      recalculateBalances();
+      saveLocalCache();
+      closeItemModal();
+      renderAll();
+
+      try {
+        await insforge.database.from('stock_items').update({
+          name,
+          sku,
+          category,
+          unit,
+          min_qty: min,
+          cost_price: cost,
+          sale_price: salePrice,
+          supplier,
+          updated_at: nowIso
+        }).eq('id', id);
+
+        await addLogToDB(
+          `${name} (Edit Item Details)`,
+          `Parameters updated for SKU ${sku}`
+        );
+      } catch (err) {
+        console.error('[StockManager] Update item in DB error:', err);
+      }
     }
   } else {
+    const newId = 'stk_' + Date.now();
     const newItem = {
-      id: 'stk_' + Date.now(),
+      id: newId,
       sku,
       name,
       category,
       godown,
       unit,
-      baseQty,
       qty: baseQty,
+      storedQty: baseQty,
       min,
       cost,
       salePrice,
-      supplier
+      supplier,
+      isAvailable: true,
+      updatedAt: nowIso
     };
     stockItems.unshift(newItem);
-    addLog(name, godown, 'Add New Item', `${baseQty} ${unit}`, 'Created new inventory SKU');
-    showToast(`Created new item "${name}" (${sku})`, 'success');
-  }
 
-  recalculateBalances();
-  saveState();
-  closeItemModal();
-  renderAll();
+    // If initial qty > 0, create initial Stock IN entry
+    if (baseQty > 0) {
+      const initInId = 'in_init_' + Date.now();
+      const dateStr = new Date().toISOString().slice(0, 10);
+      stockInEntries.unshift({
+        id: initInId,
+        date: dateStr,
+        sku,
+        description: name,
+        unit,
+        qty: baseQty,
+        createdAt: nowIso
+      });
+
+      try {
+        await insforge.database.from('stock_in').insert([{
+          id: initInId,
+          date: dateStr,
+          item_id: newId,
+          item_sku: sku,
+          item_name: name,
+          qty: baseQty,
+          unit,
+          cost_price: cost,
+          supplier,
+          notes: 'Opening stock balance for newly created item',
+          created_at: nowIso
+        }]);
+      } catch (e) {
+        console.warn('[StockManager] Initial Stock IN sync error:', e);
+      }
+    }
+
+    showToast(`Created new item "${name}" (${sku})`, 'success');
+
+    recalculateBalances();
+    saveLocalCache();
+    closeItemModal();
+    renderAll();
+
+    try {
+      await insforge.database.from('stock_items').insert([{
+        id: newId,
+        sku,
+        name,
+        category,
+        unit,
+        qty: newItem.qty,
+        min_qty: min,
+        cost_price: cost,
+        sale_price: salePrice,
+        godown,
+        supplier,
+        is_available: true,
+        updated_at: nowIso
+      }]);
+
+      await addLogToDB(
+        `${name} (Add New Item)`,
+        `Created new inventory SKU ${sku} with initial balance ${baseQty} ${unit}`
+      );
+    } catch (err) {
+      console.error('[StockManager] Insert item in DB error:', err);
+    }
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1263,14 +1530,9 @@ function setupEventListeners() {
   });
 
   document.getElementById('menu-reset-defaults')?.addEventListener('click', () => {
-    if (confirm('Reset inventory and clear all entries back to default state?')) {
-      localStorage.removeItem(STORAGE_KEY_ITEMS);
-      localStorage.removeItem(STORAGE_KEY_IN);
-      localStorage.removeItem(STORAGE_KEY_OUT);
-      localStorage.removeItem(STORAGE_KEY_LOGS);
-      loadState();
-      renderAll();
-      showToast('Inventory reset to initial defaults', 'info');
+    if (confirm('Re-sync inventory directly from PostgreSQL database?')) {
+      fetchDatabaseState();
+      showToast('Syncing with PostgreSQL database...', 'info');
     }
   });
 
@@ -1283,11 +1545,11 @@ function setupEventListeners() {
   });
 
   document.getElementById('btn-clear-logs')?.addEventListener('click', () => {
-    if (confirm('Clear audit logs history?')) {
+    if (confirm('Clear audit logs display?')) {
       stockLogs = [];
-      saveState();
+      saveLocalCache();
       renderLogs();
-      showToast('Audit log cleared', 'info');
+      showToast('Audit log view cleared', 'info');
     }
   });
 
@@ -1308,19 +1570,23 @@ function setupEventListeners() {
   // Repair boundary
   document.getElementById('btn-repair-inventory')?.addEventListener('click', () => {
     localStorage.removeItem(STORAGE_KEY_ITEMS);
-    loadState();
-    renderAll();
+    localStorage.removeItem(STORAGE_KEY_IN);
+    localStorage.removeItem(STORAGE_KEY_OUT);
+    localStorage.removeItem(STORAGE_KEY_LOGS);
+    loadLocalCache();
+    fetchDatabaseState();
     document.getElementById('stock-error-boundary')?.classList.add('hidden');
-    showToast('Inventory storage repaired & refreshed', 'success');
+    showToast('Inventory database synchronization refreshed', 'success');
   });
 }
 
 // Initialize on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    loadState();
+    loadLocalCache();
     setupEventListeners();
     renderAll();
+    fetchDatabaseState();
   } catch (err) {
     console.error('Stock Manager Initialization Error:', err);
     document.getElementById('stock-error-boundary')?.classList.remove('hidden');
