@@ -223,8 +223,8 @@
         </div>
       </div>
 
-      <!-- 3 Side-by-Side Spreadsheet Tables Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+      <!-- 2-Column Side-by-Side Grid for TABLE 1 (IN) and TABLE 2 (OUT) -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         
         <!-- TABLE 1: STOCK IN (Green Theme) -->
         <div class="stock-glass-card border border-emerald-500/30 overflow-hidden shadow-xl">
@@ -276,29 +276,29 @@
           </div>
         </div>
 
-        <!-- TABLE 3: REAL-TIME BALANCE (Blue Theme) -->
-        <div class="stock-glass-card border border-sky-500/30 overflow-hidden shadow-xl">
-          <div class="bg-sky-700/90 px-3.5 py-2.5 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
-            <span class="flex items-center gap-1.5">⚖️ BALANCE</span>
-            <span id="badge-balance-count" class="text-[10px] sm:text-xs bg-sky-950/80 border border-sky-500/40 px-2.5 py-0.5 rounded-full font-bold">0 items</span>
-          </div>
-          <div class="max-h-72 overflow-y-auto scrollbar-thin bg-slate-950/60">
-            <table class="w-full text-left text-[11px] sm:text-xs">
-              <thead class="bg-slate-900 text-slate-300 font-bold border-b border-sky-500/20 sticky top-0 backdrop-blur-md">
-                <tr>
-                  <th class="py-2 px-2">SKU</th>
-                  <th class="py-2 px-2">DESCRIPTION</th>
-                  <th class="py-2 px-2">UNIT</th>
-                  <th class="py-2 px-2 text-right">ACTUAL BALANCE</th>
-                </tr>
-              </thead>
-              <tbody id="table-balance-body" class="divide-y divide-slate-800/60 text-slate-200">
-                <!-- Injected dynamically via JS -->
-              </tbody>
-            </table>
-          </div>
-        </div>
+      </div>
 
+      <!-- ⬇️ DOWN SECTION: TABLE 3 (REAL-TIME BALANCE) IN LINE BELOW IN & OUT ⬇️ -->
+      <div class="stock-glass-card border border-sky-500/30 overflow-hidden shadow-xl">
+        <div class="bg-sky-700/90 px-3.5 py-2.5 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
+          <span class="flex items-center gap-1.5">⚖️ REAL-TIME STOCK BALANCE</span>
+          <span id="badge-balance-count" class="text-[10px] sm:text-xs bg-sky-950/80 border border-sky-500/40 px-2.5 py-0.5 rounded-full font-bold">0 items</span>
+        </div>
+        <div class="max-h-72 overflow-y-auto scrollbar-thin bg-slate-950/60">
+          <table class="w-full text-left text-[11px] sm:text-xs">
+            <thead class="bg-slate-900 text-slate-300 font-bold border-b border-sky-500/20 sticky top-0 backdrop-blur-md">
+              <tr>
+                <th class="py-2 px-3">SKU</th>
+                <th class="py-2 px-3">DESCRIPTION</th>
+                <th class="py-2 px-3">UNIT</th>
+                <th class="py-2 px-3 text-right">ACTUAL BALANCE QTY</th>
+              </tr>
+            </thead>
+            <tbody id="table-balance-body" class="divide-y divide-slate-800/60 text-slate-200">
+              <!-- Injected dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
