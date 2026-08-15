@@ -65,7 +65,7 @@
       </button>
 
       <!-- ➕ Add Item Button -->
-      <button id="btn-add-item" class="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1 cursor-pointer">
+      <button id="btn-add-item" class="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95">
         <span class="text-sm font-bold">+</span>
         <span class="hidden md:inline">Add Item</span>
       </button>
@@ -99,13 +99,13 @@
   <div id="search-overlay-bar" class="hidden bg-slate-900/95 border-b border-slate-800 px-4 py-2.5 shadow-xl transition-all stock-no-print">
     <div class="max-w-7xl mx-auto flex items-center gap-2">
       <span class="text-slate-400">🔍</span>
-      <input id="stock-search" type="text" placeholder="Search stock item name, category, or supplier..." class="flex-1 bg-transparent text-sm text-white focus:outline-none placeholder-slate-500" />
+      <input id="stock-search" type="text" placeholder="Search stock item name, SKU, category, or supplier..." class="flex-1 bg-transparent text-sm text-white focus:outline-none placeholder-slate-500" />
       <button id="btn-close-search" class="text-xs text-slate-400 hover:text-white px-2 py-1 bg-slate-800 rounded-lg">Esc</button>
     </div>
   </div>
 
   <!-- MAIN APP BODY -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-5 space-y-5">
+  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 space-y-6">
 
     <!-- ERROR BOUNDARY FALLBACK CONTAINER -->
     <div id="stock-error-boundary" class="hidden bg-rose-950/90 border border-rose-700/80 rounded-2xl p-6 shadow-2xl text-center space-y-4">
@@ -177,32 +177,149 @@
       </div>
     </div>
 
-    <!-- 3. TOP METRICS & KPI CARDS GRID (3-Column Light-Blue Banner Container) -->
+    <!-- 3. TOP METRICS & KPI CARDS GRID (3-Column Banner Container) -->
     <div class="stock-kpi-banner">
-      <div class="grid grid-cols-3 gap-2 sm:gap-4 text-center divide-x divide-sky-200/80">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center divide-y sm:divide-y-0 sm:divide-x divide-slate-800/80">
         
         <!-- Card 1 — No. of Items -->
-        <div class="stock-kpi-item">
-          <span class="stock-kpi-label">No. of Items</span>
-          <span id="kpi-total-items" class="stock-kpi-val">0</span>
+        <div class="py-1.5 sm:py-0">
+          <span class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Stock Items</span>
+          <span id="kpi-total-items" class="stock-kpi-val mt-0.5 block">0</span>
         </div>
 
         <!-- Card 2 — Low Stock Items (Highlighted in Bold Red #EF4444) -->
-        <div class="stock-kpi-item pl-2 sm:pl-4">
-          <span class="stock-kpi-label text-rose-600">Low Stock Items</span>
-          <span id="kpi-low-items" class="stock-kpi-val val-red">0</span>
+        <div class="py-1.5 sm:py-0 sm:pl-3">
+          <span class="block text-[11px] font-bold text-rose-400 uppercase tracking-wider">Low Stock / Out</span>
+          <span id="kpi-low-items" class="stock-kpi-val val-red mt-0.5 block">0</span>
         </div>
 
         <!-- Card 3 — Stock Value (₹) -->
-        <div class="stock-kpi-item pl-2 sm:pl-4">
-          <span class="stock-kpi-label">Stock Value</span>
-          <span id="kpi-total-value" class="stock-kpi-val">₹ 0.00</span>
+        <div class="py-1.5 sm:py-0 sm:pl-3">
+          <span class="block text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Stock Value (Estimated)</span>
+          <span id="kpi-total-value" class="stock-kpi-val text-emerald-300 mt-0.5 block">₹ 0.00</span>
         </div>
 
       </div>
     </div>
 
-    <!-- 4. INTERACTIVE STOCK ITEMS LIST (VERTICAL CARD FEED & TABLE TOGGLE) -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- 4. SPREADSHEET SECTION: STOCK IN, STOCK OUT & REAL-TIME BALANCE -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 class="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+            <span>📊</span> STOCK IN-OUT & BALANCE
+          </h2>
+          <p class="text-xs text-slate-400">Record IN & OUT stock entries. Actual Balance Qty is dynamically calculated (Total IN - Total OUT).</p>
+        </div>
+        <div class="flex items-center gap-2 stock-no-print">
+          <button id="btn-record-in" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95">
+            ➕ Record IN Stock
+          </button>
+          <button id="btn-record-out" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95">
+            ➖ Record OUT Stock
+          </button>
+        </div>
+      </div>
+
+      <!-- 3 Side-by-Side Spreadsheet Tables Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        
+        <!-- TABLE 1: STOCK IN (Green Theme) -->
+        <div class="stock-glass-card border border-emerald-500/30 overflow-hidden shadow-xl">
+          <div class="bg-emerald-700/90 px-3.5 py-2.5 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
+            <span class="flex items-center gap-1.5">📥 STOCK IN</span>
+            <span id="badge-in-count" class="text-[10px] sm:text-xs bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-full font-bold">0 entries</span>
+          </div>
+          <div class="max-h-72 overflow-y-auto scrollbar-thin bg-slate-950/60">
+            <table class="w-full text-left text-[11px] sm:text-xs">
+              <thead class="bg-slate-900 text-slate-300 font-bold border-b border-emerald-500/20 sticky top-0 backdrop-blur-md">
+                <tr>
+                  <th class="py-2 px-2">DATE</th>
+                  <th class="py-2 px-2">SKU</th>
+                  <th class="py-2 px-2">DESCRIPTION</th>
+                  <th class="py-2 px-2">UNIT</th>
+                  <th class="py-2 px-2 text-right">QTY</th>
+                  <th class="py-2 px-1 text-center stock-no-print">DEL</th>
+                </tr>
+              </thead>
+              <tbody id="table-in-body" class="divide-y divide-slate-800/60 text-slate-200">
+                <!-- Injected dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABLE 2: STOCK OUT (Orange/Amber Theme) -->
+        <div class="stock-glass-card border border-amber-500/30 overflow-hidden shadow-xl">
+          <div class="bg-amber-700/90 px-3.5 py-2.5 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
+            <span class="flex items-center gap-1.5">📤 STOCK OUT</span>
+            <span id="badge-out-count" class="text-[10px] sm:text-xs bg-amber-950/80 border border-amber-500/40 px-2.5 py-0.5 rounded-full font-bold">0 entries</span>
+          </div>
+          <div class="max-h-72 overflow-y-auto scrollbar-thin bg-slate-950/60">
+            <table class="w-full text-left text-[11px] sm:text-xs">
+              <thead class="bg-slate-900 text-slate-300 font-bold border-b border-amber-500/20 sticky top-0 backdrop-blur-md">
+                <tr>
+                  <th class="py-2 px-2">DATE</th>
+                  <th class="py-2 px-2">SKU</th>
+                  <th class="py-2 px-2">DESCRIPTION</th>
+                  <th class="py-2 px-2">UNIT</th>
+                  <th class="py-2 px-2 text-right">QTY</th>
+                  <th class="py-2 px-1 text-center stock-no-print">DEL</th>
+                </tr>
+              </thead>
+              <tbody id="table-out-body" class="divide-y divide-slate-800/60 text-slate-200">
+                <!-- Injected dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABLE 3: REAL-TIME BALANCE (Blue Theme) -->
+        <div class="stock-glass-card border border-sky-500/30 overflow-hidden shadow-xl">
+          <div class="bg-sky-700/90 px-3.5 py-2.5 flex items-center justify-between text-white font-black text-xs sm:text-sm uppercase tracking-wider">
+            <span class="flex items-center gap-1.5">⚖️ BALANCE</span>
+            <span id="badge-balance-count" class="text-[10px] sm:text-xs bg-sky-950/80 border border-sky-500/40 px-2.5 py-0.5 rounded-full font-bold">0 items</span>
+          </div>
+          <div class="max-h-72 overflow-y-auto scrollbar-thin bg-slate-950/60">
+            <table class="w-full text-left text-[11px] sm:text-xs">
+              <thead class="bg-slate-900 text-slate-300 font-bold border-b border-sky-500/20 sticky top-0 backdrop-blur-md">
+                <tr>
+                  <th class="py-2 px-2">SKU</th>
+                  <th class="py-2 px-2">DESCRIPTION</th>
+                  <th class="py-2 px-2">UNIT</th>
+                  <th class="py-2 px-2 text-right">ACTUAL BALANCE</th>
+                </tr>
+              </thead>
+              <tbody id="table-balance-body" class="divide-y divide-slate-800/60 text-slate-200">
+                <!-- Injected dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- 5. CRITICAL STOCK & LOW BALANCE ALERT SECTION (Compact Mini-Cards) -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div id="critical-stock-section" class="stock-glass-card border border-rose-500/30 p-4 sm:p-5 space-y-3.5 hidden shadow-2xl">
+      <div class="flex items-center justify-between border-b border-rose-500/20 pb-2.5">
+        <h3 class="text-sm font-extrabold text-rose-400 flex items-center gap-2">
+          <span>🚨</span> OUT-OF-STOCK & LOW-STOCK ALERTS (Balance ≤ Minimum Balance)
+        </h3>
+        <span id="critical-count-badge" class="text-xs bg-rose-950/90 text-rose-300 border border-rose-700 px-3 py-0.5 rounded-full font-bold">0 critical items</span>
+      </div>
+      <div id="critical-items-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <!-- Injected dynamically via JS as compact square cards -->
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- 6. INTERACTIVE MASTER INVENTORY DIRECTORY (FEED & TABLE TOGGLE) -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
     <div>
       
       <!-- List Header & View Mode Switcher -->
@@ -233,10 +350,10 @@
           <table class="stock-table">
             <thead>
               <tr>
-                <th>Item & Supplier</th>
+                <th>SKU & Item Name</th>
                 <th>Category</th>
                 <th>Godown</th>
-                <th class="text-center">Stock Qty & Level</th>
+                <th class="text-center">Actual Balance</th>
                 <th class="text-right">Sale Price</th>
                 <th class="text-right">Purchase Price</th>
                 <th class="text-right">Stock Value</th>
@@ -263,23 +380,24 @@
 
     </div>
 
-    <!-- RECENT STOCK TRANSACTIONS & AUDIT LOGS -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- 7. RECENT INVENTORY AUDIT & TRANSACTION LEDGER -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
     <div class="stock-glass-card p-5 space-y-4">
       <div class="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 class="text-sm font-bold text-white flex items-center gap-2">
             📜 Recent Inventory Audit & Transaction Ledger
           </h2>
-          <p class="text-xs text-slate-400 mt-0.5">Real-time log of sales, purchases, manual adjustments, and waste/spoilage</p>
+          <p class="text-xs text-slate-400 mt-0.5">Real-time log of IN, OUT, adjustments, and inventory alterations</p>
         </div>
         <div class="flex items-center gap-3 stock-no-print">
           <select id="log-filter-type" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none">
             <option value="all">All Action Logs</option>
-            <option value="Sale">Sale (-)</option>
-            <option value="Purchase">Purchase (+)</option>
-            <option value="Add Stock">Add Stock (+)</option>
-            <option value="Manual Adjustment">Manual Adjustment</option>
-            <option value="Waste/Loss">Waste / Loss (-)</option>
+            <option value="IN">Stock IN (+)</option>
+            <option value="OUT">Stock OUT (-)</option>
+            <option value="Delete">Deleted Entries</option>
+            <option value="Adjustment">Adjustments</option>
           </select>
           <button id="btn-clear-logs" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">Clear History</button>
         </div>
@@ -290,11 +408,9 @@
           <thead class="bg-slate-950/80 text-slate-400 font-semibold border-b border-slate-800">
             <tr>
               <th class="py-2.5 px-4">Date & Time</th>
-              <th class="py-2.5 px-4">Item Name</th>
-              <th class="py-2.5 px-4">Location</th>
-              <th class="py-2.5 px-4">Transaction Type</th>
+              <th class="py-2.5 px-4">Item Name / SKU</th>
+              <th class="py-2.5 px-4">Action Type</th>
               <th class="py-2.5 px-4 text-center">Quantity</th>
-              <th class="py-2.5 px-4 text-right">Total Amount (₹)</th>
               <th class="py-2.5 px-4">Notes / Remarks</th>
             </tr>
           </thead>
@@ -306,6 +422,52 @@
     </div>
 
   </main>
+
+  <!-- ═════════════════════════════════════════════════════════════════════ -->
+  <!-- MODAL: RECORD STOCK IN / OUT ENTRY (`#modal-inout-entry`) -->
+  <!-- ═════════════════════════════════════════════════════════════════════ -->
+  <div id="modal-inout-entry" class="stock-modal-backdrop hidden">
+    <div class="stock-modal-card max-w-md space-y-4 relative shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="modal-inout-title" class="text-sm font-extrabold text-white flex items-center gap-2">
+          📥 Record Stock IN Entry
+        </h3>
+        <button id="modal-inout-close" class="text-slate-400 hover:text-white text-lg p-1 rounded-lg hover:bg-slate-800 transition-all">✕</button>
+      </div>
+      <form id="form-inout-entry" class="space-y-3.5 text-xs">
+        <input type="hidden" id="inout-mode" value="IN" />
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Date *</label>
+            <input type="date" id="inout-date" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-mono" />
+          </div>
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Item (SKU & Name) *</label>
+            <select id="inout-item-select" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+              <!-- Dynamically populated options with SKU & Item Name -->
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Unit</label>
+            <input type="text" id="inout-unit-display" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold opacity-75 cursor-not-allowed" />
+          </div>
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Quantity *</label>
+            <input type="number" step="0.01" min="0.01" id="inout-qty" required placeholder="10" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-bold" />
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" id="inout-cancel-btn" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-semibold transition-all">Cancel</button>
+          <button type="submit" id="inout-submit-btn" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg transition-all">Save Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- MULTI-FILTER FUNNEL DRAWER / MODAL (`#modal-filters`) -->
   <div id="modal-filters" class="stock-modal-backdrop hidden">
@@ -388,8 +550,11 @@
       <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-2">
         <div class="flex items-center justify-between">
           <div>
-            <h4 id="detail-item-name" class="text-base font-extrabold text-white">Item Name</h4>
-            <p id="detail-item-supplier" class="text-xs text-slate-400 mt-0.5">Supplier: -</p>
+            <div class="flex items-center gap-2">
+              <span id="detail-item-sku" class="text-xs font-bold font-mono text-emerald-400 bg-emerald-950 border border-emerald-800/80 px-2 py-0.5 rounded-lg">SKU</span>
+              <h4 id="detail-item-name" class="text-base font-extrabold text-white">Item Name</h4>
+            </div>
+            <p id="detail-item-supplier" class="text-xs text-slate-400 mt-1">Supplier: -</p>
           </div>
           <span id="detail-item-category-badge" class="stock-pill-btn active">Category</span>
         </div>
@@ -403,18 +568,7 @@
         </div>
       </div>
 
-      <!-- Warehouse Selection Dropdown -->
-      <div class="flex items-center justify-between bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60">
-        <span class="text-xs font-bold text-slate-300">Target Warehouse / Godown:</span>
-        <select id="detail-godown-select" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold">
-          <option value="All Godowns">All Godowns</option>
-          <option value="Main Godown">Main Godown</option>
-          <option value="Kitchen Store">Kitchen Store</option>
-          <option value="Storage 1">Storage 1</option>
-        </select>
-      </div>
-
-      <!-- Item Pricing Grid (Sale Price, Purchase Price, In Stock Qty, Stock Value) -->
+      <!-- Item Pricing Grid (Sale Price, Purchase Price, Actual Balance, Stock Value) -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
         <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-xl">
           <span class="block text-[10px] font-bold text-slate-400 uppercase">Sale Price</span>
@@ -425,7 +579,7 @@
           <span id="detail-purchase-price" class="text-sm font-extrabold text-slate-300 mt-1 block">₹ 0.00</span>
         </div>
         <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-xl">
-          <span class="block text-[10px] font-bold text-slate-400 uppercase">In Stock</span>
+          <span class="block text-[10px] font-bold text-slate-400 uppercase">Actual Balance</span>
           <span id="detail-in-stock" class="text-sm font-extrabold text-emerald-400 mt-1 block">0 Pcs</span>
         </div>
         <div class="bg-slate-950/80 border border-slate-800/80 p-3 rounded-xl">
@@ -445,7 +599,6 @@
             <thead class="bg-slate-900 text-slate-400 font-semibold sticky top-0">
               <tr>
                 <th class="py-2 px-3">Type & Date</th>
-                <th class="py-2 px-3">Godown</th>
                 <th class="py-2 px-3 text-center">Quantity</th>
                 <th class="py-2 px-3 text-right">Amount (₹)</th>
               </tr>
@@ -513,7 +666,7 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-slate-400 font-semibold mb-1">Quantity *</label>
-            <input id="adjust-workflow-qty" type="number" step="0.01" min="0.01" required placeholder="5.0" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500" />
+            <input id="adjust-workflow-qty" type="number" step="0.01" min="0.01" required placeholder="5.0" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-bold" />
           </div>
           <div>
             <label class="block text-slate-400 font-semibold mb-1">Unit *</label>
@@ -531,19 +684,7 @@
           </div>
         </div>
 
-        <!-- 4. Unit Price (₹) & Date -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 font-semibold mb-1">Unit Price (₹) *</label>
-            <input id="adjust-workflow-price" type="number" step="0.01" min="0" required placeholder="180" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500" />
-          </div>
-          <div>
-            <label class="block text-slate-400 font-semibold mb-1">Date *</label>
-            <input id="adjust-workflow-date" type="date" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500" />
-          </div>
-        </div>
-
-        <!-- 5. Notes / Reason -->
+        <!-- 4. Notes / Reason -->
         <div>
           <label class="block text-slate-400 font-semibold mb-1">Notes / Reason</label>
           <input id="adjust-workflow-notes" type="text" placeholder="e.g. Daily prep batch / Supplier purchase / Spoilage" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
@@ -559,7 +700,7 @@
 
   <!-- MODAL: ADD / EDIT STOCK ITEM -->
   <div id="modal-item" class="stock-modal-backdrop hidden">
-    <div class="stock-modal-card space-y-5 relative">
+    <div class="stock-modal-card space-y-5 relative shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 id="modal-item-title" class="text-sm font-extrabold text-white flex items-center gap-2">
           <span>📦</span> Add New Item
@@ -570,9 +711,15 @@
       <form id="form-stock-item" class="space-y-4 text-xs">
         <input type="hidden" id="form-item-id" />
 
-        <div>
-          <label class="block text-slate-400 font-semibold mb-1">Item Name *</label>
-          <input id="form-item-name" type="text" required placeholder="e.g. Basmati Rice / Amul Paneer / Vim Bar" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
+        <div class="grid grid-cols-3 gap-3">
+          <div class="col-span-2">
+            <label class="block text-slate-400 font-semibold mb-1">Item Name *</label>
+            <input id="form-item-name" type="text" required placeholder="e.g. Basmati Rice / Amul Paneer / Vim Bar" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
+          </div>
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">SKU Code</label>
+            <input id="form-item-sku" type="text" placeholder="Auto-generated" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-emerald-400 font-mono focus:outline-none focus:border-emerald-500" />
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
@@ -598,7 +745,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-3 gap-3">
           <div>
             <label class="block text-slate-400 font-semibold mb-1">Unit of Measurement *</label>
             <select id="form-item-unit" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
@@ -614,15 +761,19 @@
             </select>
           </div>
           <div>
-            <label class="block text-slate-400 font-semibold mb-1">Current Stock Qty *</label>
-            <input id="form-item-qty" type="number" step="0.01" required placeholder="25" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
+            <label class="block text-slate-400 font-semibold mb-1">Opening / Balance Qty *</label>
+            <input id="form-item-qty" type="number" step="0.01" required placeholder="25" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-bold" />
+          </div>
+          <div>
+            <label class="block text-rose-400 font-bold mb-1">Min Balance Level *</label>
+            <input id="form-item-min" type="number" step="0.01" min="0" required placeholder="10" class="w-full bg-slate-950 border border-rose-800/80 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-rose-500 font-bold" />
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-400 font-semibold mb-1">Sale / Issue Price (₹) *</label>
-            <input id="form-item-sale-price" type="number" step="0.01" min="0" required placeholder="150" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
+            <label class="block text-slate-400 font-semibold mb-1">Sale / Issue Price (₹)</label>
+            <input id="form-item-sale-price" type="number" step="0.01" min="0" placeholder="150" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
           </div>
           <div>
             <label class="block text-slate-400 font-semibold mb-1">Purchase Cost (₹) *</label>
@@ -630,15 +781,9 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-400 font-semibold mb-1">Min Reorder Level *</label>
-            <input id="form-item-min" type="number" step="0.01" min="0" required placeholder="10" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
-          </div>
-          <div>
-            <label class="block text-slate-400 font-semibold mb-1">Supplier Name & Contact</label>
-            <input id="form-item-supplier" type="text" placeholder="e.g. Royal Rice Traders (9876543212)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
-          </div>
+        <div>
+          <label class="block text-slate-400 font-semibold mb-1">Supplier Name & Contact</label>
+          <input id="form-item-supplier" type="text" placeholder="e.g. Royal Rice Traders (9876543212)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500" />
         </div>
 
         <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
