@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "deploy": "node deploy.js",
     "sync-images": "node scripts/sync-menu-images.mjs",
     "preview": "vite preview"
   },
