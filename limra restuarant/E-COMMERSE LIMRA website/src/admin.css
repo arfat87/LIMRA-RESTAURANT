@@ -1386,50 +1386,151 @@
 }
 
 
-/* ── POS Food Grid ─────────────────────────────────────────── */
+/* ── POS Billing Quick Cards & Controls ───────────────────────── */
+.billing-quick-card {
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  user-select: none;
+}
+.billing-quick-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,.08) !important;
+}
+.billing-quick-card:active {
+  transform: scale(0.985);
+}
+
+.pos-input-invalid {
+  border-color: #ef4444 !important;
+  background-color: #fff5f5 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+  animation: shakeInput 0.3s ease-in-out;
+}
+
+@keyframes shakeInput {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+/* ── POS Food Picture Grid ─────────────────────────────────── */
 #pos-food-grid {
   scrollbar-width: thin;
   scrollbar-color: #e5e7eb transparent;
 }
-#pos-food-grid::-webkit-scrollbar { width: 4px; }
+#pos-food-grid::-webkit-scrollbar { width: 5px; }
 #pos-food-grid::-webkit-scrollbar-track { background: transparent; }
-#pos-food-grid::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 999px; }
+#pos-food-grid::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
 
-.pos-food-tile {
+.pos-food-tile-img {
   background: #fff;
   border: 1px solid var(--adm-border, #e5e7eb);
-  border-radius: 10px;
-  padding: .5rem .35rem;
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 0;
   cursor: pointer;
-  text-align: center;
+  text-align: left;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: .18rem;
-  transition: border-color .15s, background .15s, transform .12s, box-shadow .15s;
-  box-shadow: 0 1px 3px rgba(0,0,0,.05);
-  min-height: 62px;
-  justify-content: center;
+  transition: border-color .18s, transform .15s, box-shadow .18s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
   width: 100%;
+  position: relative;
 }
-.pos-food-tile:hover {
+.pos-food-tile-img:hover {
   border-color: #6366f1;
-  background: #eef2ff;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99,102,241,.18);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99,102,241,.18);
 }
-.pos-food-tile:active { transform: scale(.96); }
+.pos-food-tile-img:active {
+  transform: scale(.97);
+}
 
-.pos-tile-emoji  { font-size: 1.1rem; line-height: 1; }
-.pos-tile-name   { font-size: .72rem; font-weight: 600; color: #111827; line-height: 1.25;
-                   word-break: break-word; max-width: 100%; }
-.pos-tile-price  { font-size: .7rem; color: #6366f1; font-weight: 700; }
+.pos-tile-img-box {
+  width: 100%;
+  height: 76px;
+  background: #f1f5f9;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pos-tile-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform .25s ease;
+}
+.pos-food-tile-img:hover .pos-tile-img-box img {
+  transform: scale(1.08);
+}
+
+.pos-tile-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: #6366f1;
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 800;
+  padding: .15rem .45rem;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
+
+.pos-tile-body {
+  padding: .45rem .5rem;
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  background: #fff;
+}
+.pos-tile-title {
+  font-size: .75rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 28px;
+}
+.pos-tile-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: .15rem;
+}
+.pos-tile-price-tag {
+  font-size: .8rem;
+  color: #059669;
+  font-weight: 800;
+}
+.pos-tile-add-btn {
+  background: #eef2ff;
+  color: #6366f1;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8rem;
+  font-weight: 800;
+}
+.pos-food-tile-img:hover .pos-tile-add-btn {
+  background: #6366f1;
+  color: #fff;
+  border-color: #6366f1;
+}
 
 /* Category pills */
 .pos-cat-pill {
-  padding: .22rem .65rem;
+  padding: .3rem .75rem;
   border-radius: 999px;
-  font-size: .72rem;
+  font-size: .75rem;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid var(--adm-border, #e5e7eb);
@@ -1438,5 +1539,64 @@
   transition: all .15s;
   white-space: nowrap;
 }
-.pos-cat-pill:hover  { border-color: #6366f1; color: #6366f1; }
-.pos-cat-pill.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+.pos-cat-pill:hover  { border-color: #6366f1; color: #6366f1; background: #eef2ff; }
+.pos-cat-pill.active { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.3); }
+
+.pos-cat-pill-bar {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  flex-shrink: 0;
+}
+.pos-cat-pill-bar::-webkit-scrollbar { height: 4px; }
+.pos-cat-pill-bar::-webkit-scrollbar-track { background: transparent; }
+.pos-cat-pill-bar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+/* ── Hold Add Items Modal Specifics ────────────────────────── */
+.adm-hold-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+}
+.adm-hold-modal.open {
+  display: flex !important;
+}
+.adm-hold-modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 940px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35);
+  animation: holdModalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes holdModalPop {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+#hold-modal-food-grid {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+#hold-modal-food-grid::-webkit-scrollbar { width: 5px; }
+#hold-modal-food-grid::-webkit-scrollbar-track { background: transparent; }
+#hold-modal-food-grid::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+@media (max-width: 768px) {
+  .adm-hold-modal-content > div:nth-child(2) {
+    grid-template-columns: 1fr !important;
+  }
+}

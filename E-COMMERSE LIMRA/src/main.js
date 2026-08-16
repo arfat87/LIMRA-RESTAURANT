@@ -4,6 +4,7 @@ import { menuItems, categoryImages, categoryLabels, categoryEmojis, categoryTabO
 import { sendEmailNotification, generateOrderPlacedHtml } from './lib/email-service.js';
 import { NotificationService } from './lib/notifications.js';
 import { t, getLanguage, setLanguage, translateCategory } from './data/i18n.js';
+import { getAuthRedirectUrl } from './lib/admin-routes.js';
 
 // ═══════════════════════════════════════
 // LANGUAGE SELECTION & TRANSLATION ENGINE
@@ -3613,7 +3614,7 @@ async function initAuthPanel() {
       try {
         await insforge.auth.resendVerificationEmail({
           email: signupIdentifier,
-          redirectTo: window.location.origin
+          redirectTo: getAuthRedirectUrl('/')
         });
         alert('A new verification code has been sent to your email address.');
       } catch (err) {
@@ -3662,7 +3663,7 @@ async function initAuthPanel() {
       try {
         const { error } = await insforge.auth.sendResetPasswordEmail({
           email: forgotIdentifier,
-          redirectTo: window.location.origin
+          redirectTo: getAuthRedirectUrl('/')
         });
         if (error) throw error;
 
@@ -3840,7 +3841,7 @@ async function initAuthPanel() {
     try {
       await insforge.auth.signInWithOAuth({
         provider: 'google',
-        redirectTo: window.location.origin
+        redirectTo: getAuthRedirectUrl('/')
       });
     } catch (err) {
       displayError(err.message || 'Google Auth redirection failed.');

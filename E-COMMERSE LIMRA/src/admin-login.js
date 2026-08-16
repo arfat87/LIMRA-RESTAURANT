@@ -266,7 +266,7 @@ function initAuthUI() {
     if (btn) btn.disabled = true;
 
     try {
-      const redirectTo = window.location.origin + '/admin-login.html';
+      const redirectTo = getAuthRedirectUrl('/admin-login.html');
       const { error } = await insforge.auth.signInWithOAuth({
         provider: 'google',
         redirectTo

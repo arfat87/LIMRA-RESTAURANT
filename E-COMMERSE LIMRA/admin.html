@@ -6,7 +6,7 @@
   <title>LIMRA Admin — Restaurant Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- QZ Tray SDK -->
@@ -38,8 +38,8 @@
       background: rgba(255, 255, 255, 0.03);
     }
     .adm-nav-group-trigger.active {
-      color: var(--adm-green);
-      background: rgba(0, 176, 116, 0.08);
+      color: var(--adm-accent);
+      background: rgba(232, 89, 12, 0.1);
     }
     .adm-nav-group-trigger.expanded .adm-nav-group-arrow {
       transform: rotate(180deg);
@@ -73,49 +73,73 @@
 <div id="dashboard" class="adm-layout adm-hidden">
   <aside id="sidebar" class="adm-sidebar closed">
     <div class="adm-sidebar-head">
-      <p class="adm-brand">LIMRA<span>.</span></p>
-      <p>Modern Admin Dashboard</p>
+      <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+        <div>
+          <p class="adm-brand">LIMRA<span>.</span></p>
+          <p style="font-size: 0.75rem; color: var(--adm-sidebar-muted); font-weight: 600;">Restaurant ERP & POS</p>
+        </div>
+        <button id="sidebar-compact-toggle" class="adm-icon-btn" title="Toggle Compact Sidebar" style="background: rgba(255,255,255,0.06); color: #fff;">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+        </button>
+      </div>
     </div>
 
     <nav class="adm-nav">
+      <!-- 📊 DASHBOARD OVERVIEW -->
+      <div class="adm-nav-section-title">OVERVIEW</div>
       <button data-panel="dashboard" class="adm-nav-item active">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-        Dashboard
+        Dashboard Overview
       </button>
+
+      <!-- 💳 POS & BILLING GROUP -->
+      <div class="adm-nav-section-title">POS & BILLING</div>
+      <button data-panel="billing" class="adm-nav-item" style="border-left: 3px solid var(--adm-accent);">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Counter Billing (POS)
+      </button>
+      <button data-panel="hold-orders" class="adm-nav-item" style="border-left: 3px solid var(--adm-amber);">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Hold Orders
+        <span id="hold-orders-count-badge" class="adm-nav-badge adm-hidden" style="background:var(--adm-amber); color:#0f172a; font-weight:800">0</span>
+      </button>
+      <button data-panel="tables" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z"/></svg>
+        Table Management
+        <span id="tables-occupied-badge" class="adm-nav-badge adm-hidden" style="background:var(--adm-accent); color:#fff; font-weight:800">0</span>
+      </button>
+      <button data-panel="kot" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        KOT Kitchen Stream
+      </button>
+      <button data-panel="bills" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Bills Directory
+      </button>
+
+      <!-- 📦 ORDERS & LOGISTICS -->
+      <div class="adm-nav-section-title">ORDERS & LOGISTICS</div>
       <button data-panel="orders" class="adm-nav-item">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         Order List
         <span id="pending-orders-badge" class="adm-nav-badge adm-hidden">0</span>
       </button>
-      <button data-panel="table-bills" class="adm-nav-item">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-        Bill of Customer
-        <span id="bill-requests-badge" class="adm-nav-badge adm-hidden" style="background:#f59e0b; color:#0f172a; font-weight:800">0</span>
-      </button>
-      <button data-panel="order-detail" class="adm-nav-item">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        Order Detail
-      </button>
-      <button data-panel="customers" class="adm-nav-item">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        Customer
-      </button>
-      <button data-panel="customer-analysis" class="adm-nav-item">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        Customer Analysis
-      </button>
-      <button data-panel="analytics" class="adm-nav-item">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        Analytics
+      <button data-panel="hold-orders" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Hold Orders
+        <span id="pending-hold-badge" class="adm-nav-badge adm-hidden">0</span>
       </button>
       <button data-panel="bookings" class="adm-nav-item">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        Bookings
+        Table Bookings
         <span id="pending-bookings-badge" class="adm-nav-badge adm-hidden">0</span>
       </button>
+
+      <!-- 🍲 MENU & STOCK GROUP -->
+      <div class="adm-nav-section-title">MENU & INVENTORY</div>
       <button data-panel="foods" class="adm-nav-item">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-        Foods
+        Foods & Categories
       </button>
       <a href="/stock-manager/index.html" class="adm-nav-item" style="text-decoration:none; display:flex; align-items:center; gap:0.5rem">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
@@ -145,6 +169,21 @@
           </button>
         </div>
       </div>
+
+      <!-- 📈 REPORTS & SYSTEM SETTINGS -->
+      <div class="adm-nav-section-title">REPORTS & SETTINGS</div>
+      <button data-panel="customers" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Customer Directory
+      </button>
+      <button data-panel="analytics" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Sales Reports
+      </button>
+      <button data-panel="settings" class="adm-nav-item">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        ERP Settings
+      </button>
     </nav>
 
     <div class="adm-promo">
@@ -152,23 +191,31 @@
       <a href="/" class="adm-promo-btn">View Website</a>
     </div>
 
-    <div class="p-4 border-t" style="border-color:var(--adm-border)">
-      <button id="logout-btn" class="adm-btn adm-btn-outline w-full adm-btn-sm">Sign Out</button>
+    <div class="p-4 border-t" style="border-color:rgba(255,255,255,0.08)">
+      <button id="logout-btn" class="adm-btn adm-btn-outline w-full adm-btn-sm" style="color:var(--adm-sidebar-text); border-color:rgba(255,255,255,0.2)">Sign Out</button>
     </div>
   </aside>
 
   <div class="adm-main">
     <header class="adm-header">
-      <button id="sidebar-toggle" class="adm-menu-toggle" aria-label="Menu">
-        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
-      </button>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <button id="sidebar-toggle" class="adm-menu-toggle" aria-label="Menu">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <!-- Store Status Toggle Switch -->
+        <button type="button" id="store-status-toggle" class="adm-store-status-btn online" title="Click to toggle store accepting/closed status">
+          <span class="status-dot">🟢</span> <span class="status-label">ACCEPTING ORDERS</span>
+        </button>
+      </div>
+
       <div class="adm-search">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <input type="search" id="global-search" placeholder="Search orders, customers..." />
+        <input type="search" id="global-search" placeholder="Search orders, customers, dishes..." />
       </div>
+
       <div class="adm-header-actions" style="position: relative;">
         <!-- Printer status indicator -->
-        <span id="printer-status" style="font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.65rem; border-radius: 8px; margin-right: 0.25rem; background: rgba(239, 68, 68, 0.12); color: #ff5b5b; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Click to search / reconnect printer">
+        <span id="printer-status" style="font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.65rem; border-radius: 8px; margin-right: 0.25rem; background: rgba(224, 49, 49, 0.12); color: var(--adm-red); cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Click to search / reconnect printer">
           🔌 Printer Off
         </span>
         <!-- Sync indicator -->
@@ -205,219 +252,548 @@
       </div>
     </header>
 
+    <!-- PETPOOJA-STYLE QUICK ACTION DOCK -->
+    <div class="adm-quick-dock" id="quick-action-dock">
+      <button type="button" class="adm-dock-btn" id="dock-btn-new-bill">
+        💳 <span>+ New POS Bill</span>
+      </button>
+      <button type="button" class="adm-dock-btn" id="dock-btn-hold-orders">
+        ⏸️ <span>Active Hold Orders</span>
+      </button>
+      <button type="button" class="adm-dock-btn" id="dock-btn-reprint-bill">
+        🧾 <span>Re-Print Last Bill</span>
+      </button>
+      <button type="button" class="adm-dock-btn" id="dock-btn-printer-status">
+        🔌 <span>Thermal Printer Status</span>
+      </button>
+    </div>
+
     <div class="adm-content">
-      <!-- Dashboard -->
-      <section id="panel-dashboard" class="adm-panel active">
-        <div class="adm-page-head">
+      <!-- 💳 POS BILLING TERMINAL -->
+      <section id="panel-billing" class="adm-panel">
+        <div class="adm-page-head pos-header-accent" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <h1 class="adm-page-title">Dashboard</h1>
-            <p class="adm-page-sub" id="last-updated">Loading...</p>
+            <h1 class="adm-page-title" style="display: flex; align-items: center; gap: 0.6rem;">
+              <span>💳</span> Counter Billing & KOT Terminal <span class="pos-live-dot" title="POS Active & Connected"></span>
+            </h1>
+            <p class="adm-page-sub">Fast POS billing, KOT generation, active hold table sessions, and tax receipts</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button type="button" id="pos-new-bill-btn" class="adm-btn adm-btn-outline adm-btn-sm" style="background: rgba(255,255,255,0.06); color: #fff; font-weight: 700; border-radius: 10px;">
+              ✨ New Billing Session
+            </button>
           </div>
         </div>
 
-        <!-- Date Search & Order Summary Widget -->
-        <div class="adm-card mb-6" style="border: 1px solid var(--adm-border);">
-          <div class="adm-card-head" style="flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <h3 class="adm-card-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-                📅 Search Orders by Date
-              </h3>
+        <!-- Customer & Order Context Bar (Glassmorphic) -->
+        <div class="pos-customer-bar mb-4">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: end;">
+            <div>
+              <label class="adm-edit-modal-label" style="font-weight: 700; color: var(--adm-text);">
+                👤 Customer Name <span style="color: #ff5b5b;">* (Required)</span>
+              </label>
+              <input type="text" id="pos-cust-name" class="adm-input" placeholder="Enter customer full name..." required style="margin-top: 4px;" />
             </div>
-            <!-- Quick Date Filter Presets & Date Input -->
-            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-              <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;" id="dash-date-presets">
-                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn active" data-preset="today">Today</button>
-                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="yesterday">Yesterday</button>
-                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="week">Last 7 Days</button>
-                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="month">This Month</button>
-                <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="all">All Time</button>
+            <div>
+              <label class="adm-edit-modal-label" style="font-weight: 700; color: var(--adm-text);">
+                📞 Customer Phone Number <span style="color: #ff5b5b;">* (Required)</span>
+              </label>
+              <input type="tel" id="pos-cust-phone" class="adm-input" placeholder="Enter 10-digit mobile number..." required style="margin-top: 4px;" maxlength="10" />
+            </div>
+            <div>
+              <label class="adm-edit-modal-label" style="font-weight: 700; color: var(--adm-text);">🍽️ Order Type</label>
+              <select id="pos-order-type" class="adm-input" style="margin-top: 4px;">
+                <option value="dine_in">🍽️ Dine-In (Table Service)</option>
+                <option value="takeaway">🥡 Takeaway / Counter Pickup</option>
+                <option value="delivery">🛵 Home Delivery</option>
+              </select>
+            </div>
+            <div id="pos-table-select-wrapper">
+              <label class="adm-edit-modal-label" style="font-weight: 700; color: var(--adm-text);">🪑 Table Number / Zone</label>
+              <input type="text" id="pos-table-num" class="adm-input" placeholder="E.g. Table 3 (Main Hall)" value="Table 1" style="margin-top: 4px;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- POS Terminal Main Split View -->
+        <div class="pos-split-layout" style="display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 1.25rem; align-items: start;" id="pos-split-grid">
+          
+          <!-- LEFT SIDE: MENU ITEM SELECTOR (70%) -->
+          <div class="adm-card" style="padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; min-width: 0;">
+            <!-- Menu Header & Filters -->
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center;">
+              <div style="position: relative; flex: 1; min-width: 200px;">
+                <input type="search" id="pos-item-search" class="adm-input" placeholder="🔍 Search biryani, chicken, starter, drink..." style="padding-left: 2.2rem; border-radius: 10px;" />
+                <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
               </div>
-              <div style="display: flex; align-items: center; gap: 0.35rem;">
-                <input type="date" id="dash-date-input" class="adm-input" style="padding: 0.35rem 0.6rem; font-size: 0.85rem; width: auto; font-family: inherit;" />
-                <button type="button" id="dash-date-clear" class="adm-btn adm-btn-outline adm-btn-sm" style="padding: 0.35rem 0.6rem;" title="Reset Date Filter">✕ Clear</button>
+              <div id="pos-category-chips" style="display: flex; gap: 0.35rem; overflow-x: auto; padding-bottom: 4px; max-width: 100%;">
+                <!-- Dynamic Category Chips -->
               </div>
+            </div>
+
+            <!-- Dishes Grid -->
+            <div id="pos-dishes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.85rem; max-height: 520px; overflow-y: auto; padding-right: 4px;">
+              <!-- Dynamic Dish Cards -->
             </div>
           </div>
 
-          <!-- Date Summary Results Bar -->
-          <div style="padding: 1.25rem 1.5rem; background: var(--adm-card-bg-sub, rgba(0, 176, 116, 0.03)); border-bottom: 1px solid var(--adm-border);">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-              <div>
-                <p style="margin: 0; font-size: 0.8rem; color: var(--adm-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;" id="dash-date-summary-label">Summary for Today</p>
-                <div style="display: flex; align-items: baseline; gap: 1.5rem; margin-top: 0.25rem; flex-wrap: wrap;">
-                  <div>
-                    <span style="font-size: 0.85rem; color: var(--adm-muted);">Total Orders: </span>
-                    <span id="dash-date-order-count" style="font-size: 1.5rem; font-weight: 800; color: var(--adm-text);">0 orders</span>
-                  </div>
-                  <div>
-                    <span style="font-size: 0.85rem; color: var(--adm-muted);">Total Ordered Amount: </span>
-                    <span id="dash-date-order-amount" style="font-size: 1.5rem; font-weight: 800; color: var(--adm-green);">₹0.00</span>
-                  </div>
-                </div>
+          <!-- RIGHT SIDE: CURRENT BASKET & KOT ACTIONS (30%) -->
+          <div class="adm-card" style="padding: 1.25rem; display: flex; flex-direction: column; justify-content: space-between; position: sticky; top: 1rem; border-radius: 16px;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--adm-border); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                <h3 id="pos-basket-title" style="margin: 0; font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; color: var(--adm-text);">
+                  🛒 Current Order Basket
+                </h3>
+                <span id="pos-hold-status-badge" class="adm-nav-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 8px; font-weight: 800; display: none;">HOLD ORDER</span>
               </div>
 
-              <!-- Quick Metrics Breakdown -->
-              <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-                <div style="background: rgba(0, 176, 116, 0.08); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(0, 176, 116, 0.2);">
-                  <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 500;">Paid Amount</div>
-                  <div id="dash-date-paid-amount" style="font-size: 1.1rem; font-weight: 700; color: var(--adm-green);">₹0.00</div>
-                </div>
-                <div style="background: rgba(255, 91, 91, 0.08); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(255, 91, 91, 0.2);">
-                  <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 500;">Unpaid Amount</div>
-                  <div id="dash-date-unpaid-amount" style="font-size: 1.1rem; font-weight: 700; color: #ff5b5b;">₹0.00</div>
-                </div>
-                <div style="background: rgba(59, 130, 246, 0.08); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.2);">
-                  <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 500;">Online / Table</div>
-                  <div id="dash-date-type-breakdown" style="font-size: 0.95rem; font-weight: 700; color: var(--adm-text);">0 Online · 0 Table</div>
-                </div>
+              <!-- Basket Items List -->
+              <div id="pos-basket-items-list" style="max-height: 280px; overflow-y: auto; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <p style="text-align: center; color: var(--adm-muted); padding: 2rem 0; font-size: 0.85rem;">Basket is empty. Select dishes from menu to add.</p>
               </div>
             </div>
+
+            <!-- Total Calculation & KOT Buttons (Paper Receipt Card Style) -->
+            <div class="pos-basket-receipt">
+              <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; margin-bottom: 0.85rem;">
+                <div class="pos-tax-line">
+                  <span>Items Subtotal:</span>
+                  <span id="pos-subtotal-val" style="font-weight: 700; color: var(--adm-text);">₹0.00</span>
+                </div>
+                <div class="pos-tax-line">
+                  <span>CGST (2.5%):</span>
+                  <span id="pos-cgst-val">₹0.00</span>
+                </div>
+                <div class="pos-tax-line">
+                  <span>SGST (2.5%):</span>
+                  <span id="pos-sgst-val">₹0.00</span>
+                </div>
+                <div class="pos-tax-line total">
+                  <span>Grand Total:</span>
+                  <span id="pos-total-val">₹0.00</span>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                <button type="button" id="pos-kot-hold-btn" class="pos-action-btn hold">
+                  <span>🍳 KOT & HOLD</span>
+                  <span class="btn-sub">(Save Order & Send KOT)</span>
+                </button>
+
+                <button type="button" id="pos-kot-bill-btn" class="pos-action-btn bill">
+                  <span>🧾 KOT & BILL</span>
+                  <span class="btn-sub">(Print Tax Bill & Settle)</span>
+                </button>
+              </div>
+            </div>
+
           </div>
 
-          <!-- Date-Filtered Orders Preview Table -->
-          <div class="adm-table-wrap" style="max-height: 280px; overflow-y: auto;">
-            <table class="adm-table" style="font-size: 0.85rem;">
+        </div>
+      </section>
+
+      <!-- 📜 BILLS DIRECTORY PANEL -->
+      <section id="panel-bills" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span>📜</span> Customer Bills Directory
+            </h1>
+            <p class="adm-page-sub">View history of all generated invoices, running hold bills, and receipt details</p>
+          </div>
+        </div>
+
+        <!-- KPI Metrics Header -->
+        <div class="adm-stats mb-6" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Total Bills Generated</p>
+              <p class="adm-stat-value" id="bills-stat-total">—</p>
+            </div>
+            <div class="adm-stat-icon green">📜</div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Total Billed Revenue</p>
+              <p class="adm-stat-value" id="bills-stat-revenue">—</p>
+            </div>
+            <div class="adm-stat-icon green">💰</div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Active Hold Bills</p>
+              <p class="adm-stat-value" id="bills-stat-hold">—</p>
+            </div>
+            <div class="adm-stat-icon orange" style="background:rgba(245,158,11,0.12); color:#f59e0b;">⏳</div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Average Bill Value</p>
+              <p class="adm-stat-value" id="bills-stat-avg">—</p>
+            </div>
+            <div class="adm-stat-icon green">📊</div>
+          </div>
+        </div>
+
+        <!-- Filter Bar & Search -->
+        <div class="adm-card mb-4" style="padding: 1rem 1.25rem;">
+          <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; flex: 1; min-width: 240px;">
+              <input type="search" id="bills-search-input" class="adm-input" placeholder="🔍 Search Bill #, Customer Name, Phone..." style="max-width: 320px;" />
+              <select id="bills-status-filter" class="adm-input" style="width: auto;">
+                <option value="all">All Bill Statuses</option>
+                <option value="hold">⏳ Hold (Running)</option>
+                <option value="billed">✅ Billed / Paid</option>
+                <option value="cancelled">🚫 Cancelled</option>
+              </select>
+              <select id="bills-date-filter" class="adm-input" style="width: auto;">
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="week">This Week</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bills Directory Table -->
+        <div class="adm-card">
+          <div class="adm-table-wrap">
+            <table class="adm-table">
               <thead>
                 <tr>
-                  <th>Order #</th>
-                  <th>Customer</th>
-                  <th>Type</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Payment</th>
+                  <th>Bill / Invoice #</th>
                   <th>Date & Time</th>
+                  <th>Customer Info</th>
+                  <th>Order Type / Table</th>
+                  <th>Items Count</th>
+                  <th>Status</th>
+                  <th>Total Amount</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
-              <tbody id="dash-date-orders-table-body">
-                <tr><td colspan="7" class="adm-empty">No orders found for this date</td></tr>
+              <tbody id="bills-table-body">
+                <tr><td colspan="8" class="adm-empty">Loading bills directory...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
+      </section>
 
-        <div class="adm-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-          <div class="adm-stat">
-            <div>
-              <p class="adm-stat-label">Total Orders</p>
-              <p class="adm-stat-value" id="stat-total-orders">—</p>
-            </div>
-            <div class="adm-stat-icon green">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            </div>
+      <!-- Hold Orders Directory Panel -->
+      <section id="panel-hold-orders" class="adm-panel adm-hidden">
+        <div class="adm-page-head" style="margin-bottom: 1.25rem;">
+          <div>
+            <h1 class="adm-page-title" style="display: flex; align-items: center; gap: 0.5rem;">
+              ⏳ Hold Orders Directory
+            </h1>
+            <p class="adm-page-sub">Manage active table sessions and running counter hold orders</p>
           </div>
-          <div class="adm-stat">
-            <div>
-              <p class="adm-stat-label">Paid Orders</p>
-              <p class="adm-stat-value" id="stat-paid-orders">—</p>
-            </div>
-            <div class="adm-stat-icon green">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
+          <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <button type="button" id="btn-new-pos-hold" class="adm-btn adm-btn-primary" style="background: var(--adm-green); font-weight: 700;">
+              + New POS Order
+            </button>
           </div>
-          <div class="adm-stat">
-            <div>
-              <p class="adm-stat-label">Unpaid Orders</p>
-              <p class="adm-stat-value" id="stat-unpaid-orders">—</p>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <div class="adm-kpi-grid mb-6">
+          <div class="adm-card adm-kpi-card" style="border-left: 4px solid #f59e0b;">
+            <div class="adm-kpi-info">
+              <span class="adm-kpi-label">Active Hold Orders</span>
+              <span class="adm-kpi-val" id="hold-kpi-count">0</span>
             </div>
-            <div class="adm-stat-icon red" style="background:#fdecea; color:#ff5b5b;">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2 2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
+            <div class="adm-kpi-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">⏳</div>
           </div>
-          <div class="adm-stat">
-            <div>
-              <p class="adm-stat-label">Today's Payments</p>
-              <p class="adm-stat-value" id="stat-today-payments">—</p>
+          <div class="adm-card adm-kpi-card" style="border-left: 4px solid #3b82f6;">
+            <div class="adm-kpi-info">
+              <span class="adm-kpi-label">Hold Amount Total</span>
+              <span class="adm-kpi-val" id="hold-kpi-total">₹0</span>
             </div>
-            <div class="adm-stat-icon green">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
+            <div class="adm-kpi-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">💰</div>
           </div>
-          <div class="adm-stat">
-            <div>
-              <p class="adm-stat-label">Pending Payments</p>
-              <p class="adm-stat-value" id="stat-pending-payments">—</p>
+          <div class="adm-card adm-kpi-card" style="border-left: 4px solid #10b981;">
+            <div class="adm-kpi-info">
+              <span class="adm-kpi-label">Active Tables</span>
+              <span class="adm-kpi-val" id="hold-kpi-tables">0</span>
             </div>
-            <div class="adm-stat-icon orange">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
+            <div class="adm-kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">🍽️</div>
           </div>
-          <div class="adm-stat">
-            <div>
-              <p class="adm-stat-label">Total Revenue</p>
-              <p class="adm-stat-value" id="stat-revenue">—</p>
+        </div>
+
+        <!-- Search & Filter Bar -->
+        <div class="adm-card mb-6" style="padding: 1rem; border: 1px solid var(--adm-border);">
+          <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center;">
+            <div style="position: relative; flex: 1; min-width: 240px;">
+              <input type="search" id="hold-search-input" class="adm-input" placeholder="🔍 Search by customer name, phone, table number..." style="padding-left: 2.2rem;" />
+              <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
             </div>
-            <div class="adm-stat-icon green">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-            </div>
-          </div>
-          <div class="adm-stat">
-            <div>
-              <p class="adm-stat-label">Collected Revenue</p>
-              <p class="adm-stat-value" id="stat-collected-revenue">—</p>
-            </div>
-            <div class="adm-stat-icon green">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-            </div>
-          </div>
-          <div class="adm-stat">
-            <div>
-              <p class="adm-stat-label">Outstanding Revenue</p>
-              <p class="adm-stat-value" id="stat-outstanding-revenue">—</p>
-            </div>
-            <div class="adm-stat-icon red" style="background:#fdecea; color:#ff5b5b;">
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <div style="display: flex; gap: 0.5rem;">
+              <select id="hold-type-filter" class="adm-input" style="width: auto;">
+                <option value="all">All Order Types</option>
+                <option value="dine_in">Dine In / Table</option>
+                <option value="pickup">Takeaway / Counter</option>
+                <option value="delivery">Delivery</option>
+              </select>
             </div>
           </div>
         </div>
 
-        <!-- GST Revenue Card -->
-        <div class="adm-card mb-6">
-          <div class="adm-card-head" style="flex-wrap: wrap; gap: 0.75rem;">
-            <h3 class="adm-card-title">📊 GST Revenue Overview</h3>
+        <!-- Hold Orders Grid Cards -->
+        <div id="hold-orders-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem;">
+          <div class="adm-empty col-span-full" style="padding: 3rem 0; text-align: center;">Loading active hold orders...</div>
+        </div>
+      </section>
+
+      <!-- Dashboard -->
+      <section id="panel-dashboard" class="adm-panel active">
+        <div class="adm-page-head" style="margin-bottom: 1.25rem;">
+          <div>
+            <h1 class="adm-page-title">Dashboard Overview</h1>
+            <p class="adm-page-sub" id="last-updated">Loading statistics…</p>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; padding: 1.5rem;">
-            <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-border); display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-              <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 500;">Total GST Revenue</p>
-              <p id="stat-gst-total" style="margin:0; font-size: 1.75rem; font-weight: 700; color: var(--adm-green);">₹0</p>
+        </div>
+
+        <!-- 1. LIVE ORDERS STREAM SECTION (OPEN BY DEFAULT) -->
+        <div class="adm-collapsible-section open" id="section-live-orders" data-section-id="live-orders">
+          <div class="adm-collapsible-header">
+            <div class="adm-collapsible-title">
+              <span style="font-size: 1.2rem;">📦</span>
+              <h3>Live Orders Stream & Date Filter</h3>
+              <span class="adm-badge live-count-badge" id="dash-date-order-count-badge">0 Live</span>
             </div>
-            <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-border); display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-              <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 500;">GST from Paid Orders</p>
-              <p id="stat-gst-paid" style="margin:0; font-size: 1.75rem; font-weight: 700; color: var(--adm-blue, #3b82f6);">₹0</p>
-            </div>
-            <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-border); display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-              <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 500;">GST from Unpaid Orders</p>
-              <p id="stat-gst-pending" style="margin:0; font-size: 1.75rem; font-weight: 700; color: var(--adm-orange, #f97316);">₹0</p>
+            <button type="button" class="adm-collapsible-toggle" aria-label="Toggle Section">
+              <span class="adm-chevron">▼</span>
+            </button>
+          </div>
+          <div class="adm-collapsible-content">
+            <div class="adm-collapsible-body">
+              <!-- Date Search & Order Summary Widget -->
+              <div class="adm-card mb-4" style="border: 1px solid var(--adm-card-border); background: #FFFFFF;">
+                <div class="adm-card-head" style="flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <h3 class="adm-card-title" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                      📅 Search Orders by Date
+                    </h3>
+                  </div>
+                  <!-- Quick Date Filter Presets & Date Input -->
+                  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;" id="dash-date-presets">
+                      <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn active" data-preset="today">Today</button>
+                      <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="yesterday">Yesterday</button>
+                      <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="week">Last 7 Days</button>
+                      <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="month">This Month</button>
+                      <button type="button" class="adm-btn adm-btn-outline adm-btn-sm dash-preset-btn" data-preset="all">All Time</button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                      <input type="date" id="dash-date-input" class="adm-input" style="padding: 0.35rem 0.6rem; font-size: 0.85rem; width: auto; font-family: inherit;" />
+                      <button type="button" id="dash-date-clear" class="adm-btn adm-btn-outline adm-btn-sm" style="padding: 0.35rem 0.6rem;" title="Reset Date Filter">✕ Clear</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Date Summary Results Bar -->
+                <div style="padding: 1.25rem 1.5rem; background: rgba(232, 89, 12, 0.04); border-bottom: 1px solid var(--adm-card-border);">
+                  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                      <p style="margin: 0; font-size: 0.8rem; color: var(--adm-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;" id="dash-date-summary-label">Summary for Today</p>
+                      <div style="display: flex; align-items: baseline; gap: 1.5rem; margin-top: 0.25rem; flex-wrap: wrap;">
+                        <div>
+                          <span style="font-size: 0.85rem; color: var(--adm-muted);">Total Orders: </span>
+                          <span id="dash-date-order-count" style="font-size: 1.5rem; font-weight: 800; color: var(--adm-text); font-family: var(--font-mono);">0 orders</span>
+                        </div>
+                        <div>
+                          <span style="font-size: 0.85rem; color: var(--adm-muted);">Total Ordered Amount: </span>
+                          <span id="dash-date-order-amount" style="font-size: 1.5rem; font-weight: 800; color: var(--adm-green); font-family: var(--font-mono);">₹0.00</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Quick Metrics Breakdown -->
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                      <div style="background: rgba(47, 158, 68, 0.1); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(47, 158, 68, 0.2);">
+                        <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 600;">Paid Amount</div>
+                        <div id="dash-date-paid-amount" style="font-size: 1.1rem; font-weight: 700; color: var(--adm-green); font-family: var(--font-mono);">₹0.00</div>
+                      </div>
+                      <div style="background: rgba(224, 49, 49, 0.1); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(224, 49, 49, 0.2);">
+                        <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 600;">Unpaid Amount</div>
+                        <div id="dash-date-unpaid-amount" style="font-size: 1.1rem; font-weight: 700; color: var(--adm-red); font-family: var(--font-mono);">₹0.00</div>
+                      </div>
+                      <div style="background: rgba(25, 113, 194, 0.1); padding: 0.5rem 0.85rem; border-radius: 10px; border: 1px solid rgba(25, 113, 194, 0.2);">
+                        <div style="font-size: 0.75rem; color: var(--adm-muted); font-weight: 600;">Online / Table</div>
+                        <div id="dash-date-type-breakdown" style="font-size: 0.95rem; font-weight: 700; color: var(--adm-text);">0 Online · 0 Table</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Date-Filtered Orders Preview Table -->
+                <div class="adm-table-wrap" style="max-height: 280px; overflow-y: auto;">
+                  <table class="adm-table" style="font-size: 0.85rem;">
+                    <thead>
+                      <tr>
+                        <th>Order #</th>
+                        <th>Customer</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Payment</th>
+                        <th>Date & Time</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dash-date-orders-table-body">
+                      <tr><td colspan="7" class="adm-empty">No orders found for this date</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="adm-grid-2 mb-6">
-          <div class="adm-card">
-            <div class="adm-card-head">
-              <h3 class="adm-card-title">Order Overview</h3>
+        <!-- 2. KPI PERFORMANCE & TAX OVERVIEW SECTION (OPEN BY DEFAULT) -->
+        <div class="adm-collapsible-section open" id="section-kpi-overview" data-section-id="kpi-overview">
+          <div class="adm-collapsible-header">
+            <div class="adm-collapsible-title">
+              <span style="font-size: 1.2rem;">📊</span>
+              <h3>KPI Performance & Tax Breakdown</h3>
             </div>
-            <div class="adm-donuts" id="donut-stats"></div>
+            <button type="button" class="adm-collapsible-toggle" aria-label="Toggle Section">
+              <span class="adm-chevron">▼</span>
+            </button>
           </div>
-          <div class="adm-card">
-            <div class="adm-card-head">
-              <h3 class="adm-card-title">Chart Order</h3>
+          <div class="adm-collapsible-content">
+            <div class="adm-collapsible-body">
+              <div class="adm-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 1.25rem;">
+                <div class="adm-stat">
+                  <div>
+                    <p class="adm-stat-label">Total Orders Today</p>
+                    <p class="adm-stat-value adm-mono" id="stat-total-orders">—</p>
+                  </div>
+                  <div class="adm-stat-icon green">📦</div>
+                </div>
+                <div class="adm-stat">
+                  <div>
+                    <p class="adm-stat-label">Paid Orders</p>
+                    <p class="adm-stat-value adm-mono" id="stat-paid-orders">—</p>
+                  </div>
+                  <div class="adm-stat-icon green">✅</div>
+                </div>
+                <div class="adm-stat">
+                  <div>
+                    <p class="adm-stat-label">Unpaid Orders</p>
+                    <p class="adm-stat-value adm-mono" id="stat-unpaid-orders">—</p>
+                  </div>
+                  <div class="adm-stat-icon red">⏳</div>
+                </div>
+                <div class="adm-stat">
+                  <div>
+                    <p class="adm-stat-label">Today's Total Payments</p>
+                    <p class="adm-stat-value adm-mono" id="stat-today-payments">—</p>
+                  </div>
+                  <div class="adm-stat-icon green">💰</div>
+                </div>
+                <div class="adm-stat">
+                  <div>
+                    <p class="adm-stat-label">Pending Payments</p>
+                    <p class="adm-stat-value adm-mono" id="stat-pending-payments">—</p>
+                  </div>
+                  <div class="adm-stat-icon orange">⌛</div>
+                </div>
+                <div class="adm-stat">
+                  <div>
+                    <p class="adm-stat-label">Total Revenue</p>
+                    <p class="adm-stat-value adm-mono" id="stat-revenue">—</p>
+                  </div>
+                  <div class="adm-stat-icon green">📈</div>
+                </div>
+                <div class="adm-stat">
+                  <div>
+                    <p class="adm-stat-label">Collected Revenue</p>
+                    <p class="adm-stat-value adm-mono" id="stat-collected-revenue">—</p>
+                  </div>
+                  <div class="adm-stat-icon green">💵</div>
+                </div>
+                <div class="adm-stat">
+                  <div>
+                    <p class="adm-stat-label">Outstanding Revenue</p>
+                    <p class="adm-stat-value adm-mono" id="stat-outstanding-revenue">—</p>
+                  </div>
+                  <div class="adm-stat-icon red">🚨</div>
+                </div>
+              </div>
+
+              <!-- CGST / SGST Revenue Card -->
+              <div class="adm-card" style="border: 1px solid var(--adm-card-border);">
+                <div class="adm-card-head" style="flex-wrap: wrap; gap: 0.75rem;">
+                  <h3 class="adm-card-title">🏛️ CGST (2.5%) & SGST (2.5%) Tax Split Overview</h3>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; padding: 1.25rem;">
+                  <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-card-border); display: flex; flex-direction: column; gap: 0.5rem;">
+                    <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 600;">Total Tax Collected (CGST + SGST)</p>
+                    <p id="stat-gst-total" class="adm-mono" style="margin:0; font-size: 1.6rem; font-weight: 800; color: var(--adm-green);">₹0.00</p>
+                    <span style="font-size: 0.75rem; color: var(--adm-muted);">2.5% CGST + 2.5% SGST</span>
+                  </div>
+                  <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-card-border); display: flex; flex-direction: column; gap: 0.5rem;">
+                    <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 600;">CGST Collected (2.5%)</p>
+                    <p id="stat-gst-paid" class="adm-mono" style="margin:0; font-size: 1.6rem; font-weight: 800; color: var(--adm-blue);">₹0.00</p>
+                    <span style="font-size: 0.75rem; color: var(--adm-muted);">Central Goods & Services Tax</span>
+                  </div>
+                  <div style="background: var(--adm-card-bg, #ffffff); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-card-border); display: flex; flex-direction: column; gap: 0.5rem;">
+                    <p style="margin:0; font-size: 0.85rem; color: var(--adm-muted); font-weight: 600;">SGST Collected (2.5%)</p>
+                    <p id="stat-gst-pending" class="adm-mono" style="margin:0; font-size: 1.6rem; font-weight: 800; color: var(--adm-amber);">₹0.00</p>
+                    <span style="font-size: 0.75rem; color: var(--adm-muted);">State Goods & Services Tax</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="adm-chart-sm"><canvas id="chart-orders-week"></canvas></div>
           </div>
         </div>
 
-        <div class="adm-grid-2">
-          <div class="adm-card">
-            <div class="adm-card-head">
-              <h3 class="adm-card-title">Total Revenue</h3>
+        <!-- 3. SALES REPORTS & ANALYTICS SECTION (COLLAPSED BY DEFAULT) -->
+        <div class="adm-collapsible-section closed" id="section-sales-analytics" data-section-id="sales-analytics">
+          <div class="adm-collapsible-header">
+            <div class="adm-collapsible-title">
+              <span style="font-size: 1.2rem;">📈</span>
+              <h3>Sales Reports & Revenue Visualizations</h3>
             </div>
-            <div class="adm-chart"><canvas id="chart-revenue"></canvas></div>
+            <button type="button" class="adm-collapsible-toggle" aria-label="Toggle Section">
+              <span class="adm-chevron">▼</span>
+            </button>
           </div>
-          <div class="adm-card">
-            <div class="adm-card-head">
-              <h3 class="adm-card-title">Bookings This Month</h3>
+          <div class="adm-collapsible-content">
+            <div class="adm-collapsible-body">
+              <div class="adm-grid-2 mb-6">
+                <div class="adm-card">
+                  <div class="adm-card-head">
+                    <h3 class="adm-card-title">Order Status Breakdown</h3>
+                  </div>
+                  <div class="adm-donuts" id="donut-stats"></div>
+                </div>
+                <div class="adm-card">
+                  <div class="adm-card-head">
+                    <h3 class="adm-card-title">Weekly Order Trends</h3>
+                  </div>
+                  <div class="adm-chart-sm"><canvas id="chart-orders-week"></canvas></div>
+                </div>
+              </div>
+
+              <div class="adm-grid-2">
+                <div class="adm-card">
+                  <div class="adm-card-head">
+                    <h3 class="adm-card-title">Monthly Revenue Growth</h3>
+                  </div>
+                  <div class="adm-chart"><canvas id="chart-revenue"></canvas></div>
+                </div>
+                <div class="adm-card">
+                  <div class="adm-card-head">
+                    <h3 class="adm-card-title">Bookings Trend</h3>
+                  </div>
+                  <div class="adm-chart"><canvas id="chart-bookings"></canvas></div>
+                </div>
+              </div>
             </div>
-            <div class="adm-chart"><canvas id="chart-bookings"></canvas></div>
           </div>
         </div>
       </section>
@@ -488,6 +864,52 @@
           </table>
         </div>
         <div id="orders-pagination" class="adm-pagination"></div>
+      </section>
+
+      <!-- Hold Orders -->
+      <section id="panel-hold-orders" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title">🕒 Hold Orders</h1>
+            <p class="adm-page-sub">KOTs held from POS, waiting to be resumed or cancelled</p>
+          </div>
+        </div>
+
+        <div class="adm-stats" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 1.5rem;">
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Held Orders</p>
+              <p class="adm-stat-value" id="hold-stat-count">0</p>
+            </div>
+            <div class="adm-stat-icon orange">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Total Held Value</p>
+              <p class="adm-stat-value" id="hold-stat-value">₹0</p>
+            </div>
+            <div class="adm-stat-icon orange">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </div>
+          </div>
+          <div class="adm-stat">
+            <div>
+              <p class="adm-stat-label">Oldest Hold</p>
+              <p class="adm-stat-value" id="hold-stat-oldest">—</p>
+            </div>
+            <div class="adm-stat-icon orange">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="adm-filters">
+          <input type="search" id="hold-orders-search" class="adm-input" placeholder="Search name, phone, order #, table..." style="max-width:320px" />
+        </div>
+
+        <div id="hold-orders-container" class="adm-hold-grid"></div>
       </section>
 
       <!-- Bill of Customer (Table Requests & Running Bills) -->
@@ -755,6 +1177,112 @@
           </table>
         </div>
       </section>
+
+      <!-- 🪑 TABLE MANAGEMENT FLOOR PANEL -->
+      <section id="panel-tables" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span>🪑</span> Dine-In Table Floor Plan
+            </h1>
+            <p class="adm-page-sub">Monitor live table availability, active dining sessions, held bills, and total table occupancy</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <span class="adm-badge" style="background:#2f9e44; color:#fff; padding:0.35rem 0.75rem;">🟢 Available (Free)</span>
+            <span class="adm-badge" style="background:#e8590c; color:#fff; padding:0.35rem 0.75rem;">🟧 Occupied (Dining)</span>
+            <span class="adm-badge" style="background:#f08c00; color:#0f172a; padding:0.35rem 0.75rem;">⏸️ Hold Order</span>
+            <span class="adm-badge" style="background:#1971c2; color:#fff; padding:0.35rem 0.75rem;">🧾 Billing Pending</span>
+          </div>
+        </div>
+
+        <div id="tables-floor-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.25rem; margin-top: 1.25rem;">
+          <!-- Dynamically rendered by renderTablesPanel() -->
+        </div>
+      </section>
+
+      <!-- 🍳 KOT KITCHEN STREAM PANEL -->
+      <section id="panel-kot" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span>🍳</span> Kitchen Order Stream (KOT KDS)
+            </h1>
+            <p class="adm-page-sub">Real-time kitchen order tickets, order preparation status, and 58mm KOT thermal printing</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;" id="kot-filter-pills">
+            <button type="button" class="adm-btn adm-btn-sm adm-btn-outline active" data-kot-filter="all" style="border-radius:20px;">All Active KOTs</button>
+            <button type="button" class="adm-btn adm-btn-sm adm-btn-outline" data-kot-filter="new" style="border-radius:20px;">🔥 New</button>
+            <button type="button" class="adm-btn adm-btn-sm adm-btn-outline" data-kot-filter="preparing" style="border-radius:20px;">👨‍🍳 Preparing</button>
+            <button type="button" class="adm-btn adm-btn-sm adm-btn-outline" data-kot-filter="ready" style="border-radius:20px;">✅ Ready</button>
+          </div>
+        </div>
+
+        <div id="kot-tickets-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; margin-top: 1.25rem;">
+          <!-- Dynamically rendered by renderKotPanel() -->
+        </div>
+      </section>
+
+      <!-- ⚙️ ERP SETTINGS PANEL -->
+      <section id="panel-settings" class="adm-panel">
+        <div class="adm-page-head">
+          <div>
+            <h1 class="adm-page-title" style="display: flex; align-items: center; gap: 0.5rem;">
+              <span>⚙️</span> Restaurant ERP & Tax Settings
+            </h1>
+            <p class="adm-page-sub">Manage tax configurations (CGST & SGST split), thermal printer setup, and table defaults</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1.25rem;">
+          <!-- Tax Settings Card -->
+          <div class="adm-card" style="padding: 1.5rem; border-radius: 12px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: var(--adm-text); display: flex; align-items: center; gap: 0.5rem;">
+              <span>🏛️</span> GST Tax Configuration
+            </h3>
+            <div style="display:flex; flex-direction:column; gap:0.85rem;">
+              <div>
+                <label style="font-size:0.85rem; font-weight:700; color:var(--adm-text);">CGST Rate (%)</label>
+                <input type="number" id="setting-cgst-rate" class="adm-input" value="2.5" step="0.1" style="margin-top:4px;" />
+                <span style="font-size:0.75rem; color:var(--adm-muted);">Central Goods & Services Tax (Default: 2.5%)</span>
+              </div>
+              <div>
+                <label style="font-size:0.85rem; font-weight:700; color:var(--adm-text);">SGST Rate (%)</label>
+                <input type="number" id="setting-sgst-rate" class="adm-input" value="2.5" step="0.1" style="margin-top:4px;" />
+                <span style="font-size:0.75rem; color:var(--adm-muted);">State Goods & Services Tax (Default: 2.5%)</span>
+              </div>
+              <button type="button" id="save-tax-settings-btn" class="adm-btn adm-btn-primary" style="margin-top:0.5rem; background:var(--adm-accent); border-radius:8px;">
+                💾 Save Tax Configuration
+              </button>
+            </div>
+          </div>
+
+          <!-- Thermal Printer Setup Card -->
+          <div class="adm-card" style="padding: 1.5rem; border-radius: 12px;">
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: var(--adm-text); display: flex; align-items: center; gap: 0.5rem;">
+              <span>🖨️</span> Thermal Printer Configuration
+            </h3>
+            <div style="display:flex; flex-direction:column; gap:0.85rem;">
+              <div>
+                <label style="font-size:0.85rem; font-weight:700; color:var(--adm-text);">KOT Printer Roll Width</label>
+                <select id="setting-kot-printer" class="adm-input" style="margin-top:4px;">
+                  <option value="58mm">58mm Thermal Roll (Default Kitchen Slip)</option>
+                  <option value="80mm">80mm Thermal Roll</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:0.85rem; font-weight:700; color:var(--adm-text);">Final Bill Printer Roll Width</label>
+                <select id="setting-bill-printer" class="adm-input" style="margin-top:4px;">
+                  <option value="80mm">80mm Thermal Roll (Default Tax Invoice)</option>
+                  <option value="58mm">58mm Thermal Roll</option>
+                </select>
+              </div>
+              <button type="button" id="test-printer-btn" class="adm-btn adm-btn-outline" style="margin-top:0.5rem; border-radius:8px;">
+                🔌 Test QZ Tray Printer Connection
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -944,8 +1472,33 @@
       </div>
     </form>
   </div>
+<!-- Full Bill Detail & Invoice Modal -->
+<div id="adm-bill-detail-modal" class="adm-edit-modal">
+  <div class="adm-edit-modal-content" style="max-width: 620px; max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--adm-border); padding-bottom: 0.85rem; margin-bottom: 1rem;">
+      <div>
+        <h3 class="adm-edit-modal-title" id="bill-modal-title" style="margin: 0;">Tax Invoice Receipt</h3>
+        <p style="font-size: 0.75rem; color: var(--adm-muted); margin-top: 2px;" id="bill-modal-subtitle">Bill #1001</p>
+      </div>
+      <button type="button" id="bill-modal-close-btn" class="adm-btn adm-btn-outline adm-btn-sm">✕ Close</button>
+    </div>
+
+    <!-- Bill Content Area (Printable Receipt format) -->
+    <div id="bill-modal-body" style="font-family: monospace, sans-serif; font-size: 0.85rem; background: rgba(0,0,0,0.15); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--adm-border);">
+      <!-- Rendered dynamically -->
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.25rem; flex-wrap: wrap;" id="bill-modal-actions">
+      <!-- Dynamic Buttons: Print Bill, Reprint KOT, Resume Hold, Cancel Bill -->
+    </div>
+  </div>
 </div>
+
+<!-- Thermal Print Output Container (TVS RP 3200 58mm/80mm Roll) -->
+<div id="native-print-area"></div>
 
 <script type="module" src="/src/admin.js"></script>
 </body>
 </html>
+

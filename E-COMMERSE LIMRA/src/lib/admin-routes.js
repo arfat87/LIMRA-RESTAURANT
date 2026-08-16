@@ -12,6 +12,10 @@ export function getRedirectTarget(fallback = ADMIN_DASHBOARD_PATH) {
   return param;
 }
 
-export function getAuthRedirectUrl() {
-  return `${window.location.origin}${window.location.pathname}`;
+export function getAuthRedirectUrl(customPath) {
+  const targetPath = customPath || window.location.pathname || '/admin-login.html';
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const origin = isLocal ? 'http://localhost:5173' : window.location.origin;
+  const pathWithSlash = targetPath.startsWith('/') ? targetPath : '/' + targetPath;
+  return `${origin}${pathWithSlash}`;
 }

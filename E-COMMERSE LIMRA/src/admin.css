@@ -1,18 +1,54 @@
-/* LIMRA Admin — Sedap-inspired dashboard theme */
+/* LIMRA Admin — Petpooja-inspired Restaurant ERP theme */
 .admin-app {
-  --adm-bg: #f5f7fa;
-  --adm-card: #ffffff;
-  --adm-border: #eef0f4;
-  --adm-green: #00b074;
-  --adm-green-dark: #009663;
-  --adm-green-light: #e6f7f1;
-  --adm-text: #1a1d26;
-  --adm-muted: #8b95a5;
-  --adm-sidebar: #ffffff;
-  font-family: 'Inter', system-ui, sans-serif;
+  --adm-bg: #FAFAF8;
+  --adm-card: #FFFFFF;
+  --adm-card-border: #E7E5E4;
+  --adm-sidebar: #1C1917;
+  --adm-header: #1C1917;
+  --adm-sidebar-text: #E7E5E4;
+  --adm-sidebar-muted: #A8A29E;
+  --adm-text: #1C1917;
+  --adm-muted: #78716C;
+  --adm-accent: #E8590C;
+  --adm-accent-hover: #D9480F;
+  --adm-accent-light: #FFF4E6;
+  
+  /* Status Colors */
+  --adm-green: #2F9E44;
+  --adm-green-light: #E6FCF5;
+  --adm-amber: #F08C00;
+  --adm-amber-light: #FFF9DB;
+  --adm-blue: #1971C2;
+  --adm-blue-light: #E7F5FF;
+  --adm-red: #E03131;
+  --adm-red-light: #FFF5F5;
+
+  /* Typography */
+  --font-heading: 'Manrope', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  font-family: var(--font-body);
   background: var(--adm-bg);
   color: var(--adm-text);
   min-height: 100vh;
+}
+
+.admin-app h1, 
+.admin-app h2, 
+.admin-app h3, 
+.admin-app h4, 
+.admin-app .adm-page-title,
+.admin-app .adm-card-title,
+.admin-app .adm-brand {
+  font-family: var(--font-heading);
+}
+
+.admin-app .adm-mono,
+.admin-app .adm-amount,
+.admin-app .adm-stat-value,
+.admin-app .adm-price {
+  font-family: var(--font-mono);
 }
 
 .admin-app * { box-sizing: border-box; }
@@ -190,17 +226,24 @@
   z-index: 40;
   transition: transform 0.3s ease;
 }
-.adm-sidebar.closed { transform: translateX(-100%); }
+.adm-sidebar.closed { transform: translateX(-100%) !important; }
 @media (min-width: 1024px) {
-  .adm-sidebar.closed { transform: translateX(0); }
+  .adm-main { 
+    margin-left: 260px; 
+    transition: margin-left 0.3s ease;
+  }
+  .adm-sidebar.closed ~ .adm-main { 
+    margin-left: 0 !important; 
+  }
+  .adm-sidebar.compact ~ .adm-main { 
+    margin-left: 72px !important; 
+  }
 }
 .adm-main {
   flex: 1;
   margin-left: 0;
   min-width: 0;
-}
-@media (min-width: 1024px) {
-  .adm-main { margin-left: 260px; }
+  transition: margin-left 0.3s ease;
 }
 
 .adm-sidebar-head {
@@ -1183,6 +1226,812 @@
   border-color: var(--adm-green) !important;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(0, 176, 116, 0.25);
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   POS BILLING TERMINAL — PREMIUM STYLES
+   ═══════════════════════════════════════════════════════════ */
+
+/* Live POS indicator dot */
+.pos-live-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-block;
+  animation: pos-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 6px rgba(34,197,94,0.6);
+}
+@keyframes pos-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* Category chip */
+.pos-cat-chip {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid var(--adm-border);
+  background: rgba(255,255,255,0.04);
+  color: var(--adm-muted);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+.pos-cat-chip:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--adm-text);
+  border-color: rgba(255,255,255,0.15);
+}
+.pos-cat-chip.active {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  border-color: #22c55e;
+  box-shadow: 0 0 12px rgba(34,197,94,0.35);
+}
+
+/* Dish card */
+.pos-dish-card {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: 14px;
+  padding: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  position: relative;
+  overflow: hidden;
+}
+.pos-dish-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  border-color: rgba(34,197,94,0.4);
+}
+.pos-dish-card:active {
+  transform: translateY(0);
+}
+.pos-dish-card .pos-dish-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--adm-text);
+  line-height: 1.3;
+}
+.pos-dish-card .pos-dish-price {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #22c55e;
+}
+.pos-dish-card .pos-dish-cat {
+  font-size: 0.68rem;
+  color: var(--adm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.pos-dish-card .pos-qty-badge {
+  position: absolute;
+  top: -2px; right: -2px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #0f172a;
+  font-size: 0.72rem;
+  font-weight: 900;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(245,158,11,0.5);
+  animation: pos-badge-pop 0.3s ease;
+}
+@keyframes pos-badge-pop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.pos-dish-card .pos-add-btn {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.35rem 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+.pos-dish-card .pos-add-btn:hover {
+  box-shadow: 0 4px 12px rgba(34,197,94,0.4);
+}
+
+/* Basket receipt style */
+.pos-basket-receipt {
+  background: rgba(0,0,0,0.15);
+  border: 1px dashed var(--adm-border);
+  border-radius: 14px;
+  padding: 1rem;
+}
+.pos-basket-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.pos-basket-item:nth-child(even) {
+  background: rgba(255,255,255,0.025);
+}
+.pos-basket-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+.pos-basket-item .item-info .item-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--adm-text);
+}
+.pos-basket-item .item-info .item-meta {
+  font-size: 0.7rem;
+  color: var(--adm-muted);
+}
+.pos-basket-item .item-total {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #22c55e;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* Qty control buttons */
+.pos-qty-ctrl {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--adm-border);
+  background: rgba(255,255,255,0.06);
+  color: var(--adm-text);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.pos-qty-ctrl:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.2);
+}
+.pos-qty-ctrl.del {
+  background: rgba(255,91,91,0.12);
+  color: #ff5b5b;
+  border-color: rgba(255,91,91,0.3);
+}
+.pos-qty-ctrl.del:hover {
+  background: rgba(255,91,91,0.25);
+}
+
+/* Tax breakdown */
+.pos-tax-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--adm-muted);
+  padding: 0.15rem 0;
+}
+.pos-tax-line span:last-child {
+  font-weight: 700;
+  color: var(--adm-text);
+}
+.pos-tax-line.total {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #22c55e;
+  border-top: 2px dashed var(--adm-border);
+  padding-top: 0.6rem;
+  margin-top: 0.4rem;
+}
+.pos-tax-line.total span:last-child {
+  color: #22c55e;
+}
+
+/* Action buttons */
+.pos-action-btn {
+  font-weight: 800;
+  border: none;
+  padding: 0.85rem;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.pos-action-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(255,255,255,0.15), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.pos-action-btn:hover::after { opacity: 1; }
+.pos-action-btn:hover { transform: translateY(-2px); }
+.pos-action-btn:active { transform: translateY(0); }
+.pos-action-btn.hold {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #0f172a;
+  box-shadow: 0 4px 15px rgba(245,158,11,0.35);
+}
+.pos-action-btn.bill {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(34,197,94,0.35);
+}
+.pos-action-btn .btn-sub {
+  font-size: 0.65rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* Hold order chip in POS */
+.pos-hold-chip {
+  padding: 0.4rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border: 1px solid #f59e0b;
+  background: rgba(245,158,11,0.1);
+  color: #f59e0b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.pos-hold-chip:hover {
+  background: rgba(245,158,11,0.2);
+  box-shadow: 0 2px 8px rgba(245,158,11,0.2);
+}
+.pos-hold-chip.active {
+  background: #f59e0b;
+  color: #0f172a;
+  box-shadow: 0 2px 12px rgba(245,158,11,0.4);
+}
+
+/* Customer context bar glassmorphism */
+.pos-customer-bar {
+  background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 1.25rem;
+}
+
+/* POS header accent */
+.pos-header-accent {
+  background: linear-gradient(90deg, rgba(34,197,94,0.15), rgba(34,197,94,0.02), transparent);
+  border-left: 3px solid #22c55e;
+  padding-left: 1rem;
+}
+
+/* Hold orders bar */
+.pos-hold-bar {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+  align-items: center;
+}
+.pos-hold-bar::-webkit-scrollbar { height: 3px; }
+.pos-hold-bar::-webkit-scrollbar-thumb { background: rgba(245,158,11,0.3); border-radius: 3px; }
+
+/* ═══════════════════════════════════════════════════════════
+   THERMAL RECEIPT PRINTING — TVS RP 3200 (58mm KOT & 80mm BILL)
+   ═══════════════════════════════════════════════════════════ */
+
+#native-print-area {
+  display: none;
+}
+
+@page kot-page {
+  size: 58mm auto;
+  margin: 0;
+}
+
+@page bill-page {
+  size: 80mm auto;
+  margin: 0;
+}
+
+body.print-mode-kot {
+  page: kot-page;
+}
+
+body.print-mode-bill {
+  page: bill-page;
+}
+
+@media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  
+  body > *:not(#native-print-area) {
+    display: none !important;
+  }
+  
+  #native-print-area {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body.print-mode-kot #native-print-area {
+    width: 58mm !important;
+    max-width: 58mm !important;
+  }
+
+  body.print-mode-bill #native-print-area {
+    width: 80mm !important;
+    max-width: 80mm !important;
+  }
+}
+
+/* Print action button styling in dashboard */
+.adm-print-btn-group {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.adm-print-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: 8px;
+  border: 1px solid var(--adm-border);
+  background: rgba(255,255,255,0.05);
+  color: var(--adm-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+.adm-print-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+.adm-print-btn.kot {
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+.adm-print-btn.kot:hover {
+  background: rgba(245, 158, 11, 0.2);
+}
+.adm-print-btn.bill {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+.adm-print-btn.bill:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+.adm-print-btn.both {
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+.adm-print-btn.both:hover {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+/* ════════════════════════════════════════════════════════════
+   PETPOOJA-INSPIRED RE-DESIGN: COLLAPSIBLE SECTIONS & DOCK
+   ════════════════════════════════════════════════════════════ */
+
+/* Collapsible Section Component */
+.adm-collapsible-section {
+  background: #FFFFFF;
+  border: 1px solid var(--adm-card-border);
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.02);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.adm-collapsible-section:hover {
+  border-color: #D6D3D1;
+  box-shadow: 0 4px 12px rgba(28, 25, 23, 0.06);
+}
+
+.adm-collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  background: #FFFFFF;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.adm-collapsible-header:hover {
+  background: #FAF9F7;
+}
+
+.adm-collapsible-section.open .adm-collapsible-header {
+  border-bottom-color: var(--adm-card-border);
+}
+
+.adm-collapsible-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.adm-collapsible-title h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--adm-text);
+  font-family: var(--font-heading);
+}
+
+.adm-collapsible-toggle {
+  background: rgba(28, 25, 23, 0.04);
+  border: 1px solid rgba(28, 25, 23, 0.08);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--adm-muted);
+}
+
+.adm-collapsible-toggle:hover {
+  background: var(--adm-accent-light);
+  color: var(--adm-accent);
+  border-color: rgba(232, 89, 12, 0.3);
+}
+
+.adm-chevron {
+  display: inline-block;
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.adm-collapsible-section.closed .adm-chevron {
+  transform: rotate(-90deg);
+}
+
+.adm-collapsible-content {
+  max-height: 2500px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
+
+.adm-collapsible-section.closed .adm-collapsible-content {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  padding: 0 !important;
+}
+
+.adm-collapsible-body {
+  padding: 1.25rem;
+}
+
+/* Sidebar Section Titles & Navigation Sub-Groups */
+.adm-nav-section-title {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--adm-sidebar-muted);
+  padding: 0.75rem 0.85rem 0.35rem;
+  margin-top: 0.5rem;
+}
+
+/* Sidebar Dark Styling */
+.adm-sidebar {
+  background: var(--adm-sidebar);
+  color: var(--adm-sidebar-text);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.adm-sidebar .adm-brand {
+  color: #FFFFFF;
+}
+
+.adm-sidebar .adm-nav-item {
+  color: var(--adm-sidebar-text);
+  border-radius: 8px;
+}
+
+.adm-sidebar .adm-nav-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #FFFFFF;
+}
+
+.adm-sidebar .adm-nav-item.active {
+  background: var(--adm-accent);
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+/* Compact Sidebar Mode */
+.adm-sidebar.compact {
+  width: 72px !important;
+}
+
+.adm-sidebar.compact .adm-nav-section-title,
+.adm-sidebar.compact .adm-sidebar-head p:nth-child(2),
+.adm-sidebar.compact .adm-nav-item span:not(.adm-nav-badge),
+.adm-sidebar.compact .adm-promo {
+  display: none !important;
+}
+
+.adm-sidebar.compact .adm-nav-item {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+/* Header & Store Status Switch */
+.adm-header {
+  background: var(--adm-sidebar);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+  padding: 0.75rem 1.5rem;
+}
+
+.adm-store-status-btn {
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+  font-family: var(--font-body);
+}
+
+.adm-store-status-btn.online {
+  background: rgba(47, 158, 68, 0.15);
+  color: var(--adm-green);
+  border-color: rgba(47, 158, 68, 0.3);
+}
+
+.adm-store-status-btn.closed {
+  background: rgba(224, 49, 49, 0.15);
+  color: var(--adm-red);
+  border-color: rgba(224, 49, 49, 0.3);
+}
+
+.adm-store-status-btn:hover {
+  transform: scale(1.02);
+}
+
+/* Quick Action Dock */
+.adm-quick-dock {
+  background: #262220;
+  padding: 0.5rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.adm-dock-btn {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--adm-sidebar-text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  font-family: var(--font-body);
+}
+
+.adm-dock-btn:hover {
+  background: var(--adm-accent);
+  color: #FFFFFF;
+  border-color: var(--adm-accent);
+}
+
+/* Status Pill Left Border Indicators on Order Cards */
+.adm-order-card {
+  border-left: 4px solid var(--adm-amber) !important;
+}
+.adm-order-card[data-status="confirmed"],
+.adm-order-card[data-status="delivered"],
+.adm-order-card[data-status="completed"] {
+  border-left-color: var(--adm-green) !important;
+}
+.adm-order-card[data-status="preparing"],
+.adm-order-card[data-status="pending"],
+.adm-order-card[data-status="hold"] {
+  border-left-color: var(--adm-amber) !important;
+}
+.adm-order-card[data-status="ready"] {
+  border-left-color: var(--adm-blue) !important;
+}
+.adm-order-card[data-status="cancelled"] {
+  border-left-color: var(--adm-red) !important;
+}
+
+/* Card Styling: Clean, 12px border-radius, consistent padding, subtle shadow */
+.adm-card {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-card-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.02);
+  padding: 1.25rem;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.adm-card:hover {
+  box-shadow: 0 4px 12px rgba(28, 25, 23, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TABLE FLOOR PLAN & KOT KITCHEN TICKET STYLES
+   ═══════════════════════════════════════════════════════════ */
+
+.table-floor-card {
+  background: var(--adm-card);
+  border: 2px solid var(--adm-card-border);
+  border-radius: 14px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.85rem;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.table-floor-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+.table-floor-card.available {
+  border-color: rgba(47, 158, 68, 0.4);
+  background: linear-gradient(135deg, rgba(47, 158, 68, 0.04), transparent);
+}
+.table-floor-card.occupied {
+  border-color: rgba(232, 89, 12, 0.5);
+  background: linear-gradient(135deg, rgba(232, 89, 12, 0.06), transparent);
+}
+.table-floor-card.held {
+  border-color: rgba(240, 140, 0, 0.5);
+  background: linear-gradient(135deg, rgba(240, 140, 0, 0.08), transparent);
+}
+
+.kot-ticket-card {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-card-border);
+  border-radius: 14px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+.kot-ticket-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dashed var(--adm-border);
+  padding-bottom: 0.65rem;
+}
+.kot-item-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Hold Orders */
+.adm-hold-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+.adm-hold-card {
+  background: var(--adm-card, #ffffff);
+  border: 1px solid #ffe3c2;
+  border-left: 4px solid #f2994a;
+  border-radius: 16px;
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.adm-hold-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+.adm-hold-card-title { font-weight: 700; font-size: 0.9rem; margin: 0 0 0.35rem; }
+.adm-hold-time { font-size: 0.7rem; color: #f2994a; font-weight: 700; white-space: nowrap; }
+.adm-hold-items {
+  list-style: none;
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.75rem;
+  background: #fff8ef;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  color: var(--adm-text, #0f172a);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.adm-hold-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.adm-hold-amount { color: #f2994a; font-size: 1.05rem; }
+.adm-hold-actions { display: flex; gap: 0.5rem; }
+
+/* POS chip bar */
+.adm-hold-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #fff3e6;
+  color: #f2994a;
+  border: 1px solid #ffd8a8;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.adm-hold-chip:hover {
+  background: #f2994a;
+  color: #fff;
+}
+.adm-hold-chip-time {
+  font-weight: 500;
+  opacity: 0.85;
 }
 
 

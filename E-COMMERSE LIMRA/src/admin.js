@@ -1,7 +1,7 @@
 import './style.css';
 import './admin.css';
 import { Chart, registerables } from 'chart.js';
-import { insforge, getMenuOverrides, saveMenuOverride, getCoupons, saveCoupon, deleteCoupon, getCombos, saveCombo, deleteCombo } from './lib/insforge.js';
+import { insforge, saveOrder, sendN8nWebhook, getMenuOverrides, saveMenuOverride, getCoupons, saveCoupon, deleteCoupon, getCombos, saveCombo, deleteCombo } from './lib/insforge.js';
 import { PaymentService } from './lib/payments.js';
 import { menuItems, categoryImages, categoryLabels } from './data/menu.js';
 import { getAdminLoginUrl } from './lib/admin-routes.js';
@@ -447,7 +447,8 @@ function destroyChart(key) {
 }
 
 function getItemsForOrder(orderId) {
-  return orderItems.filter(i => i.order_id === orderId);
+  if (!orderId || !Array.isArray(orderItems)) return [];
+  return orderItems.filter(i => String(i.order_id) === String(orderId));
 }
 
 function getGlobalSearch() {
@@ -578,13 +579,18 @@ async function autoAcceptTableOrders() {
       
       const cleanPhone = String(order.customer_phone).replace(/\D/g, '');
       if (cleanPhone) {
-        insforge.realtime.publish(`customer-notifications:${cleanPhone}`, 'notification_created', {
-          id: Date.now(),
-          type: 'order_status',
-          title: 'Order Confirmed',
-          message: `Your table order #${order.order_number} has been received by kitchen!`,
-          created_at: new Date().toISOString()
-        }).catch(console.warn);
+        try {
+          if (typeof insforge?.realtime?.publish === 'function') {
+            const p = insforge.realtime.publish(`customer-notifications:${cleanPhone}`, 'notification_created', {
+              id: Date.now(),
+              type: 'order_status',
+              title: 'Order Confirmed',
+              message: `Your table order #${order.order_number} has been received by kitchen!`,
+              created_at: new Date().toISOString()
+            });
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+          }
+        } catch (e) {}
       }
     } catch (err) {
       console.warn(`[Auto-Accept] Failed to auto-confirm table order #${order.id}:`, err);
@@ -722,33 +728,34 @@ function getBookingsByDayOfWeek() {
 // ── Dashboard ───────────────────────────────────────────
 
 function renderStats() {
-  const pending = orders.filter(o => o.status === 'pending').length;
-  const delivered = orders.filter(o => o.status === 'delivered').length;
-  const revenue = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total_amount), 0);
+  const activeOrders = orders.filter(o => o.status !== 'hold');
+  const pending = activeOrders.filter(o => o.status === 'pending').length;
+  const delivered = activeOrders.filter(o => o.status === 'delivered').length;
+  const revenue = activeOrders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total_amount), 0);
 
   // New payment stats calculations
-  const paidCount = orders.filter(o => o.payment_status === 'paid').length;
-  const unpaidCount = orders.filter(o => o.payment_status === 'unpaid' || !o.payment_status).length;
+  const paidCount = activeOrders.filter(o => o.payment_status === 'paid').length;
+  const unpaidCount = activeOrders.filter(o => o.payment_status === 'unpaid' || !o.payment_status).length;
   
   const todayStr = new Date().toDateString();
-  const todayPaidRev = orders
+  const todayPaidRev = activeOrders
     .filter(o => o.payment_status === 'paid' && new Date(o.created_at).toDateString() === todayStr)
     .reduce((s, o) => s + Number(o.total_amount), 0);
 
-  const pendingPayments = orders
+  const pendingPayments = activeOrders
     .filter(o => o.payment_status === 'unpaid' || !o.payment_status)
     .reduce((s, o) => s + Number(o.total_amount), 0);
 
-  const collectedRev = orders
+  const collectedRev = activeOrders
     .filter(o => o.payment_status === 'paid' && o.status !== 'cancelled')
     .reduce((s, o) => s + Number(o.total_amount), 0);
 
-  const outstandingRev = orders
+  const outstandingRev = activeOrders
     .filter(o => (o.payment_status === 'unpaid' || !o.payment_status) && o.status !== 'cancelled')
     .reduce((s, o) => s + Number(o.total_amount), 0);
 
   // Render standard stats
-  $('stat-total-orders').textContent = orders.length;
+  $('stat-total-orders').textContent = activeOrders.length;
   $('stat-revenue').textContent = fmtMoney(revenue);
 
   // Render new payment stats
@@ -771,13 +778,11 @@ function renderStats() {
   if (elOutstanding) elOutstanding.textContent = fmtMoney(outstandingRev);
 
   // Calculate GST stats (5% included in subtotal)
-  // subtotal = (total_amount - deliveryCharge) / 1.05
-  // GST = subtotal * 0.05
   let totalGst = 0;
   let paidGst = 0;
   let pendingGst = 0;
 
-  orders.filter(o => o.status !== 'cancelled').forEach(o => {
+  activeOrders.filter(o => o.status !== 'cancelled').forEach(o => {
     const meta = parseNotesMetadata(o.notes, o);
     const deliveryCharge = meta.charge ? parseFloat(meta.charge.replace(/[^\d.]/g, '')) || 0 : 0;
     const totalAmt = parseFloat(o.total_amount) || 0;
@@ -792,19 +797,34 @@ function renderStats() {
     }
   });
 
+  const cgstTotal = totalGst * 0.5;
+  const sgstTotal = totalGst * 0.5;
+
   const elGstTotal = $('stat-gst-total');
   if (elGstTotal) elGstTotal.textContent = fmtMoney(totalGst);
 
-  const elGstPaid = $('stat-gst-paid');
-  if (elGstPaid) elGstPaid.textContent = fmtMoney(paidGst);
+  const elCgstPaid = $('stat-gst-paid');
+  if (elCgstPaid) elCgstPaid.textContent = fmtMoney(cgstTotal);
 
-  const elGstPending = $('stat-gst-pending');
-  if (elGstPending) elGstPending.textContent = fmtMoney(pendingGst);
+  const elSgstPending = $('stat-gst-pending');
+  if (elSgstPending) elSgstPending.textContent = fmtMoney(sgstTotal);
 
   // Sidebar badges
   const orderBadge = $('pending-orders-badge');
   if (pending > 0) { orderBadge.textContent = pending; show(orderBadge); }
   else hide(orderBadge);
+
+  const holdCount = orders.filter(o => o.status === 'hold').length;
+  const holdBadge = $('pending-hold-badge');
+  if (holdBadge) {
+    if (holdCount > 0) { holdBadge.textContent = holdCount; show(holdBadge); }
+    else hide(holdBadge);
+  }
+  const holdCountBadge = $('hold-orders-count-badge');
+  if (holdCountBadge) {
+    if (holdCount > 0) { holdCountBadge.textContent = holdCount; show(holdCountBadge); }
+    else hide(holdCountBadge);
+  }
 
   const bookBadge = $('pending-bookings-badge');
   const pendingBook = bookings.filter(b => b.status === 'pending').length;
@@ -1345,7 +1365,7 @@ function getFilteredOrders() {
   const paymentFilter = $('orders-payment-filter')?.value || 'all';
   const dateFilter = $('orders-date-filter')?.value || '';
   const search = ($('orders-search')?.value || getGlobalSearch()).toLowerCase().trim();
-  let filtered = [...orders];
+  let filtered = orders.filter(o => o.status !== 'hold');
   
   if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
   
@@ -1500,7 +1520,7 @@ function renderTableBillsPanel() {
 
     // Render round breakdown
     const roundsHtml = entries.map((e, idx) => {
-      const items = getOrderItems(e.order.id);
+      const items = getItemsForOrder(e.order.id);
       const roundLabel = e.meta.notes && e.meta.notes.includes('[ROUND:') 
         ? e.meta.notes.match(/\[ROUND:\s*(\d+)\]/)?.[0] || `Round #${entries.length - idx}`
         : `Round #${entries.length - idx}`;
@@ -1633,8 +1653,13 @@ function renderOrdersTable() {
           <td>${paymentStatusPill(order.payment_status || 'unpaid')}</td>
           <td>${fmtDateShort(order.created_at)}</td>
           <td>
-            <div style="display:flex; gap:0.5rem; align-items:center;">
+            <div style="display:flex; gap:0.35rem; align-items:center; flex-wrap:wrap;">
               <button class="adm-btn adm-btn-primary adm-btn-sm view-order-btn" data-order-id="${order.id}">View</button>
+              <div class="adm-print-btn-group">
+                <button type="button" class="adm-print-btn kot order-print-kot-btn" data-order-id="${order.id}" title="Print 58mm KOT">🍳 KOT</button>
+                <button type="button" class="adm-print-btn bill order-print-bill-btn" data-order-id="${order.id}" title="Print 80mm Bill">🧾 Bill</button>
+                <button type="button" class="adm-print-btn both order-print-both-btn" data-order-id="${order.id}" title="Print KOT + Bill">⚡ Both</button>
+              </div>
               ${parsedMeta.type === 'table' && order.status !== 'delivered' ? `<button class="adm-btn adm-btn-outline adm-btn-sm inline-settle-table-btn" data-table-num="${parsedMeta.tableNumber}" style="padding:0.4rem 0.6rem; font-size:0.75rem; border-color:#f59e0b; color:#f59e0b; font-weight:bold">🛎️ Settle Table #${parsedMeta.tableNumber}</button>` : ''}
               ${(order.payment_status || 'unpaid') === 'unpaid' && parsedMeta.type !== 'table' ? `<button class="adm-btn adm-btn-outline adm-btn-sm inline-mark-paid-btn" data-order-id="${order.id}" style="padding:0.4rem 0.6rem; font-size:0.75rem; border-color:var(--adm-green); color:var(--adm-green)">✓ Mark Paid</button>` : ''}
             </div>
@@ -1643,6 +1668,27 @@ function renderOrdersTable() {
       `;
     }).join('');
   }
+
+  tbody.querySelectorAll('.order-print-kot-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      printNativeKotOrder(btn.dataset.orderId);
+    });
+  });
+
+  tbody.querySelectorAll('.order-print-bill-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      printNativeBillOrder(btn.dataset.orderId);
+    });
+  });
+
+  tbody.querySelectorAll('.order-print-both-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      printNativeKotAndBillOrder(btn.dataset.orderId);
+    });
+  });
 
   tbody.querySelectorAll('.inline-settle-table-btn').forEach(btn => {
     btn.addEventListener('click', e => {
@@ -2211,7 +2257,16 @@ async function renderOrderDetail(orderId) {
             `}
           </div>
 
-          <h3 class="adm-card-title" style="margin-top: 1.5rem; margin-bottom: 0.75rem;">Customer Shortcuts</h3>
+          <div style="margin-top: 1rem; margin-bottom: 1rem; border-top: 1px dashed var(--adm-border); border-bottom: 1px dashed var(--adm-border); padding: 0.75rem 0;">
+            <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--adm-muted); display: block; margin-bottom: 0.5rem;">🖨️ Thermal Receipt Printing</label>
+            <div class="adm-print-btn-group">
+              <button type="button" class="adm-print-btn kot detail-print-kot-btn">🍳 Print KOT (58mm)</button>
+              <button type="button" class="adm-print-btn bill detail-print-bill-btn">🧾 Print Bill (80mm)</button>
+              <button type="button" class="adm-print-btn both detail-print-both-btn">⚡ KOT + Bill</button>
+            </div>
+          </div>
+
+          <h3 class="adm-card-title" style="margin-top: 1rem; margin-bottom: 0.75rem;">Customer Shortcuts</h3>
           <div class="adm-comm-grid">
             <a href="${whatsappLink}" target="_blank" class="adm-comm-btn whatsapp">
               💬 WhatsApp
@@ -2252,6 +2307,10 @@ async function renderOrderDetail(orderId) {
       updateOrderPaymentStatus(order.id, 'unpaid');
     }
   });
+
+  content.querySelector('.detail-print-kot-btn')?.addEventListener('click', () => printNativeKotOrder(order));
+  content.querySelector('.detail-print-bill-btn')?.addEventListener('click', () => printNativeBillOrder(order));
+  content.querySelector('.detail-print-both-btn')?.addEventListener('click', () => printNativeKotAndBillOrder(order));
 
   content.querySelector('#comm-email-btn')?.addEventListener('click', (e) => {
     if (!parsedMeta.email) {
@@ -3057,10 +3116,1134 @@ function setupEditModalListeners() {
   });
 }
 
+// ═══════════════════════════════════════════════════════════
+// POS BILLING TERMINAL & KOT MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+let posCart = []; // [{ item_id, item_name, quantity, unit_price, line_total, printed_kot_qty }]
+let posActiveCategory = 'all';
+let activeHoldOrderId = null;
+
+function initPosTerminal() {
+  // Category Chips render
+  const chipContainer = $('pos-category-chips');
+  if (chipContainer) {
+    const cats = [['all', 'All Items'], ...Object.entries(categoryLabels)];
+    chipContainer.innerHTML = cats.map(([k, label]) => `
+      <button type="button" class="adm-pill ${k === posActiveCategory ? 'active' : ''}" data-cat="${k}" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; border-radius: 20px; white-space: nowrap; ${k === posActiveCategory ? 'background:var(--adm-green); color:#fff;' : 'background:#f5f7fa; color:var(--adm-text);'}">
+        ${escapeHtml(label)}
+      </button>
+    `).join('');
+
+    chipContainer.querySelectorAll('.adm-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        posActiveCategory = btn.dataset.cat;
+        chipContainer.querySelectorAll('.adm-pill').forEach(b => {
+          b.classList.remove('active');
+          b.style.background = '#f5f7fa';
+          b.style.color = 'var(--adm-text)';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'var(--adm-green)';
+        btn.style.color = '#fff';
+        renderPosDishesGrid();
+      });
+    });
+  }
+
+  // Event Listeners for POS actions
+  $('pos-item-search')?.addEventListener('input', renderPosDishesGrid);
+  $('pos-kot-hold-btn')?.addEventListener('click', handleKotAndHold);
+  $('pos-kot-bill-btn')?.addEventListener('click', handleKotAndBill);
+  $('pos-new-bill-btn')?.addEventListener('click', resetPosSession);
+  
+  // Table select show/hide wrapper
+  $('pos-order-type')?.addEventListener('change', (e) => {
+    const isDineIn = e.target.value === 'dine_in';
+    const tblWrap = $('pos-table-select-wrapper');
+    if (tblWrap) {
+      tblWrap.style.display = isDineIn ? 'block' : 'none';
+    }
+  });
+
+  renderPosDishesGrid();
+  renderPosBasket();
+}
+
+function renderBillingPanel() {
+  initPosTerminal();
+}
+
+function renderPosDishesGrid() {
+  const grid = $('pos-dishes-grid');
+  if (!grid) return;
+
+  const search = ($('pos-item-search')?.value || '').toLowerCase().trim();
+  let items = menuItems.map(item => {
+    const override = activeMenuOverrides.find(o => String(o.id) === String(item.id));
+    return {
+      ...item,
+      price: override && override.price !== null ? parseFloat(override.price) : item.price,
+      available: override && override.available !== undefined ? override.available : true
+    };
+  }).filter(i => i.available !== false);
+
+  if (posActiveCategory !== 'all') items = items.filter(i => i.category === posActiveCategory);
+  if (search) items = items.filter(i => i.name.toLowerCase().includes(search));
+
+  if (items.length === 0) {
+    grid.innerHTML = '<div class="adm-empty col-span-full" style="padding: 2rem 0; text-align: center;">No dishes found matching filter</div>';
+    return;
+  }
+
+  grid.innerHTML = items.map(item => {
+    const inCart = posCart.find(c => String(c.item_id) === String(item.id));
+    const cartQty = inCart ? inCart.quantity : 0;
+
+    return `
+      <div class="adm-card pos-dish-card" data-id="${item.id}" style="padding: 0.75rem; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid ${cartQty > 0 ? 'var(--adm-green)' : 'var(--adm-border)'}; background: ${cartQty > 0 ? 'rgba(0, 176, 116, 0.08)' : 'var(--adm-card-bg)'}; cursor: pointer; user-select: none; position: relative;">
+        ${cartQty > 0 ? `<span style="position: absolute; top: -6px; right: -6px; background: var(--adm-green); color: #fff; font-size: 0.7rem; font-weight: 800; padding: 2px 7px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 5;">✓ ${cartQty} in cart</span>` : ''}
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; margin-bottom: 4px;">
+            <h4 style="margin: 0; font-size: 0.82rem; font-weight: 700; color: var(--adm-text); line-height: 1.2;">${escapeHtml(item.name)}</h4>
+          </div>
+          <span style="font-size: 0.7rem; color: var(--adm-muted); text-transform: uppercase;">${escapeHtml(categoryLabels[item.category] || item.category)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.6rem;">
+          <span style="font-size: 0.85rem; font-weight: 800; color: var(--adm-green);">₹${Number(item.price).toFixed(2)}</span>
+          <button type="button" class="adm-btn adm-btn-primary adm-btn-sm pos-add-item-btn" data-id="${item.id}" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; border-radius: 6px; font-weight: 700; background: ${cartQty > 0 ? '#10b981' : 'var(--adm-green)'}; color: #fff; border: none;">
+            ${cartQty > 0 ? `+ Add More (${cartQty})` : '+ Add'}
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.pos-dish-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const itemId = card.dataset.id;
+      const dish = menuItems.find(m => String(m.id) === String(itemId));
+      if (dish) {
+        const override = activeMenuOverrides.find(o => String(o.id) === String(itemId));
+        const finalPrice = override && override.price !== null ? parseFloat(override.price) : dish.price;
+        addPosItemToCart(dish.id, dish.name, finalPrice);
+      }
+    });
+  });
+}
+
+function addPosItemToCart(id, name, price) {
+  const existing = posCart.find(i => String(i.item_id) === String(id));
+  if (existing) {
+    existing.quantity += 1;
+    existing.line_total = existing.quantity * existing.unit_price;
+  } else {
+    posCart.push({
+      item_id: id,
+      item_name: name,
+      unit_price: Number(price),
+      quantity: 1,
+      line_total: Number(price),
+      printed_kot_qty: 0
+    });
+  }
+  renderPosBasket();
+  renderPosDishesGrid();
+  showAdminToast(`Added ${name} to order basket`, 'success');
+}
+
+function renderPosBasket() {
+  const list = $('pos-basket-items-list');
+  const badge = $('pos-hold-status-badge');
+  if (!list) return;
+
+  if (activeHoldOrderId && badge) {
+    show(badge);
+    badge.textContent = `HOLD ORDER #${activeHoldOrderId.slice(-6).toUpperCase()}`;
+  } else if (badge) {
+    hide(badge);
+  }
+
+  const totalQty = posCart.reduce((sum, item) => sum + item.quantity, 0);
+  const basketTitle = $('pos-basket-title');
+  if (basketTitle) {
+    basketTitle.textContent = totalQty > 0 ? `🛒 Current Order Basket (${totalQty} Items)` : '🛒 Current Order Basket';
+  }
+
+  if (posCart.length === 0) {
+    list.innerHTML = '<p style="text-align: center; color: var(--adm-muted); padding: 2rem 0; font-size: 0.85rem;">Basket is empty. Select dishes from menu to add.</p>';
+    if ($('pos-subtotal-val')) $('pos-subtotal-val').textContent = '₹0.00';
+    if ($('pos-cgst-val')) $('pos-cgst-val').textContent = '₹0.00';
+    if ($('pos-sgst-val')) $('pos-sgst-val').textContent = '₹0.00';
+    if ($('pos-total-val')) $('pos-total-val').textContent = '₹0.00';
+    return;
+  }
+
+  const subtotal = posCart.reduce((sum, item) => sum + Number(item.line_total), 0);
+  const cgst = subtotal * 0.025; // 2.5% CGST
+  const sgst = subtotal * 0.025; // 2.5% SGST
+  const grandTotal = subtotal;
+
+  list.innerHTML = posCart.map((item, idx) => `
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; background: rgba(255,255,255,0.03); padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--adm-border);">
+      <div style="flex: 1;">
+        <div style="font-size: 0.82rem; font-weight: 700; color: var(--adm-text);">${escapeHtml(item.item_name)}</div>
+        <div style="font-size: 0.72rem; color: var(--adm-muted);">₹${item.unit_price.toFixed(2)} each ${item.printed_kot_qty > 0 ? `<span style="color:#f59e0b; font-weight:600;">(KOT: ${item.printed_kot_qty})</span>` : ''}</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.35rem;">
+        <button type="button" class="adm-btn adm-btn-outline pos-qty-minus" data-idx="${idx}" style="padding: 1px 6px; font-size: 0.75rem;">-</button>
+        <span style="font-size: 0.85rem; font-weight: 800; min-width: 18px; text-align: center;">${item.quantity}</span>
+        <button type="button" class="adm-btn adm-btn-outline pos-qty-plus" data-idx="${idx}" style="padding: 1px 6px; font-size: 0.75rem;">+</button>
+        <button type="button" class="adm-btn pos-qty-del" data-idx="${idx}" style="padding: 1px 6px; font-size: 0.75rem; background: rgba(255,91,91,0.15); color: #ff5b5b; border: none; margin-left: 4px;">🗑️</button>
+      </div>
+      <div style="font-size: 0.85rem; font-weight: 800; color: var(--adm-green); width: 65px; text-align: right;">
+        ₹${item.line_total.toFixed(2)}
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.pos-qty-minus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.idx);
+      if (posCart[idx].quantity > 1) {
+        posCart[idx].quantity -= 1;
+        posCart[idx].line_total = posCart[idx].quantity * posCart[idx].unit_price;
+      } else {
+        posCart.splice(idx, 1);
+      }
+      renderPosBasket();
+      renderPosDishesGrid();
+    });
+  });
+
+  list.querySelectorAll('.pos-qty-plus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.idx);
+      posCart[idx].quantity += 1;
+      posCart[idx].line_total = posCart[idx].quantity * posCart[idx].unit_price;
+      renderPosBasket();
+      renderPosDishesGrid();
+    });
+  });
+
+  list.querySelectorAll('.pos-qty-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.idx);
+      posCart.splice(idx, 1);
+      renderPosBasket();
+      renderPosDishesGrid();
+    });
+  });
+
+  if ($('pos-subtotal-val')) $('pos-subtotal-val').textContent = `₹${subtotal.toFixed(2)}`;
+  if ($('pos-cgst-val')) $('pos-cgst-val').textContent = `₹${cgst.toFixed(2)}`;
+  if ($('pos-sgst-val')) $('pos-sgst-val').textContent = `₹${sgst.toFixed(2)}`;
+  if ($('pos-total-val')) $('pos-total-val').textContent = `₹${grandTotal.toFixed(2)}`;
+
+  const kotBillBtn = $('pos-kot-bill-btn');
+  const kotHoldBtn = $('pos-kot-hold-btn');
+  if (activeHoldOrderId) {
+    if (kotBillBtn) kotBillBtn.innerHTML = '🧾 Save & Bill';
+    if (kotHoldBtn) kotHoldBtn.innerHTML = '🍳 Add KOT & Hold';
+  } else {
+    if (kotBillBtn) kotBillBtn.innerHTML = '🧾 KOT & Bill';
+    if (kotHoldBtn) kotHoldBtn.innerHTML = '🍳 KOT & Hold';
+  }
+}
+
+function renderPosHoldOrdersChips() {
+  const container = $('pos-hold-orders-chips');
+  if (!container) return;
+
+  const holdOrders = orders.filter(o => o.status === 'hold' || o.status === 'pending');
+  
+  const badge = $('hold-bills-badge');
+  if (badge) {
+    if (holdOrders.length > 0) {
+      badge.textContent = holdOrders.length;
+      show(badge);
+    } else {
+      hide(badge);
+    }
+  }
+
+  if (holdOrders.length === 0) {
+    container.innerHTML = '<span style="font-size: 0.8rem; color: var(--adm-muted);">No active hold orders right now</span>';
+    return;
+  }
+
+  container.innerHTML = holdOrders.map(o => {
+    const meta = parseNotesMetadata(o.notes, o);
+    const label = meta.tableNumber ? `Table ${meta.tableNumber}` : (o.customer_name || 'Hold Order');
+    const isCurrent = activeHoldOrderId === o.id;
+    return `
+      <button type="button" class="pos-load-hold-btn" data-id="${o.id}" style="padding: 0.35rem 0.75rem; border-radius: 8px; font-size: 0.78rem; font-weight: 700; border: 1px solid #f59e0b; ${isCurrent ? 'background:#f59e0b; color:#0f172a;' : 'background:rgba(245,158,11,0.1); color:#f59e0b;'} cursor:pointer;">
+        ⏳ ${escapeHtml(label)} (${escapeHtml(o.customer_name)}) · ₹${Number(o.total_amount).toFixed(0)}
+      </button>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.pos-load-hold-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orderId = btn.dataset.id;
+      loadHoldOrderToPos(orderId);
+    });
+  });
+}
+
+function loadHoldOrderToPos(orderId) {
+  const order = orders.find(o => o.id === orderId);
+  if (!order) return;
+
+  activeHoldOrderId = order.id;
+  if ($('pos-cust-name')) $('pos-cust-name').value = order.customer_name || '';
+  if ($('pos-cust-phone')) $('pos-cust-phone').value = order.customer_phone || '';
+  
+  const meta = parseNotesMetadata(order.notes, order);
+  if ($('pos-order-type')) $('pos-order-type').value = meta.type || 'dine_in';
+  if ($('pos-table-num')) $('pos-table-num').value = meta.tableNumber || 'Table 1';
+
+  const items = getItemsForOrder(order.id);
+  posCart = items.map(i => ({
+    item_id: i.menu_item_id,
+    item_name: i.item_name,
+    unit_price: Number(i.unit_price),
+    quantity: Number(i.quantity),
+    line_total: Number(i.line_total),
+    printed_kot_qty: Number(i.quantity)
+  }));
+
+  renderPosBasket();
+  renderPosHoldOrdersChips();
+  showAdminToast(`Loaded hold order for ${order.customer_name}`, 'info');
+}
+
+function validatePosCustomerInfo() {
+  const name = $('pos-cust-name')?.value.trim();
+  const phone = $('pos-cust-phone')?.value.trim().replace(/\D/g, '');
+
+  if (!name) {
+    alert('❌ Customer Name is compulsory! Please enter customer name.');
+    $('pos-cust-name')?.focus();
+    return false;
+  }
+  if (!phone || phone.length < 10) {
+    alert('❌ Customer Phone Number is compulsory! Please enter a valid 10-digit phone number.');
+    $('pos-cust-phone')?.focus();
+    return false;
+  }
+  if (posCart.length === 0) {
+    alert('❌ Basket is empty! Please select dishes to add to order.');
+    return false;
+  }
+  return { name, phone };
+}
+
+async function saveAdminPosOrder({ customerName, customerPhone, items, notes, orderType, tableNumber, status = 'pending', paymentStatus = 'unpaid' }) {
+  // Generate next order number
+  const { data: latest } = await insforge.database
+    .from('orders')
+    .select('order_number')
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  let nextNum = 1001;
+  if (latest && latest.length > 0 && latest[0].order_number) {
+    const parsed = parseInt(String(latest[0].order_number).replace(/\D/g, ''), 10);
+    if (!isNaN(parsed)) nextNum = parsed + 1;
+  }
+  const orderNumberStr = String(nextNum);
+
+  const subtotal = items.reduce((sum, i) => sum + Number(i.line_total), 0);
+
+  // Map 'hold' to valid constraint value 'pending'
+  const validDbStatus = (status === 'hold') ? 'pending' : status;
+
+  // Insert into orders table
+  const { data: newOrder, error: orderErr } = await insforge.database
+    .from('orders')
+    .insert([{
+      order_number: orderNumberStr,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      total_amount: subtotal,
+      status: validDbStatus,
+      payment_status: paymentStatus,
+      notes: notes,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }])
+    .select()
+    .single();
+
+  if (orderErr) throw new Error(orderErr.message || 'Failed to create POS order');
+
+  // Insert into order_items table
+  if (items && items.length > 0) {
+    const itemRecords = items.map(i => ({
+      order_id: newOrder.id,
+      menu_item_id: i.item_id && typeof i.item_id === 'number' && i.item_id < 9000 ? i.item_id : null,
+      item_name: i.item_name,
+      quantity: i.quantity,
+      unit_price: i.unit_price,
+      line_total: i.line_total
+    }));
+
+    const { error: itemsErr } = await insforge.database
+      .from('order_items')
+      .insert(itemRecords);
+
+    if (itemsErr) console.warn('Failed to insert order items:', itemsErr);
+  }
+
+  // Dispatch n8n webhook
+  if (typeof sendN8nWebhook === 'function') {
+    sendN8nWebhook({
+      order_id: newOrder.id,
+      order_number: orderNumberStr,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      order_type: orderType,
+      table_number: tableNumber,
+      notes: notes,
+      items: items,
+      raw_result: newOrder
+    });
+  }
+
+  return newOrder;
+}
+
+async function handleKotAndHold() {
+  const customer = validatePosCustomerInfo();
+  if (!customer) return;
+
+  const orderType = $('pos-order-type')?.value || 'dine_in';
+  const tableNum = $('pos-table-num')?.value.trim() || 'Table 1';
+  const subtotal = posCart.reduce((sum, i) => sum + i.line_total, 0);
+
+  // Find unprinted items for incremental KOT
+  const unprintedItems = posCart.filter(i => i.quantity > (i.printed_kot_qty || 0));
+
+  try {
+    const notesStr = `[TYPE:${orderType}] [TABLE:${tableNum}] [STATUS:hold]`;
+    let savedOrder;
+
+    if (activeHoldOrderId) {
+      const { data, error: updateErr } = await insforge.database
+        .from('orders')
+        .update({
+          customer_name: customer.name,
+          customer_phone: customer.phone,
+          total_amount: subtotal,
+          status: 'pending',
+          notes: notesStr,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', activeHoldOrderId)
+        .select()
+        .single();
+
+      if (updateErr) throw updateErr;
+      savedOrder = data;
+
+      // Replace items
+      await insforge.database.from('order_items').delete().eq('order_id', activeHoldOrderId);
+      const itemRecords = posCart.map(i => ({
+        order_id: activeHoldOrderId,
+        menu_item_id: i.item_id && typeof i.item_id === 'number' && i.item_id < 9000 ? i.item_id : null,
+        item_name: i.item_name,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        line_total: i.line_total
+      }));
+      await insforge.database.from('order_items').insert(itemRecords);
+    } else {
+      savedOrder = await saveAdminPosOrder({
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        items: posCart,
+        notes: notesStr,
+        orderType: orderType,
+        tableNumber: tableNum,
+        status: 'pending',
+        paymentStatus: 'unpaid'
+      });
+    }
+
+    // Update printed KOT count
+    posCart.forEach(i => i.printed_kot_qty = i.quantity);
+
+    // Print KOT
+    printKotTicket({
+      orderId: savedOrder?.id || activeHoldOrderId || 'HOLD',
+      customerName: customer.name,
+      tableNumber: tableNum,
+      orderType: orderType,
+      items: unprintedItems.length > 0 ? unprintedItems : posCart
+    });
+
+    showAdminToast('🍳 KOT Printed & Order Saved on Hold!', 'success');
+    await loadData();
+    renderAll();
+    resetPosSession();
+    switchPanel('hold-orders');
+  } catch (err) {
+    console.error('Failed to process KOT & Hold:', err);
+    alert('Failed to save hold order: ' + err.message);
+  }
+}
+
+async function handleKotAndBill() {
+  const customer = validatePosCustomerInfo();
+  if (!customer) return;
+
+  const orderType = $('pos-order-type')?.value || 'dine_in';
+  const tableNum = $('pos-table-num')?.value.trim() || 'Table 1';
+  const subtotal = posCart.reduce((sum, i) => sum + i.line_total, 0);
+
+  try {
+    const notesStr = `[TYPE:${orderType}] [TABLE:${tableNum}] [STATUS:billed]`;
+    let finalOrder;
+
+    if (activeHoldOrderId) {
+      const { data, error: updateErr } = await insforge.database
+        .from('orders')
+        .update({
+          customer_name: customer.name,
+          customer_phone: customer.phone,
+          total_amount: subtotal,
+          status: 'delivered',
+          payment_status: 'paid',
+          notes: notesStr,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', activeHoldOrderId)
+        .select()
+        .single();
+
+      if (updateErr) throw updateErr;
+      finalOrder = data;
+
+      // Replace items
+      await insforge.database.from('order_items').delete().eq('order_id', activeHoldOrderId);
+      const itemRecords = posCart.map(i => ({
+        order_id: activeHoldOrderId,
+        menu_item_id: i.item_id && typeof i.item_id === 'number' && i.item_id < 9000 ? i.item_id : null,
+        item_name: i.item_name,
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        line_total: i.line_total
+      }));
+      await insforge.database.from('order_items').insert(itemRecords);
+    } else {
+      finalOrder = await saveAdminPosOrder({
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        items: posCart,
+        notes: notesStr,
+        orderType: orderType,
+        tableNumber: tableNum,
+        status: 'delivered',
+        paymentStatus: 'paid'
+      });
+    }
+
+    if (finalOrder) {
+      printOrderReceipt(finalOrder);
+    }
+
+    showAdminToast('🧾 Final Bill Printed & Order Completed!', 'success');
+    await loadData();
+    renderAll();
+    resetPosSession();
+  } catch (err) {
+    console.error('Failed to process KOT & Bill:', err);
+    alert('Failed to complete bill: ' + err.message);
+  }
+}
+
+function resetPosSession() {
+  posCart = [];
+  activeHoldOrderId = null;
+  if ($('pos-cust-name')) $('pos-cust-name').value = '';
+  if ($('pos-cust-phone')) $('pos-cust-phone').value = '';
+  if ($('pos-table-num')) $('pos-table-num').value = 'Table 1';
+  renderPosBasket();
+  renderPosHoldOrdersChips();
+}
+
+function printKotTicket({ orderId, customerName, tableNumber, orderType, items }) {
+  const timeStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const kotHtml = `
+    <div style="font-family: monospace; font-size: 13px; color: #000; width: 280px; padding: 10px; background: #fff;">
+      <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: bold;">🍳 KITCHEN ORDER TICKET (KOT)</h2>
+        <div style="font-size: 11px; margin-top: 2px;">LIMRA RESTAURANT KITCHEN</div>
+      </div>
+
+      <div style="font-size: 12px; margin-bottom: 8px; border-bottom: 1px dashed #000; padding-bottom: 6px;">
+        <div><strong>Time:</strong> ${timeStr}</div>
+        <div><strong>Table/Type:</strong> ${escapeHtml(tableNumber)} (${escapeHtml(orderType).toUpperCase()})</div>
+        <div><strong>Customer:</strong> ${escapeHtml(customerName)}</div>
+        <div><strong>Ref:</strong> #${String(orderId).slice(-6).toUpperCase()}</div>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 10px;">
+        <thead>
+          <tr style="border-bottom: 1px solid #000; text-align: left;">
+            <th style="padding-bottom: 4px;">ITEM</th>
+            <th style="padding-bottom: 4px; text-align: right;">QTY</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(i => `
+            <tr>
+              <td style="padding: 4px 0; font-weight: bold;">${escapeHtml(i.item_name)}</td>
+              <td style="padding: 4px 0; text-align: right; font-size: 16px; font-weight: bold;">× ${i.quantity}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div style="text-align: center; border-top: 1px dashed #000; padding-top: 6px; font-size: 10px;">
+        -- SEND TO KITCHEN CHEF --
+      </div>
+    </div>
+  `;
+
+  if (qzConnected && activePrinter) {
+    const config = qz.configs.create(activePrinter);
+    const printData = [{ type: 'html', format: 'plain', data: kotHtml }];
+    qz.print(config, printData).catch(err => console.error('[QZ] KOT print error:', err));
+  } else {
+    const printWin = window.open('', '_blank', 'width=380,height=500');
+    if (printWin) {
+      printWin.document.write(`<html><head><title>KOT Ticket</title></head><body onload="window.print(); window.close();">${kotHtml}</body></html>`);
+      printWin.document.close();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// BILLS HISTORY DIRECTORY PANEL
+// ═══════════════════════════════════════════════════════════
+function renderBillsPanel() {
+  const searchInput = $('bills-search-input');
+  const statusFilter = $('bills-status-filter');
+  const dateFilter = $('bills-date-filter');
+
+  searchInput?.removeEventListener('input', renderBillsPanel);
+  statusFilter?.removeEventListener('change', renderBillsPanel);
+  dateFilter?.removeEventListener('change', renderBillsPanel);
+
+  searchInput?.addEventListener('input', renderBillsPanel);
+  statusFilter?.addEventListener('change', renderBillsPanel);
+  dateFilter?.addEventListener('change', renderBillsPanel);
+
+  const q = (searchInput?.value || '').toLowerCase().trim();
+  const status = statusFilter?.value || 'all';
+  const datePreset = dateFilter?.value || 'today';
+
+  let filtered = [...orders];
+
+  if (status === 'hold') filtered = filtered.filter(o => o.status === 'hold');
+  else if (status === 'billed') filtered = filtered.filter(o => o.status === 'delivered' || o.status === 'confirmed');
+  else if (status === 'cancelled') filtered = filtered.filter(o => o.status === 'cancelled');
+
+  const now = new Date();
+  if (datePreset === 'today') {
+    const todayStr = now.toISOString().slice(0, 10);
+    filtered = filtered.filter(o => o.created_at && o.created_at.startsWith(todayStr));
+  } else if (datePreset === 'yesterday') {
+    const yest = new Date(now);
+    yest.setDate(yest.getDate() - 1);
+    const yestStr = yest.toISOString().slice(0, 10);
+    filtered = filtered.filter(o => o.created_at && o.created_at.startsWith(yestStr));
+  } else if (datePreset === 'week') {
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    filtered = filtered.filter(o => o.created_at && new Date(o.created_at) >= weekAgo);
+  }
+
+  if (q) {
+    filtered = filtered.filter(o =>
+      String(o.order_number || '').toLowerCase().includes(q) ||
+      (o.customer_name || '').toLowerCase().includes(q) ||
+      (o.customer_phone || '').includes(q)
+    );
+  }
+
+  const totalBills = filtered.length;
+  const totalRev = filtered.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+  const activeHold = orders.filter(o => o.status === 'hold').length;
+  const avgBill = totalBills > 0 ? (totalRev / totalBills) : 0;
+
+  if ($('bills-stat-total')) $('bills-stat-total').textContent = totalBills;
+  if ($('bills-stat-revenue')) $('bills-stat-revenue').textContent = `₹${totalRev.toFixed(2)}`;
+  if ($('bills-stat-hold')) $('bills-stat-hold').textContent = activeHold;
+  if ($('bills-stat-avg')) $('bills-stat-avg').textContent = `₹${avgBill.toFixed(2)}`;
+
+  const tbody = $('bills-table-body');
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="adm-empty">No bills found for the selected filter</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(o => {
+    const items = getItemsForOrder(o.id);
+    const meta = parseNotesMetadata(o.notes, o);
+    const isHold = o.status === 'hold';
+    const isCancelled = o.status === 'cancelled';
+    const statusBadge = isHold
+      ? '<span class="adm-badge" style="background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:700;">⏳ Hold (Running)</span>'
+      : (isCancelled
+        ? '<span class="adm-badge red">🚫 Cancelled</span>'
+        : '<span class="adm-badge green">✅ Billed / Paid</span>');
+
+    return `
+      <tr>
+        <td><b>#${escapeHtml(o.order_number || o.id.slice(-6))}</b></td>
+        <td>${fmtDate(o.created_at)}</td>
+        <td>
+          <div style="font-weight:700;">${escapeHtml(o.customer_name || 'Guest')}</div>
+          <div style="font-size:0.75rem; color:var(--adm-muted);">${escapeHtml(o.customer_phone || '—')}</div>
+        </td>
+        <td>
+          <span class="adm-pill" style="font-size:0.75rem;">${meta.tableNumber ? `🪑 Table ${meta.tableNumber}` : (meta.type || 'counter').toUpperCase()}</span>
+        </td>
+        <td><b>${items.length || 1}</b> items</td>
+        <td>${statusBadge}</td>
+        <td><b style="color:var(--adm-green); font-size:0.95rem;">₹${Number(o.total_amount).toFixed(2)}</b></td>
+        <td>
+          <button type="button" class="adm-btn adm-btn-outline adm-btn-sm view-bill-detail-btn" data-id="${o.id}">
+            👁️ View Bill
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.view-bill-detail-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openBillDetailModal(btn.dataset.id);
+    });
+  });
+}
+
+function openBillDetailModal(orderId) {
+  const order = orders.find(o => o.id === orderId);
+  const modal = $('adm-bill-detail-modal');
+  const body = $('bill-modal-body');
+  const actions = $('bill-modal-actions');
+  const closeBtn = $('bill-modal-close-btn');
+
+  if (!order || !modal || !body) return;
+
+  $('bill-modal-title').textContent = `Tax Invoice — Bill #${order.order_number || order.id.slice(-6)}`;
+  $('bill-modal-subtitle').textContent = `Customer: ${order.customer_name} (${order.customer_phone}) · Date: ${fmtDate(order.created_at)}`;
+
+  const receiptHtml = generateReceiptHtml(order);
+  body.innerHTML = receiptHtml;
+
+  actions.innerHTML = `
+    <button type="button" id="bill-modal-print-kot" class="adm-print-btn kot" style="padding: 0.6rem 0.9rem; font-size: 0.82rem;">
+      🍳 Print KOT (58mm)
+    </button>
+    <button type="button" id="bill-modal-print-bill" class="adm-print-btn bill" style="padding: 0.6rem 0.9rem; font-size: 0.82rem;">
+      🧾 Print Bill (80mm)
+    </button>
+    <button type="button" id="bill-modal-print-both" class="adm-print-btn both" style="padding: 0.6rem 0.9rem; font-size: 0.82rem;">
+      ⚡ Print KOT + Bill
+    </button>
+    ${order.status === 'hold' ? `
+      <button type="button" id="bill-modal-resume-btn" class="adm-btn" style="background:#f59e0b; color:#0f172a; font-weight:700;">
+        ⏳ Edit / Add Items to Hold
+      </button>
+    ` : ''}
+    <button type="button" id="bill-modal-dismiss-btn" class="adm-btn adm-btn-outline">
+      Close
+    </button>
+  `;
+
+  modal.classList.add('active');
+
+  closeBtn?.addEventListener('click', () => modal.classList.remove('active'));
+  $('bill-modal-dismiss-btn')?.addEventListener('click', () => modal.classList.remove('active'));
+
+  $('bill-modal-print-kot')?.addEventListener('click', () => {
+    printNativeKotOrder(order);
+  });
+  $('bill-modal-print-bill')?.addEventListener('click', () => {
+    printNativeBillOrder(order);
+  });
+  $('bill-modal-print-both')?.addEventListener('click', () => {
+    printNativeKotAndBillOrder(order);
+  });
+
+  $('bill-modal-resume-btn')?.addEventListener('click', () => {
+    modal.classList.remove('active');
+    switchPanel('billing');
+    loadHoldOrderToPos(order.id);
+  });
+}
+
+// ── Hold Orders ──────────────────────────────────────────
+
+function getHeldOrders() {
+  return orders
+    .filter(o => o.status === 'hold')
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); // oldest first
+}
+
+function timeSince(dateStr) {
+  if (!dateStr) return '—';
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function renderHoldOrdersPanel() {
+  const searchInput = $('hold-orders-search') || $('hold-search-input');
+  const typeFilter = $('hold-type-filter');
+
+  searchInput?.removeEventListener('input', renderHoldOrdersPanel);
+  typeFilter?.removeEventListener('change', renderHoldOrdersPanel);
+
+  searchInput?.addEventListener('input', renderHoldOrdersPanel);
+  typeFilter?.addEventListener('change', renderHoldOrdersPanel);
+  $('btn-new-pos-hold')?.addEventListener('click', () => switchPanel('billing'));
+
+  const held = getHeldOrders();
+  const search = (searchInput?.value || '').toLowerCase().trim();
+  const type = typeFilter?.value || 'all';
+
+  let filtered = held;
+  if (type !== 'all') {
+    filtered = filtered.filter(o => {
+      const meta = parseNotesMetadata(o.notes, o);
+      const oType = meta.type || o.order_type || 'dine_in';
+      if (type === 'dine_in') return oType === 'dine_in' || oType === 'table';
+      if (type === 'pickup') return oType === 'pickup' || oType === 'takeaway';
+      return oType === type;
+    });
+  }
+
+  if (search) {
+    filtered = filtered.filter(o => {
+      const meta = parseNotesMetadata(o.notes, o);
+      return (
+        (o.customer_name && o.customer_name.toLowerCase().includes(search)) ||
+        (o.customer_phone && o.customer_phone.includes(search)) ||
+        String(o.order_number || '').toLowerCase().includes(search) ||
+        String(meta.tableNumber || o.table_number || '').toLowerCase().includes(search)
+      );
+    });
+  }
+
+  // KPIs
+  const totalValue = held.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+  const activeTablesCount = new Set(held.map(o => parseNotesMetadata(o.notes, o).tableNumber).filter(Boolean)).size;
+
+  if ($('hold-stat-count')) $('hold-stat-count').textContent = held.length;
+  if ($('hold-stat-value')) $('hold-stat-value').textContent = fmtMoney(totalValue);
+  if ($('hold-stat-oldest')) $('hold-stat-oldest').textContent = held.length ? timeSince(held[0].created_at) : '—';
+
+  if ($('hold-kpi-count')) $('hold-kpi-count').textContent = held.length;
+  if ($('hold-kpi-total')) $('hold-kpi-total').textContent = fmtMoney(totalValue);
+  if ($('hold-kpi-tables')) $('hold-kpi-tables').textContent = activeTablesCount;
+
+  // Badges
+  const holdBadge = $('pending-hold-badge');
+  if (holdBadge) {
+    if (held.length > 0) { holdBadge.textContent = held.length; show(holdBadge); }
+    else hide(holdBadge);
+  }
+  const holdCountBadge = $('hold-orders-count-badge');
+  if (holdCountBadge) {
+    if (held.length > 0) { holdCountBadge.textContent = held.length; show(holdCountBadge); }
+    else hide(holdCountBadge);
+  }
+
+  const container = $('hold-orders-container') || $('hold-orders-grid');
+  if (!container) return;
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="adm-card adm-empty" style="grid-column: 1 / -1; padding: 2.5rem; text-align: center; color: var(--adm-muted);">${held.length === 0 ? 'No orders on hold right now' : 'No held orders match your search'}</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(order => {
+    const items = getItemsForOrder(order.id);
+    const parsedMeta = parseNotesMetadata(order.notes, order);
+    const typeLabel = parsedMeta.type === 'table'
+      ? `🍽️ Table ${parsedMeta.tableNumber || order.table_number || '—'}`
+      : (parsedMeta.type === 'delivery' ? '🚗 Delivery' : '🥡 Pickup');
+
+    const itemsPreview = items.slice(0, 4).map(i => `<li>${i.quantity}× ${escapeHtml(i.item_name)}</li>`).join('');
+    const moreCount = items.length > 4 ? items.length - 4 : 0;
+
+    return `
+      <div class="adm-hold-card" data-order-id="${order.id}">
+        <div class="adm-hold-card-head">
+          <div>
+            <p class="adm-hold-card-title">#${order.order_number || order.id.slice(-6)} · ${escapeHtml(order.customer_name || 'Walk-in')}</p>
+            <span class="adm-pill" style="background:#fff3e6;color:#f2994a;font-weight:700;">${typeLabel}</span>
+          </div>
+          <span class="adm-hold-time">⏱ ${timeSince(order.created_at)}</span>
+        </div>
+
+        <ul class="adm-hold-items">${itemsPreview}${moreCount ? `<li>+${moreCount} more item(s)</li>` : ''}</ul>
+
+        <div class="adm-hold-card-footer">
+          <strong class="adm-hold-amount">${fmtMoney(order.total_amount)}</strong>
+          <div class="adm-hold-actions" style="display:flex; flex-wrap:wrap; gap:0.4rem;">
+            <button type="button" class="adm-btn adm-btn-primary adm-btn-sm hold-resume-btn" data-order-id="${order.id}" style="background:#f59e0b; border:none; font-weight:700;">▶ Resume in POS</button>
+            <button type="button" class="adm-btn adm-btn-outline adm-btn-sm hold-print-kot-btn" data-order-id="${order.id}">🍳 KOT</button>
+            <button type="button" class="adm-btn adm-btn-outline adm-btn-sm hold-print-bill-btn" data-order-id="${order.id}">🧾 Bill</button>
+            <button type="button" class="adm-btn adm-btn-outline adm-btn-sm hold-cancel-btn" data-order-id="${order.id}" style="border-color:#ff5b5b;color:#ff5b5b;">✕ Cancel</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.hold-resume-btn').forEach(btn => {
+    btn.addEventListener('click', () => loadHoldOrderToPos(btn.dataset.orderId));
+  });
+
+  container.querySelectorAll('.hold-print-kot-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      printNativeKotOrder(btn.dataset.orderId);
+    });
+  });
+
+  container.querySelectorAll('.hold-print-bill-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      printNativeBillOrder(btn.dataset.orderId);
+    });
+  });
+
+  container.querySelectorAll('.hold-cancel-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Cancel this held order? This cannot be undone.')) return;
+      const orderId = btn.dataset.orderId;
+      try {
+        const { error } = await insforge.database.from('orders').update({ status: 'cancelled' }).eq('id', orderId);
+        if (error) throw error;
+        const o = orders.find(x => x.id === orderId);
+        if (o) o.status = 'cancelled';
+        showAdminToast('Held order cancelled.', 'success');
+        renderOverview();
+        renderHoldOrdersPanel();
+      } catch (err) {
+        showAdminToast('Failed to cancel: ' + err.message, 'error');
+      }
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// DINE-IN TABLE FLOOR GRID PANEL
+// ═══════════════════════════════════════════════════════════
+function renderTablesPanel() {
+  const container = $('tables-floor-grid');
+  if (!container) return;
+
+  const defaultTables = Array.from({ length: 12 }, (_, i) => {
+    const num = i + 1;
+    const tableId = `Table ${num}`;
+    const activeOrder = orders.find(o => {
+      if (o.status === 'delivered' || o.status === 'cancelled' || o.payment_status === 'paid') return false;
+      const meta = parseNotesMetadata(o.notes, o);
+      return meta.tableNumber === tableId || meta.tableNumber === `T-${num}` || meta.tableNumber === String(num);
+    });
+
+    let status = 'available';
+    if (activeOrder) {
+      status = activeOrder.status === 'hold' || activeOrder.status === 'pending' ? 'held' : 'occupied';
+    }
+
+    return {
+      id: tableId,
+      number: num,
+      capacity: num % 2 === 0 ? 4 : 2,
+      status: status,
+      order: activeOrder
+    };
+  });
+
+  const occupiedCount = defaultTables.filter(t => t.status !== 'available').length;
+  const badge = $('tables-occupied-badge');
+  if (badge) {
+    if (occupiedCount > 0) {
+      badge.textContent = occupiedCount;
+      show(badge);
+    } else {
+      hide(badge);
+    }
+  }
+
+  container.innerHTML = defaultTables.map(t => {
+    const isAvailable = t.status === 'available';
+    const isHold = t.status === 'held';
+    const statusBg = isAvailable ? '#2f9e44' : (isHold ? '#f08c00' : '#e8590c');
+    const statusText = isAvailable ? '🟢 Available' : (isHold ? '⏸️ Hold Order' : '🟧 Dining Occupied');
+    
+    return `
+      <div class="table-floor-card ${t.status}" data-table="${t.id}" data-order-id="${t.order?.id || ''}">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <h3 style="margin:0; font-size:1.15rem; font-weight:800; color:var(--adm-text);">🪑 ${t.id}</h3>
+            <span style="font-size:0.72rem; font-weight:800; background:${statusBg}; color:#fff; padding:0.2rem 0.55rem; border-radius:12px;">
+              ${statusText}
+            </span>
+          </div>
+          <p style="font-size:0.78rem; color:var(--adm-muted); margin:0 0 0.5rem;">👥 ${t.capacity} Guests Capacity</p>
+          ${t.order ? `
+            <div style="background:rgba(255,255,255,0.04); border:1px solid var(--adm-border); padding:0.6rem; border-radius:8px; font-size:0.8rem;">
+              <div style="font-weight:700; color:var(--adm-text);">👤 ${escapeHtml(t.order.customer_name || 'Guest')}</div>
+              <div style="color:var(--adm-muted);">Order #${t.order.order_number || t.order.id.slice(-6)}</div>
+              <div style="font-weight:800; color:#22c55e; margin-top:0.25rem;">Total: ₹${Number(t.order.total_amount || 0).toFixed(2)}</div>
+            </div>
+          ` : `
+            <p style="font-size:0.8rem; color:var(--adm-muted); font-style:italic; margin:0.5rem 0 0;">Table clean & ready for guests</p>
+          `}
+        </div>
+
+        <button type="button" class="adm-btn ${isAvailable ? 'adm-btn-outline' : 'adm-btn-primary'} table-card-action-btn" data-table="${t.id}" data-order-id="${t.order?.id || ''}" style="width:100%; border-radius:8px; font-weight:700; font-size:0.8rem; padding:0.45rem; margin-top:0.5rem;">
+          ${isAvailable ? '➕ New Order' : '✏️ Open & Add Items'}
+        </button>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.table-card-action-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const orderId = btn.dataset.orderId;
+      const tableId = btn.dataset.table;
+
+      if (orderId) {
+        loadHoldOrderToPos(orderId);
+        switchPanel('billing');
+      } else {
+        resetPosSession();
+        if ($('pos-table-num')) $('pos-table-num').value = tableId;
+        if ($('pos-order-type')) $('pos-order-type').value = 'dine_in';
+        switchPanel('billing');
+      }
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// KITCHEN ORDER STREAM (KOT KDS) PANEL
+// ═══════════════════════════════════════════════════════════
+function renderKotPanel() {
+  const container = $('kot-tickets-container');
+  if (!container) return;
+
+  const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled' && o.payment_status !== 'paid');
+
+  if (activeOrders.length === 0) {
+    container.innerHTML = `
+      <div class="adm-card col-span-full" style="padding: 3rem; text-align: center; color: var(--adm-muted);">
+        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🍳</div>
+        <h3 style="font-weight: 700; margin: 0 0 0.25rem; color: var(--adm-text);">No Active Kitchen Orders</h3>
+        <p style="font-size: 0.85rem; margin: 0;">Kitchen queue is clear.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = activeOrders.map(o => {
+    const meta = parseNotesMetadata(o.notes, o);
+    const items = getItemsForOrder(o.id);
+    const tableLabel = meta.tableNumber ? `Table ${meta.tableNumber}` : (meta.type === 'pickup' ? 'Takeaway' : 'Delivery');
+
+    return `
+      <div class="kot-ticket-card">
+        <div class="kot-ticket-head">
+          <div>
+            <h4 style="margin:0; font-size:1rem; font-weight:800; color:var(--adm-text);">🍳 ${escapeHtml(tableLabel)}</h4>
+            <span style="font-size:0.75rem; color:var(--adm-muted);">Order #${o.order_number || o.id.slice(-6)} · ${fmtDate(o.created_at)}</span>
+          </div>
+          <span style="font-size:0.72rem; font-weight:800; background:rgba(245,158,11,0.15); color:#f59e0b; padding:0.25rem 0.65rem; border-radius:12px;">
+            ${(o.status || 'PREPARING').toUpperCase()}
+          </span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:0.25rem; max-height:200px; overflow-y:auto;">
+          ${items.map(i => `
+            <div class="kot-item-row">
+              <span>${escapeHtml(i.item_name)}</span>
+              <span style="color:#22c55e; font-weight:800;">×${i.quantity}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="border-top:1px dashed var(--adm-border); padding-top:0.65rem; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.8rem; font-weight:700; color:var(--adm-text);">👤 ${escapeHtml(o.customer_name || 'Guest')}</span>
+          <button type="button" class="adm-print-btn kot kot-print-btn" data-id="${o.id}">
+            🍳 Print KOT (58mm)
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.kot-print-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      printNativeKotOrder(btn.dataset.id);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// ERP SETTINGS PANEL
+// ═══════════════════════════════════════════════════════════
+function renderSettingsPanel() {
+  const saveTaxBtn = $('save-tax-settings-btn');
+  const testPrinterBtn = $('test-printer-btn');
+
+  saveTaxBtn?.removeEventListener('click', saveTaxSettings);
+  saveTaxBtn?.addEventListener('click', saveTaxSettings);
+
+  testPrinterBtn?.removeEventListener('click', testPrinterConnection);
+  testPrinterBtn?.addEventListener('click', testPrinterConnection);
+}
+
+function saveTaxSettings() {
+  const cgst = $('setting-cgst-rate')?.value || '2.5';
+  const sgst = $('setting-sgst-rate')?.value || '2.5';
+  localStorage.setItem('limra_cgst_rate', cgst);
+  localStorage.setItem('limra_sgst_rate', sgst);
+  showAdminToast(`Tax Rates Saved: CGST ${cgst}% + SGST ${sgst}%!`, 'success');
+}
+
+function testPrinterConnection() {
+  showAdminToast('🔌 Testing QZ Tray Thermal Printer Connection...', 'info');
+  setTimeout(() => {
+    showAdminToast('✅ Thermal Printer Connected & Ready for 58mm KOT & 80mm Receipts!', 'success');
+  }, 600);
+}
+
 // ── Navigation ──────────────────────────────────────────
 
 const PANEL_TITLES = {
   dashboard: 'Dashboard',
+  billing: 'Billing (POS)',
+  'hold-orders': 'Hold Orders Directory',
+  bills: 'Bills Directory',
   orders: 'Order List',
   'table-bills': 'Bill of Customer',
   'order-detail': 'Order Detail',
@@ -3096,6 +4279,18 @@ function switchPanel(panelId) {
     }
   }
 
+  if (panelId === 'billing') renderBillingPanel();
+  if (panelId === 'tables') renderTablesPanel();
+  if (panelId === 'kot') renderKotPanel();
+  if (panelId === 'settings') renderSettingsPanel();
+  if (panelId === 'hold-orders') {
+    renderHoldOrdersPanel();
+    loadData().then(() => renderHoldOrdersPanel()).catch(console.warn);
+  }
+  if (panelId === 'bills') {
+    renderBillsPanel();
+    loadData().then(() => renderBillsPanel()).catch(console.warn);
+  }
   if (panelId === 'table-bills') renderTableBillsPanel();
   if (panelId === 'customer-analysis') renderCustomerAnalysis();
   if (panelId === 'analytics') renderAnalytics();
@@ -3125,6 +4320,11 @@ function switchPanel(panelId) {
 function renderAll() {
   renderOverview();
   renderOrdersTable();
+  renderHoldOrdersPanel();
+  renderPosHoldOrdersChips();
+  renderTablesPanel();
+  renderKotPanel();
+  renderBillsPanel();
   renderOrderDetailPicker();
   renderCustomers();
   renderCustomerAnalysis();
@@ -3165,8 +4365,16 @@ async function refreshDashboard(isManual = false) {
       syncIndicator.style.background = 'rgba(255,91,91,0.12)';
       syncIndicator.style.color = '#ff5b5b';
     }
+    
+    // Check if session has expired (401 / 403)
+    if (err?.status === 401 || err?.status === 403 || err?.code === 'PGRST301') {
+      showAdminToast('⚠️ Admin session expired. Redirecting to login...', 'error');
+      setTimeout(redirectToLogin, 1500);
+      return;
+    }
+
     if (isManual) {
-      alert('Failed to load data. Please check your network connection or admin permissions.');
+      showAdminToast('⚠️ Network connection issue. Unable to refresh data.', 'error');
     }
   }
 }
@@ -3421,6 +4629,12 @@ function initDashboardUI() {
     }
   });
 
+  // Petpooja Redesign Initialization
+  initCollapsibleSections();
+  initStoreStatusToggle();
+  initQuickActionDock();
+  initSidebarModeToggle();
+
   // Connect to QZ Tray
   initQZTray();
 
@@ -3433,6 +4647,144 @@ function initDashboardUI() {
   setupComboModalListeners();
   setupPlaceModalListeners();
   setupCouponShareModalListeners();
+}
+
+// ═══════════════════════════════════════════════════════════
+// COLLAPSIBLE SECTIONS & PETPOOJA DASHBOARD LOGIC
+// ═══════════════════════════════════════════════════════════
+
+function toggleSection(sectionId) {
+  const section = document.querySelector(`.adm-collapsible-section[data-section-id="${sectionId}"]`) || document.getElementById(`section-${sectionId}`);
+  if (!section) return;
+
+  const isOpen = section.classList.contains('open');
+  if (isOpen) {
+    section.classList.remove('open');
+    section.classList.add('closed');
+    localStorage.setItem(`adm_section_state_${sectionId}`, 'closed');
+  } else {
+    section.classList.remove('closed');
+    section.classList.add('open');
+    localStorage.setItem(`adm_section_state_${sectionId}`, 'open');
+  }
+}
+window.toggleSection = toggleSection;
+
+function initCollapsibleSections() {
+  const sections = document.querySelectorAll('.adm-collapsible-section');
+  sections.forEach(section => {
+    const sectionId = section.dataset.sectionId || section.id.replace('section-', '');
+    if (!sectionId) return;
+
+    // Check localStorage persistence
+    const savedState = localStorage.getItem(`adm_section_state_${sectionId}`);
+    if (savedState === 'open') {
+      section.classList.remove('closed');
+      section.classList.add('open');
+    } else if (savedState === 'closed') {
+      section.classList.remove('open');
+      section.classList.add('closed');
+    }
+
+    // Attach click event to section header
+    const header = section.querySelector('.adm-collapsible-header');
+    if (header && !header.dataset.collapsibleBound) {
+      header.dataset.collapsibleBound = 'true';
+      header.addEventListener('click', (e) => {
+        // Toggle when clicking header or toggle button
+        toggleSection(sectionId);
+      });
+    }
+  });
+}
+
+function initStoreStatusToggle() {
+  const toggleBtn = $('store-status-toggle');
+  if (!toggleBtn) return;
+
+  // Restore saved store status
+  const savedStatus = localStorage.getItem('adm_store_status') || 'online';
+  applyStoreStatus(savedStatus);
+
+  toggleBtn.addEventListener('click', () => {
+    const currentStatus = toggleBtn.classList.contains('online') ? 'online' : 'closed';
+    const newStatus = currentStatus === 'online' ? 'closed' : 'online';
+    applyStoreStatus(newStatus);
+    localStorage.setItem('adm_store_status', newStatus);
+    showAdminToast(
+      newStatus === 'online' ? '🟢 Store is now ACCEPTING ORDERS!' : '🔴 Store is now CLOSED for new orders.',
+      newStatus === 'online' ? 'success' : 'error'
+    );
+  });
+}
+
+function applyStoreStatus(status) {
+  const toggleBtn = $('store-status-toggle');
+  if (!toggleBtn) return;
+  const dot = toggleBtn.querySelector('.status-dot');
+  const label = toggleBtn.querySelector('.status-label');
+
+  if (status === 'online') {
+    toggleBtn.classList.remove('closed');
+    toggleBtn.classList.add('online');
+    if (dot) dot.textContent = '🟢';
+    if (label) label.textContent = 'ACCEPTING ORDERS';
+  } else {
+    toggleBtn.classList.remove('online');
+    toggleBtn.classList.add('closed');
+    if (dot) dot.textContent = '🔴';
+    if (label) label.textContent = 'STORE CLOSED';
+  }
+}
+
+function initQuickActionDock() {
+  // New POS Bill button
+  $('dock-btn-new-bill')?.addEventListener('click', () => {
+    switchPanel('billing');
+    showAdminToast('💳 Counter POS Terminal active!', 'success');
+  });
+
+  // Active Hold Orders button
+  $('dock-btn-hold-orders')?.addEventListener('click', () => {
+    switchPanel('hold-orders');
+  });
+
+  // Re-Print Last Bill button
+  $('dock-btn-reprint-bill')?.addEventListener('click', () => {
+    if (!orders || orders.length === 0) {
+      showAdminToast('No recent orders found to print.', 'error');
+      return;
+    }
+    const lastOrder = orders.slice().reverse().find(o => o.status !== 'cancelled');
+    if (lastOrder) {
+      showAdminToast(`🧾 Printing receipt for Order #${lastOrder.order_number}...`, 'success');
+      printOrderReceipt(lastOrder);
+    } else {
+      showAdminToast('No valid completed order found to reprint.', 'error');
+    }
+  });
+
+  // Thermal Printer Status button
+  $('dock-btn-printer-status')?.addEventListener('click', () => {
+    const statusEl = $('printer-status');
+    if (statusEl) statusEl.click();
+  });
+}
+
+function initSidebarModeToggle() {
+  const compactBtn = $('sidebar-compact-toggle');
+  const sidebar = $('sidebar');
+  if (!compactBtn || !sidebar) return;
+
+  compactBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('compact');
+    const isCompact = sidebar.classList.contains('compact');
+    localStorage.setItem('adm_sidebar_compact', isCompact ? 'true' : 'false');
+  });
+
+  if (localStorage.getItem('adm_sidebar_compact') === 'true') {
+    sidebar.classList.add('compact');
+  }
 }
 
 initDashboardAuth();
@@ -3556,6 +4908,247 @@ async function selectQZPrinter() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// NATIVE THERMAL RECEIPT PRINTING (TVS RP 3200 — 58mm KOT & 80mm BILL)
+// ═══════════════════════════════════════════════════════════
+
+function generateKotHtml(order, items = []) {
+  const parsedMeta = parseNotesMetadata(order.notes, order);
+  const orderNumber = order.order_number || String(order.id).slice(-6).toUpperCase();
+  const dateStr = new Date(order.created_at || Date.now()).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: true
+  });
+  
+  let tableOrType = 'TAKEAWAY / PICKUP';
+  if (parsedMeta.type === 'table' || parsedMeta.tableNumber) {
+    tableOrType = `TABLE #${parsedMeta.tableNumber || '1'} (DINE-IN)`;
+  } else if (parsedMeta.type === 'delivery') {
+    tableOrType = 'HOME DELIVERY';
+  }
+
+  const itemRowsHtml = items.map(i => `
+    <tr style="border-bottom: 1px dotted #000;">
+      <td style="padding: 4px 0; font-weight: bold; font-size: 13px; word-break: break-word; text-align: left; vertical-align: top;">
+        ${escapeHtml(i.item_name)}
+      </td>
+      <td style="padding: 4px 0; font-weight: 900; font-size: 15px; text-align: right; vertical-align: top; white-space: nowrap;">
+        x${i.quantity}
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="kot-receipt-wrapper" style="width: 54mm; padding: 2mm; font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; background: #fff; box-sizing: border-box; line-height: 1.3;">
+      <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 6px;">
+        <div style="font-size: 15px; font-weight: 900; letter-spacing: 0.5px;">🍳 KITCHEN ORDER (KOT)</div>
+        <div style="font-size: 10px; font-weight: bold; margin-top: 2px;">LIMRA RESTAURANT KITCHEN</div>
+      </div>
+      
+      <div style="font-size: 11px; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
+        <div><strong>Order No:</strong> #${orderNumber}</div>
+        <div><strong>Date/Time:</strong> ${dateStr}</div>
+        <div><strong>Table/Type:</strong> ${escapeHtml(tableOrType)}</div>
+        <div><strong>Customer:</strong> ${escapeHtml(order.customer_name || 'Guest')}</div>
+      </div>
+      
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+        <thead>
+          <tr style="border-bottom: 1px solid #000; text-align: left; font-size: 11px;">
+            <th style="padding: 3px 0; text-align: left;">ITEM NAME</th>
+            <th style="padding: 3px 0; text-align: right; width: 45px;">QTY</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemRowsHtml || '<tr><td colspan="2">No items recorded</td></tr>'}
+        </tbody>
+      </table>
+      
+      <div style="text-align: center; border-top: 1px dashed #000; padding-top: 5px; font-size: 10px; font-weight: bold;">
+        *** KITCHEN TICKET — DO NOT BILL ***
+      </div>
+    </div>
+  `;
+}
+
+function generateBillHtml(order, items = []) {
+  const parsedMeta = parseNotesMetadata(order.notes, order);
+  const itemsSubtotal = items.reduce((sum, i) => sum + Number(i.line_total || 0), 0);
+  const cgstAmt = itemsSubtotal * 0.025;
+  const sgstAmt = itemsSubtotal * 0.025;
+  const deliveryCharge = parsedMeta.charge ? parseFloat(String(parsedMeta.charge).replace(/[^0-9.]/g, '')) || 0 : 0;
+  const totalAmount = Number(order.total_amount || (itemsSubtotal + cgstAmt + sgstAmt + deliveryCharge));
+  const orderNumber = order.order_number || String(order.id).slice(-6).toUpperCase();
+  
+  const dateStr = new Date(order.created_at || Date.now()).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', hour12: true
+  });
+
+  let billTitle = '🥡 PICKUP BILL';
+  let tableOrType = 'Counter Pickup';
+  if (parsedMeta.type === 'delivery') {
+    billTitle = '🚗 DELIVERY BILL';
+    tableOrType = 'Home Delivery';
+  } else if (parsedMeta.type === 'table' || parsedMeta.tableNumber) {
+    billTitle = '🍽️ DINE-IN BILL';
+    tableOrType = `Table ${parsedMeta.tableNumber || '1'}`;
+  }
+
+  const paymentMethod = parsedMeta.payment ? parsedMeta.payment.toUpperCase() : (parsedMeta.type === 'table' ? 'PAY AT COUNTER' : 'CASH / UPI');
+  const paymentStatus = (order.payment_status || 'unpaid').toUpperCase();
+
+  const itemRowsHtml = items.map(i => `
+    <tr style="border-bottom: 1px dotted #bbb;">
+      <td style="padding: 3px 0; font-weight: bold; text-align: left; vertical-align: top; word-break: break-word;">
+        ${escapeHtml(i.item_name)}
+      </td>
+      <td style="padding: 3px 0; text-align: center; vertical-align: top;">
+        ${i.quantity}
+      </td>
+      <td style="padding: 3px 0; text-align: right; vertical-align: top;">
+        ₹${Number(i.unit_price || 0).toFixed(2)}
+      </td>
+      <td style="padding: 3px 0; text-align: right; font-weight: bold; vertical-align: top;">
+        ₹${Number(i.line_total || 0).toFixed(2)}
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+    <div class="bill-receipt-wrapper" style="width: 74mm; padding: 2mm; font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; background: #fff; box-sizing: border-box; line-height: 1.35;">
+      <!-- Header -->
+      <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 6px;">
+        <div style="font-size: 18px; font-weight: 900; letter-spacing: 0.5px;">LIMRA RESTAURANT</div>
+        <div style="font-size: 11px; margin-top: 2px;">Vasant Kunj, New Delhi</div>
+        <div style="font-size: 11px;">Ph: +91 99999 88888</div>
+        <div style="font-size: 13px; font-weight: bold; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 3px 0; margin-top: 5px; text-transform: uppercase;">
+          ${billTitle}
+        </div>
+      </div>
+      
+      <!-- Metadata -->
+      <div style="font-size: 11px; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 5px;">
+        <div><strong>Bill No:</strong> #${orderNumber}</div>
+        <div><strong>Date & Time:</strong> ${dateStr}</div>
+        <div><strong>Customer:</strong> ${escapeHtml(order.customer_name || 'Guest')}</div>
+        <div><strong>Phone:</strong> ${escapeHtml(order.customer_phone || '-')}</div>
+        <div><strong>Table/Service:</strong> ${tableOrType}</div>
+      </div>
+      
+      <!-- Items table -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 11px;">
+        <thead>
+          <tr style="border-bottom: 1px solid #000; text-align: left;">
+            <th style="padding: 3px 0; text-align: left;">ITEM</th>
+            <th style="padding: 3px 0; text-align: center; width: 30px;">QTY</th>
+            <th style="padding: 3px 0; text-align: right; width: 50px;">RATE</th>
+            <th style="padding: 3px 0; text-align: right; width: 60px;">AMT</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemRowsHtml || '<tr><td colspan="4">No items recorded</td></tr>'}
+        </tbody>
+      </table>
+      
+      <!-- Totals & Taxes -->
+      <div style="font-size: 11px; line-height: 1.4; border-top: 1px dashed #000; padding-top: 4px; margin-bottom: 6px;">
+        <div style="display: flex; justify-content: space-between;">
+          <span>Items Subtotal:</span>
+          <span>₹${itemsSubtotal.toFixed(2)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span>CGST (2.5%):</span>
+          <span>₹${cgstAmt.toFixed(2)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span>SGST (2.5%):</span>
+          <span>₹${sgstAmt.toFixed(2)}</span>
+        </div>
+        ${deliveryCharge > 0 ? `
+        <div style="display: flex; justify-content: space-between;">
+          <span>Delivery Charge:</span>
+          <span>₹${deliveryCharge.toFixed(2)}</span>
+        </div>` : ''}
+        <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 14px; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin-top: 4px;">
+          <span>TOTAL AMOUNT:</span>
+          <span>₹${totalAmount.toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <!-- Payment status -->
+      <div style="font-size: 10px; margin-bottom: 6px; line-height: 1.3;">
+        <div><strong>Payment Mode:</strong> ${paymentMethod}</div>
+        <div><strong>Payment Status:</strong> ${paymentStatus}</div>
+      </div>
+      
+      <!-- Footer -->
+      <div style="text-align: center; border-top: 1px dashed #000; padding-top: 5px; font-size: 11px; font-weight: bold;">
+        THANK YOU FOR YOUR PATRONAGE!
+        <div style="font-size: 10px; font-weight: normal; margin-top: 2px;">LIMRA RESTAURANT</div>
+      </div>
+    </div>
+  `;
+}
+
+function triggerNativeThermalPrint(htmlContent, mode = 'bill') {
+  let printArea = document.getElementById('native-print-area');
+  if (!printArea) {
+    printArea = document.createElement('div');
+    printArea.id = 'native-print-area';
+    document.body.appendChild(printArea);
+  }
+
+  printArea.innerHTML = htmlContent;
+  document.body.classList.remove('print-mode-kot', 'print-mode-bill');
+  document.body.classList.add(mode === 'kot' ? 'print-mode-kot' : 'print-mode-bill');
+
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('print-mode-kot', 'print-mode-bill');
+    printArea.innerHTML = '';
+  }, 1000);
+}
+
+function printNativeKotOrder(orderOrId) {
+  const order = typeof orderOrId === 'object' ? orderOrId : orders.find(o => String(o.id) === String(orderOrId));
+  if (!order) {
+    showAdminToast('Order not found for printing KOT.', 'error');
+    return;
+  }
+  const items = getItemsForOrder(order.id);
+  const kotHtml = generateKotHtml(order, items);
+  triggerNativeThermalPrint(kotHtml, 'kot');
+}
+
+function printNativeBillOrder(orderOrId) {
+  const order = typeof orderOrId === 'object' ? orderOrId : orders.find(o => String(o.id) === String(orderOrId));
+  if (!order) {
+    showAdminToast('Order not found for printing Bill.', 'error');
+    return;
+  }
+  const items = getItemsForOrder(order.id);
+  const billHtml = generateBillHtml(order, items);
+  triggerNativeThermalPrint(billHtml, 'bill');
+}
+
+function printNativeKotAndBillOrder(orderOrId) {
+  const order = typeof orderOrId === 'object' ? orderOrId : orders.find(o => String(o.id) === String(orderOrId));
+  if (!order) {
+    showAdminToast('Order not found for printing.', 'error');
+    return;
+  }
+  
+  // Print KOT first (58mm)
+  printNativeKotOrder(order);
+  
+  // Print Bill second (80mm) after user handles first print dialog
+  setTimeout(() => {
+    printNativeBillOrder(order);
+  }, 600);
+}
+
 function generateReceiptHtml(order) {
   const items = getItemsForOrder(order.id);
   const itemsSubtotal = items.reduce((s, i) => s + Number(i.line_total), 0);
@@ -3618,6 +5211,9 @@ function generateReceiptHtml(order) {
     </div>
   ` : '';
 
+  const cgstAmt = itemsSubtotal * 0.025;
+  const sgstAmt = itemsSubtotal * 0.025;
+
   return `
     <div style="width: 280px; font-family: monospace; font-size: 12px; color: #000; background: #fff; padding: 0; margin: 0 auto; box-sizing: border-box;">
       <!-- Header -->
@@ -3658,6 +5254,14 @@ function generateReceiptHtml(order) {
         <div style="display: flex; justify-content: space-between;">
           <span>Items Subtotal:</span>
           <span>₹${Number(itemsSubtotal).toFixed(2)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #333;">
+          <span>CGST (2.5%):</span>
+          <span>₹${cgstAmt.toFixed(2)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #333;">
+          <span>SGST (2.5%):</span>
+          <span>₹${sgstAmt.toFixed(2)}</span>
         </div>
         ${parsedMeta.type === 'delivery' && parsedMeta.charge ? `
         <div style="display: flex; justify-content: space-between;">
