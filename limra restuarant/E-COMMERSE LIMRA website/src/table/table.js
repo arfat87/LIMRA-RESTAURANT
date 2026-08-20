@@ -21,6 +21,10 @@ function loadTableCart() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.map(c => {
+      if (!c || !c.item) return null;
+      if (c.item.isCombo || (typeof c.item.id === 'string' && c.item.id.startsWith('combo-'))) {
+        return c;
+      }
       const item = menuItems.find(i => i.id === c.item.id);
       return item ? { item, quantity: c.quantity } : null;
     }).filter(Boolean);
@@ -262,26 +266,28 @@ function renderMenu() {
 
   // Render combo cards
   const combosHtml = filteredCombos.map(combo => {
-    const cartItem = cart.find(c => c.item.id === `combo-${combo.id}`);
+    const cartItem = cart.find(c => c.item.id === `combo-${combo.id}` || String(c.item.id) === `combo-${combo.id}`);
     const qty = cartItem ? cartItem.quantity : 0;
     const itemsListStr = Array.isArray(combo.items)
       ? combo.items.map(it => `${it.name} (x${it.qty || 1})`).join(' + ')
       : 'No items';
 
     const hasDiscount = combo.mrp && parseFloat(combo.mrp) > parseFloat(combo.price);
+    const comboImg = combo.image_url || combo.image || '/images/food_biryani.png';
 
     return `
-      <div class="glass-card food-card p-4 flex flex-col justify-between space-y-4 border border-amber-500/25" data-item-id="combo-${combo.id}">
+      <div class="glass-card food-card p-4 flex flex-col justify-between space-y-4 border border-amber-500/25 cursor-pointer hover:border-amber-500/40" data-item-id="combo-${combo.id}">
         <div class="flex gap-3">
-          <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-amber-500/15 bg-amber-500/5 flex items-center justify-center relative">
-            <span class="text-3xl">🍱</span>
+          <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-amber-500/20 bg-neutral-800 animate-pulse flex items-center justify-center relative">
+            <img src="${comboImg}" alt="${combo.name}" class="w-full h-full object-cover error-fallback" onload="this.parentElement.classList.remove('animate-pulse', 'bg-neutral-800');" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'; this.parentElement.classList.remove('animate-pulse', 'bg-neutral-800');">
+            <span class="text-3xl absolute inset-0 flex items-center justify-center" style="display:none;">🍱</span>
           </div>
           <div class="flex-1 min-w-0 text-left">
             <div class="flex items-center gap-1.5 mb-1">
               <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-[9px] font-bold text-amber-400 uppercase tracking-wider">Combo Pack</span>
             </div>
             <h4 class="font-bold text-sm text-slate-100 truncate">${combo.name}</h4>
-            <p class="text-[10px] text-slate-400 mt-1 font-semibold leading-relaxed" style="max-height: 2.4rem; overflow: hidden;">Includes: ${itemsListStr}</p>
+            <p class="text-[10px] text-slate-400 mt-1 font-semibold leading-relaxed line-clamp-2" style="max-height: 2.4rem; overflow: hidden;" title="Includes: ${itemsListStr}">Includes: ${itemsListStr}</p>
             <p class="text-sm font-bold text-amber-500 mt-2">
               ₹${combo.price}
               ${hasDiscount ? `<span class="text-xs font-normal text-slate-500 line-through ml-1.5">₹${combo.mrp}</span>` : ''}
@@ -306,14 +312,14 @@ function renderMenu() {
 
   // Render normal items
   const itemsHtml = filtered.map(item => {
-    const cartItem = cart.find(c => c.item.id === item.id);
+    const cartItem = cart.find(c => c.item.id === item.id || String(c.item.id) === String(item.id));
     const qty = cartItem ? cartItem.quantity : 0;
     const itemImage = item.image || '/images/food_biryani.png';
     const emojiStr = item.emoji || '🍛';
     const isAvailable = item.available !== false;
 
     return `
-      <div class="glass-card food-card p-4 flex flex-col justify-between space-y-4 ${isAvailable ? '' : 'opacity-55 grayscale-[20%]'}" data-item-id="${item.id}">
+      <div class="glass-card food-card p-4 flex flex-col justify-between space-y-4 ${isAvailable ? '' : 'opacity-55 grayscale-[20%]'} cursor-pointer hover:border-amber-500/30" data-item-id="${item.id}">
         <div class="flex gap-3">
           <div class="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-white/5 bg-neutral-800 animate-pulse flex items-center justify-center relative">
             <img src="${itemImage}" alt="" class="w-full h-full object-cover error-fallback" onload="this.parentElement.classList.remove('animate-pulse', 'bg-neutral-800');" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'; this.parentElement.classList.remove('animate-pulse', 'bg-neutral-800');">
@@ -347,7 +353,7 @@ function renderMenu() {
 
   grid.innerHTML = combosHtml + itemsHtml;
 
-  // Add click handlers
+  // Add click handlers for cart buttons
   grid.querySelectorAll('.btn-cart-add, .btn-cart-plus').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -366,14 +372,13 @@ function renderMenu() {
     });
   });
 
-  // Attach card-level clicks to open the detail drawer
+  // Attach card-level clicks to open the detail drawer (both regular food items and combos)
   grid.querySelectorAll('.food-card').forEach(card => {
     card.style.cursor = 'pointer';
-    card.addEventListener('click', () => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.btn-cart-add, .btn-cart-plus, .btn-cart-minus')) return;
       const idVal = card.dataset.itemId;
-      if (idVal.startsWith('combo-')) return; // skip combo detail popup
-      const id = parseInt(idVal, 10);
-      openTableDetailDrawer(id);
+      openTableDetailDrawer(idVal);
     });
   });
 }
@@ -391,18 +396,22 @@ function addToCart(itemId) {
         id: itemId,
         name: combo.name,
         price: parseFloat(combo.price),
+        mrp: combo.mrp ? parseFloat(combo.mrp) : null,
         category: 'specials',
-        description: `Included: ${itemsListStr}`,
-        isCombo: true
+        description: combo.description || `Included: ${itemsListStr}`,
+        image: combo.image_url || combo.image || '/images/food_biryani.png',
+        isCombo: true,
+        items: combo.items || []
       };
     }
   } else {
-    item = menuItems.find(i => i.id === itemId);
+    const numId = typeof itemId === 'number' ? itemId : parseInt(itemId, 10);
+    item = menuItems.find(i => i.id === numId);
   }
   
   if (!item) return;
 
-  const cartItem = cart.find(c => c.item.id === itemId);
+  const cartItem = cart.find(c => c.item.id === item.id || String(c.item.id) === String(item.id));
   if (cartItem) {
     cartItem.quantity += 1;
   } else {
@@ -413,7 +422,8 @@ function addToCart(itemId) {
 }
 
 function removeFromCart(itemId) {
-  const cartItemIndex = cart.findIndex(c => c.item.id === itemId);
+  const targetId = String(itemId).startsWith('combo-') ? itemId : (typeof itemId === 'number' ? itemId : parseInt(itemId, 10));
+  const cartItemIndex = cart.findIndex(c => c.item.id === targetId || String(c.item.id) === String(targetId));
   if (cartItemIndex === -1) return;
 
   const cartItem = cart[cartItemIndex];
@@ -624,40 +634,24 @@ function setupCartUI() {
     submitBtn.textContent = 'Sending to Kitchen...';
 
     try {
-      const couponNote = appliedCoupon ? `[COUPON: ${appliedCoupon.code} (${appliedCoupon.discount_pct}% OFF)]` : '';
-      const paymentNote = `[PAYMENT: ${payment}] | [PAYMENT_STATUS: ${payment === 'upi' ? 'PAID' : 'PENDING'}]`;
-      const combinedNotes = [`[TABLE: ${currentTable}]`, paymentNote, couponNote, instruction].filter(Boolean).join(' | ');
-
       const zone = currentTable <= 9 ? 'indoor' : 'outdoor';
 
       const subtotal = cart.reduce((s, c) => s + (c.item.price * c.quantity), 0);
       const discountAmt = appliedCoupon ? Math.round(subtotal * (appliedCoupon.discount_pct / 100)) : 0;
       const gst = Math.round((subtotal - discountAmt) * 0.05);
 
+      const couponNote = appliedCoupon ? `[COUPON: ${appliedCoupon.code}] [DISCOUNT_PCT: ${appliedCoupon.discount_pct}%] [DISCOUNT_AMT: ${discountAmt}]` : '';
+      const taxNote = `[CGST: 2.5%] [SGST: 2.5%]`;
+      const paymentNote = `[PAYMENT: ${payment}] | [PAYMENT_STATUS: ${payment === 'upi' ? 'PAID' : 'PENDING'}]`;
+      const combinedNotes = [`[TABLE: ${currentTable}]`, paymentNote, taxNote, couponNote, instruction].filter(Boolean).join(' | ');
+
+      // Strictly food items and their base prices (no tax/discount pseudo line items)
       const orderItems = cart.map(c => ({
         id: c.item.id,
         name: c.item.isCombo ? `🍱 [COMBO] ${c.item.name} (${c.item.description})` : c.item.name,
-        price: c.item.price,
-        qty: c.quantity
+        price: Number(c.item.price),
+        qty: Number(c.quantity)
       }));
-
-      if (discountAmt > 0) {
-        orderItems.push({
-          id: 9998,
-          name: `Discount (${appliedCoupon.code})`,
-          price: -discountAmt,
-          qty: 1
-        });
-      }
-
-      if (gst > 0) {
-        orderItems.push({
-          id: 9999,
-          name: 'GST (5% Incl.)',
-          price: gst,
-          qty: 1
-        });
-      }
 
       const orderData = await saveOrder({
         customerName: name,
@@ -711,9 +705,20 @@ function setupCartUI() {
       
       updateCartState();
       
-      $('#success-order-number').textContent = `#${orderData.order_number}`;
+      const rawNum = parseInt(orderData.order_number, 10);
+      const formattedNum = !isNaN(rawNum) && rawNum > 0 ? (rawNum < 10 ? `0${rawNum}` : `${rawNum}`) : String(orderData.order_number || '01');
+      $('#success-order-number').textContent = `#${formattedNum}`;
       $('#success-table-number').textContent = `Table ${currentTable}`;
       $('#success-diner-name').textContent = name;
+
+      const appendBadge = $('#success-append-badge');
+      if (appendBadge) {
+        if (orderData.is_appended) {
+          show(appendBadge);
+        } else {
+          hide(appendBadge);
+        }
+      }
 
       hide($('#customer-view'));
       show($('#success-view'));
@@ -726,13 +731,12 @@ function setupCartUI() {
     }
   }
 
-  function triggerGoogleReviewPrompt() {
-    if (sessionStorage.getItem('google_review_prompted') === 'true') return;
-    
+  function triggerGoogleReviewPrompt(delay = 450) {
     setTimeout(() => {
       const modal = $('#google-review-modal');
       const submitBtn = $('#btn-submit-google-review');
       const closeBtn = $('#btn-close-google-review');
+      const cornerBtn = $('#btn-dismiss-review-corner');
       
       if (!modal || !submitBtn || !closeBtn) return;
       
@@ -740,16 +744,29 @@ function setupCartUI() {
       
       const dismiss = () => {
         hide(modal);
-        sessionStorage.setItem('google_review_prompted', 'true');
       };
       
       submitBtn.onclick = dismiss;
       closeBtn.onclick = dismiss;
+      if (cornerBtn) cornerBtn.onclick = dismiss;
+      modal.onclick = (e) => {
+        if (e.target === modal) dismiss();
+      };
       
       show(modal);
-    }, 1000); // 1 Second delay
+    }, delay);
   }
 
+  // Setup direct review button triggers
+  ['#btn-header-review', '#btn-banner-review', '#btn-success-review'].forEach(selector => {
+    const btn = $(selector);
+    if (btn) {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        triggerGoogleReviewPrompt(0);
+      });
+    }
+  });
 
   // Success view ordering more
   $('#btn-order-more').addEventListener('click', () => {
@@ -915,8 +932,12 @@ function getTableRecommendations(item) {
 
   let recommendedCategories = [];
   
+  if (item.isCombo) {
+    // For combo packages, suggest Cold Drinks, Lassi, Milkshakes, Mocktails, or Desserts
+    recommendedCategories = ['beverages', 'lassi', 'milkshakes', 'mocktails', 'desserts'];
+  }
   // Rule 1: If they select Naan or Breads -> recommend Gravies/Curries
-  if (category === 'bread' || nameLower.includes('naan') || nameLower.includes('roti') || nameLower.includes('kulcha')) {
+  else if (category === 'bread' || nameLower.includes('naan') || nameLower.includes('roti') || nameLower.includes('kulcha')) {
     recommendedCategories = ['veg-curry', 'nonveg-curry'];
   }
   // Rule 2: If they select Biryani -> suggest Cold Drinks/Beverages
@@ -952,7 +973,35 @@ function getTableRecommendations(item) {
 
 // Open Dine-In Product Detail Drawer
 function openTableDetailDrawer(itemId) {
-  const item = menuItems.find(m => m.id === itemId);
+  let isCombo = false;
+  let item = null;
+  let combo = null;
+
+  if (typeof itemId === 'string' && itemId.startsWith('combo-')) {
+    const comboId = parseInt(itemId.replace('combo-', ''), 10);
+    combo = activeCombos.find(c => c.id === comboId);
+    if (!combo) return;
+    isCombo = true;
+    const itemsListStr = Array.isArray(combo.items)
+      ? combo.items.map(it => `${it.name} (x${it.qty || 1})`).join(' + ')
+      : 'No items';
+    item = {
+      id: itemId,
+      name: combo.name,
+      price: parseFloat(combo.price),
+      mrp: combo.mrp ? parseFloat(combo.mrp) : null,
+      category: 'specials',
+      description: combo.description ? combo.description : `Special combo pack featuring ${itemsListStr}. Prepared fresh with authentic ingredients at LIMRA Restaurant Egra.`,
+      image: combo.image_url || combo.image || '/images/food_biryani.png',
+      emoji: '🍱',
+      isCombo: true,
+      items: combo.items || []
+    };
+  } else {
+    const numId = typeof itemId === 'number' ? itemId : parseInt(itemId, 10);
+    item = menuItems.find(m => m.id === numId);
+  }
+
   if (!item) return;
 
   const overlay = $('#table-detail-overlay');
@@ -961,10 +1010,57 @@ function openTableDetailDrawer(itemId) {
 
   // Set standard info
   $('#table-drawer-name').textContent = item.name;
-  $('#table-drawer-category').textContent = categoryLabels[item.category] || item.category;
-  $('#table-drawer-price').textContent = `₹${item.price}`;
-  $('#table-drawer-desc').textContent = item.description || `Fresh and authentic ${item.name} prepared with traditional spices and methods at LIMRA Restaurant Egra.`;
-  $('#table-drawer-image').src = item.image || '/images/food_biryani.png';
+  $('#table-drawer-category').textContent = isCombo ? '🍱 Combo Pack' : (categoryLabels[item.category] || item.category);
+  
+  // Price and MRP with strike-through discount
+  const priceContainer = $('#table-drawer-price');
+  if (priceContainer) {
+    const hasDiscount = item.mrp && parseFloat(item.mrp) > parseFloat(item.price);
+    priceContainer.innerHTML = `
+      <span>₹${item.price}</span>
+      ${hasDiscount ? `<span class="text-xs font-normal text-slate-400 line-through ml-2">₹${item.mrp}</span>` : ''}
+    `;
+  }
+
+  // Description
+  const descEl = $('#table-drawer-desc');
+  if (descEl) {
+    descEl.textContent = item.description || `Fresh and authentic ${item.name} prepared with traditional spices and methods at LIMRA Restaurant Egra.`;
+  }
+
+  // Included combo items section in drawer
+  const comboItemsSec = $('#table-drawer-combo-items');
+  const comboItemsList = $('#table-drawer-combo-items-list');
+  if (comboItemsSec && comboItemsList) {
+    if (isCombo && Array.isArray(item.items) && item.items.length > 0) {
+      comboItemsList.innerHTML = item.items.map(it => `
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+          <span>🍴</span>
+          <span>${it.name}</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/25 text-amber-200 font-bold">×${it.qty || 1}</span>
+        </span>
+      `).join('');
+      show(comboItemsSec);
+    } else {
+      hide(comboItemsSec);
+    }
+  }
+
+  // Drawer image handling with fallback emoji
+  const drawerImg = $('#table-drawer-image');
+  const drawerEmoji = $('#table-drawer-emoji');
+  if (drawerImg) {
+    drawerImg.style.display = 'block';
+    drawerImg.src = item.image || '/images/food_biryani.png';
+    drawerImg.onerror = () => {
+      drawerImg.style.display = 'none';
+      if (drawerEmoji) {
+        drawerEmoji.textContent = item.emoji || (isCombo ? '🍱' : '🍛');
+        drawerEmoji.style.display = 'flex';
+      }
+    };
+    if (drawerEmoji) drawerEmoji.style.display = 'none';
+  }
 
   // Render actions (+ / - / Add)
   updateTableDrawerActions(item);
@@ -1044,9 +1140,9 @@ function openTableDetailDrawer(itemId) {
 // Render dynamic quantity controller for drawer
 function updateTableDrawerActions(item) {
   const container = $('#table-drawer-actions-container');
-  if (!container) return;
+  if (!container || !item) return;
 
-  const cartItem = cart.find(c => c.item.id === item.id);
+  const cartItem = cart.find(c => c.item.id === item.id || String(c.item.id) === String(item.id));
   const qty = cartItem ? cartItem.quantity : 0;
 
   if (qty > 0) {

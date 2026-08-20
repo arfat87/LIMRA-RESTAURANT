@@ -48,6 +48,62 @@ export async function saveOrder({
     };
   });
 
+  // If this is a Table order, check if an active table session already exists for this table
+  if (orderType === 'table' && tableNumber) {
+    try {
+      const activeWindowStart = new Date(Date.now() - 12 * 3600 * 1000).toISOString();
+      const numTable = parseInt(tableNumber, 10);
+      const { data: activeOrders, error: findErr } = await insforge.database
+        .from('orders')
+        .select('*')
+        .eq('order_type', 'table')
+        .eq('table_number', numTable)
+        .in('status', ['hold', 'pending', 'confirmed', 'preparing', 'ready'])
+        .gte('created_at', activeWindowStart)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!findErr && activeOrders && activeOrders.length > 0) {
+        const existingOrder = activeOrders[0];
+        const newItemsTotal = p_items.reduce((sum, it) => sum + Number(it.line_total || 0), 0);
+        const updatedTotal = Number(existingOrder.total_amount || 0) + newItemsTotal;
+
+        // Insert new order items linked to the existing order ID
+        const newOrderItems = p_items.map(it => ({
+          order_id: existingOrder.id,
+          menu_item_id: it.menu_item_id,
+          item_name: it.item_name,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          line_total: it.line_total
+        }));
+
+        await insforge.database.from('order_items').insert(newOrderItems);
+
+        // Update the existing order's total amount and append round notes
+        const extraNote = notes ? ` | [ADDITIONAL_ITEMS: ${notes}]` : ' | [ADDITIONAL_ITEMS]';
+        const updatedNotes = (existingOrder.notes || '') + extraNote;
+
+        await insforge.database.from('orders').update({
+          total_amount: updatedTotal,
+          notes: updatedNotes,
+          updated_at: new Date().toISOString()
+        }).eq('id', existingOrder.id);
+
+        return {
+          id: existingOrder.id,
+          order_number: existingOrder.order_number,
+          total_amount: updatedTotal,
+          status: existingOrder.status,
+          is_appended: true
+        };
+      }
+    } catch (appendErr) {
+      console.warn('[Table Order] Active table check / append fallback:', appendErr);
+    }
+  }
+
+  // Place Order via RPC
   const result = await insforge.database.rpc('place_order', {
     p_customer_name: customerName.trim(),
     p_customer_phone: customerPhone.trim(),
@@ -64,7 +120,17 @@ export async function saveOrder({
     p_txn_ref: txnRef
   });
 
-  if (!result.error) return result.data;
+  if (!result.error) {
+    const orderData = result.data;
+    // For table orders, ensure status is set to 'hold' so it appears in the active table session hub
+    if (orderType === 'table' && orderData && orderData.id) {
+      try {
+        await insforge.database.from('orders').update({ status: 'hold' }).eq('id', orderData.id);
+        orderData.status = 'hold';
+      } catch(e) { console.warn('[Table Order] Set hold status error:', e); }
+    }
+    return orderData;
+  }
 
   throw new Error(formatInsforgeError(result.error));
 }

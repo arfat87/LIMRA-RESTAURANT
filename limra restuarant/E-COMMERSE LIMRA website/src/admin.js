@@ -556,8 +556,152 @@ function destroyChart(key) {
   }
 }
 
+function isFoodDishItem(i) {
+  if (!i) return false;
+  const name = (i.item_name || i.name || '').toLowerCase();
+  if (/^gst\b|^tax\b|^cgst\b|^sgst\b|^delivery\s*charge|^delivery\s*fee|^promo\s*discount|^discount\b/i.test(name)) return false;
+  if ([9997, 9998, 9999].includes(Number(i.id || i.menu_item_id))) return false;
+  return true;
+}
+
 function getItemsForOrder(orderId) {
-  return orderItems.filter(i => i.order_id === orderId);
+  const primaryItems = orderItems.filter(i => i.order_id === orderId && isFoodDishItem(i));
+  const targetOrder = orders.find(o => o.id === orderId);
+  if (!targetOrder) return primaryItems;
+
+  // If this order object has explicit sibling_order_ids from consolidation
+  if (targetOrder.sibling_order_ids && targetOrder.sibling_order_ids.length > 0) {
+    const siblingIds = new Set(targetOrder.sibling_order_ids);
+    const siblingItems = orderItems.filter(i => siblingIds.has(i.order_id) && isFoodDishItem(i));
+    return [...primaryItems, ...siblingItems];
+  }
+
+  const parsed = parseNotesMetadata(targetOrder.notes, targetOrder);
+  const tableNum = parsed.tableNumber || targetOrder.table_number;
+  const isTable = parsed.type === 'table' || targetOrder.order_type === 'table' || Boolean(tableNum);
+
+  // If this is a table final bill or closed table session, aggregate all sibling round items
+  if (isTable && targetOrder.notes && (targetOrder.notes.includes('[FINAL_BILL]') || targetOrder.notes.includes('[KOTS:'))) {
+    const tTime = new Date(targetOrder.created_at).getTime();
+    const siblingOrders = orders.filter(sibling => {
+      if (sibling.id === orderId) return false;
+      const sParsed = parseNotesMetadata(sibling.notes, sibling);
+      const sTableNum = sParsed.tableNumber || sibling.table_number;
+      if (String(sTableNum) === String(tableNum)) {
+        const sTime = new Date(sibling.created_at).getTime();
+        return Math.abs(tTime - sTime) <= 12 * 3600 * 1000;
+      }
+      return false;
+    });
+
+    if (siblingOrders.length > 0) {
+      const siblingIds = new Set(siblingOrders.map(s => s.id));
+      const siblingItems = orderItems.filter(i => siblingIds.has(i.order_id) && isFoodDishItem(i));
+      return [...primaryItems, ...siblingItems];
+    }
+  }
+
+  return primaryItems;
+}
+
+function consolidateOrderItems(items) {
+  if (!items || !items.length) return [];
+  const map = new Map();
+  for (const i of items) {
+    const name = (i.item_name || i.name || '').trim();
+    if (!name) continue;
+    const price = Number(i.unit_price || i.price || 0);
+    const qty = Number(i.quantity || i.qty || 1);
+    const lineTotal = Number(i.line_total || (price * qty) || 0);
+    const key = `${name.toLowerCase()}__${price}`;
+    if (map.has(key)) {
+      const existing = map.get(key);
+      existing.quantity += qty;
+      existing.qty = existing.quantity;
+      existing.line_total += lineTotal;
+    } else {
+      map.set(key, {
+        ...i,
+        item_name: name,
+        name: name,
+        unit_price: price,
+        price: price,
+        quantity: qty,
+        qty: qty,
+        line_total: lineTotal
+      });
+    }
+  }
+  return Array.from(map.values());
+}
+
+/**
+ * Standard Restaurant GST Tax Computation Engine
+ * Computes exact Food Subtotal, Taxable Value, CGST @ 2.5%, SGST @ 2.5%, Total GST @ 5%, Delivery Charges, and Final Grand Total
+ * Triggers on final consolidated bill records.
+ */
+function computeOrderTaxDetails(order, optionalItemsList) {
+  if (!order) {
+    return {
+      items: [],
+      itemCount: 0,
+      subtotal: 0,
+      discountPct: 0,
+      discountAmt: 0,
+      taxableValue: 0,
+      cgstRate: 2.5,
+      cgstAmt: 0,
+      sgstRate: 2.5,
+      sgstAmt: 0,
+      totalGstRate: 5.0,
+      totalGst: 0,
+      deliveryFee: 0,
+      grandTotal: 0
+    };
+  }
+
+  const s = getBillSettings();
+  const rawItems = optionalItemsList || getItemsForOrder(order.id);
+  const items = consolidateOrderItems(rawItems.filter(isFoodDishItem));
+  
+  const parsed = parseNotesMetadata(order.notes, order);
+  const subtotal = items.reduce((sum, i) => sum + Number(i.line_total || (i.price * i.qty) || ((i.unit_price || 0) * (i.quantity || 0)) || 0), 0);
+  
+  const discountPct = parsed.discountPct || 0;
+  const discountAmt = parsed.discountAmt || (subtotal * (discountPct / 100));
+  const taxableValue = Math.max(0, subtotal - discountAmt);
+  
+  const cgstRate = parsed.cgstRate ?? (s.cgstRate ?? 2.5);
+  const sgstRate = parsed.sgstRate ?? (s.sgstRate ?? 2.5);
+  const totalGstRate = cgstRate + sgstRate;
+  
+  // Standard restaurant GST calculation on consolidated total
+  const cgstAmt = Math.round((taxableValue * (cgstRate / 100)) * 100) / 100;
+  const sgstAmt = Math.round((taxableValue * (sgstRate / 100)) * 100) / 100;
+  const totalGst = Math.round((cgstAmt + sgstAmt) * 100) / 100;
+  
+  const deliveryFee = parsed.deliveryFee || (parsed.type === 'delivery' ? (parseFloat(parsed.deliveryFee) || 0) : 0);
+  
+  // Grand total: if order has explicit total_amount use it, else calculate sum
+  const calculatedGrand = Math.round((taxableValue + totalGst + deliveryFee) * 100) / 100;
+  const grandTotal = Number(order.total_amount) > 0 ? Number(order.total_amount) : calculatedGrand;
+
+  return {
+    items,
+    itemCount: items.reduce((sum, i) => sum + Number(i.quantity || i.qty || 1), 0),
+    subtotal,
+    discountPct,
+    discountAmt,
+    taxableValue,
+    cgstRate,
+    cgstAmt,
+    sgstRate,
+    sgstAmt,
+    totalGstRate,
+    totalGst,
+    deliveryFee,
+    grandTotal
+  };
 }
 
 function getGlobalSearch() {
@@ -662,43 +806,6 @@ async function loadData() {
   bookings = newBookings;
   adminPlaces = (placesRes && placesRes.data) || [];
   $('last-updated').textContent = `Updated ${new Date().toLocaleTimeString('en-IN')}`;
-
-  await autoAcceptTableOrders();
-}
-
-async function autoAcceptTableOrders() {
-  if (!Array.isArray(orders)) return;
-  const tableOrdersToComplete = orders.filter(order => {
-    if (order.status === 'delivered' || order.status === 'cancelled') return false;
-    const meta = parseNotesMetadata(order.notes, order);
-    return meta.type === 'table';
-  });
-
-  for (const order of tableOrdersToComplete) {
-    console.log(`[Auto-Accept] Dine-in Table order #${order.order_number} auto-completing...`);
-    try {
-      await insforge.database.from('orders').update({ status: 'delivered' }).eq('id', order.id);
-      order.status = 'delivered';
-      
-      const cleanPhone = order.customer_phone.replace(/\D/g, '');
-      if (cleanPhone) {
-        insforge.realtime.publish(`customer-notifications:${cleanPhone}`, 'notification_created', {
-          id: Date.now(),
-          type: 'order_status',
-          title: 'Order Served/Completed',
-          message: `Your table order #${order.order_number} has been completed!`,
-          created_at: new Date().toISOString()
-        }).catch(console.warn);
-      }
-      
-      insforge.realtime.publish(`order-updates:${order.id}`, 'order_status_updated', {
-        orderId: order.id,
-        status: 'delivered'
-      }).catch(console.warn);
-    } catch (err) {
-      console.warn(`[Auto-Accept] Failed to auto-complete table order #${order.id}:`, err);
-    }
-  }
 }
 
 function buildCustomerStats() {
@@ -1339,11 +1446,117 @@ let ordersReportSearch = '';
 let ordersSalesTrendChartInstance = null;
 let ordersPaySplitChartInstance = null;
 
+function getConsolidatedClosedBills(ordersList) {
+  if (!ordersList || !ordersList.length) return [];
+  
+  const result = [];
+  const handledOrderIds = new Set();
+
+  // 1. Separate table orders and non-table orders
+  const tableOrders = [];
+  const nonTableOrders = [];
+  
+  for (const o of ordersList) {
+    const parsed = parseNotesMetadata(o.notes, o);
+    const tableNum = parsed.tableNumber || o.table_number;
+    const isTable = parsed.type === 'table' || o.order_type === 'table' || Boolean(tableNum);
+    
+    if (!isTable) {
+      nonTableOrders.push(o);
+    } else {
+      tableOrders.push(o);
+    }
+  }
+
+  // 2. Process table orders: prioritize and display ONLY the consolidated Final Bill per session
+  const finalBills = tableOrders.filter(o => (o.notes || '').includes('[FINAL_BILL]'));
+  
+  for (const fb of finalBills) {
+    if (handledOrderIds.has(fb.id)) continue;
+    handledOrderIds.add(fb.id);
+
+    const parsed = parseNotesMetadata(fb.notes, fb);
+    const tableNum = parsed.tableNumber || fb.table_number;
+    const fbTime = new Date(fb.created_at).getTime();
+
+    // Mark any sibling intermediate round KOTs as handled and attach sibling_order_ids
+    const siblingIds = [];
+    tableOrders.forEach(sibling => {
+      if (sibling.id === fb.id) return;
+      const sParsed = parseNotesMetadata(sibling.notes, sibling);
+      const sTableNum = sParsed.tableNumber || sibling.table_number;
+      if (String(sTableNum) === String(tableNum)) {
+        const sTime = new Date(sibling.created_at).getTime();
+        // If created within the same dining session (12 hrs)
+        if (Math.abs(fbTime - sTime) <= 12 * 3600 * 1000) {
+          handledOrderIds.add(sibling.id);
+          siblingIds.push(sibling.id);
+        }
+      }
+    });
+
+    fb.sibling_order_ids = siblingIds;
+    result.push(fb);
+  }
+
+  // 3. For any remaining table orders without explicit [FINAL_BILL] tag, group by table number & day
+  const remainingTableOrders = tableOrders.filter(o => !handledOrderIds.has(o.id));
+  const groupedRemaining = new Map();
+
+  for (const ro of remainingTableOrders) {
+    if (handledOrderIds.has(ro.id)) continue;
+    const parsed = parseNotesMetadata(ro.notes, ro);
+    const tableNum = parsed.tableNumber || ro.table_number || 'unknown';
+    const dayStr = new Date(ro.created_at).toDateString();
+    const groupKey = `${tableNum}_${dayStr}`;
+
+    if (!groupedRemaining.has(groupKey)) {
+      const sameSessionOrders = remainingTableOrders.filter(o => {
+        const oParsed = parseNotesMetadata(o.notes, o);
+        const oTableNum = oParsed.tableNumber || o.table_number || 'unknown';
+        const oDayStr = new Date(o.created_at).toDateString();
+        return String(oTableNum) === String(tableNum) && oDayStr === dayStr;
+      });
+
+      // Sort by created_at ascending (earliest first so original order number is preserved)
+      sameSessionOrders.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const primaryOrder = sameSessionOrders[0];
+
+      sameSessionOrders.forEach(o => handledOrderIds.add(o.id));
+
+      if (sameSessionOrders.length > 1) {
+        // Calculate consolidated total amount across all rounds if not already consolidated
+        const sessionTotal = sameSessionOrders.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+        const consolidatedOrder = {
+          ...primaryOrder,
+          total_amount: sessionTotal,
+          sibling_order_ids: sameSessionOrders.slice(1).map(o => o.id)
+        };
+        groupedRemaining.set(groupKey, consolidatedOrder);
+        result.push(consolidatedOrder);
+      } else {
+        groupedRemaining.set(groupKey, primaryOrder);
+        result.push(primaryOrder);
+      }
+    }
+  }
+
+  // 4. Non-table orders (Delivery / Pickup): if any were explicitly merged with a parent order
+  for (const o of nonTableOrders) {
+    if (handledOrderIds.has(o.id)) continue;
+    handledOrderIds.add(o.id);
+    result.push(o);
+  }
+
+  return result;
+}
+
 function computeOrdersReportData() {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
-  let list = orders.slice();
+  // Show ONLY the final consolidated bill order (no intermediate raw KOT fragments)
+  let list = getConsolidatedClosedBills(orders);
 
   // 1. Date Filtering
   if (ordersReportDateFilter === 'today') {
@@ -1412,10 +1625,13 @@ function computeOrdersReportData() {
   // Sort newest first
   list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-  // 6. Aggregate KPI Metrics
+  // 6. Aggregate KPI Metrics using standard Restaurant GST calculation on Consolidated Bills
   const activeOrders = list.filter(o => o.status !== 'cancelled');
-  const grossRev = activeOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-  const totalOrdersCount = list.length;
+  let grossRev = 0;
+  let taxableRev = 0;
+  let cgstRev = 0;
+  let sgstRev = 0;
+  let taxCollected = 0;
 
   let tableOrdersCount = 0;
   let deliveryOrdersCount = 0;
@@ -1425,27 +1641,36 @@ function computeOrdersReportData() {
   let payLaterRev = 0;
 
   activeOrders.forEach(o => {
+    const td = computeOrderTaxDetails(o);
+    grossRev += td.grandTotal;
+    taxableRev += td.taxableValue;
+    cgstRev += td.cgstAmt;
+    sgstRev += td.sgstAmt;
+    taxCollected += td.totalGst;
+
     const parsed = parseNotesMetadata(o.notes, o);
     const type = parsed.type || o.order_type || 'table';
     if (type === 'table') tableOrdersCount++;
     else if (type === 'delivery') deliveryOrdersCount++;
 
     const mode = (parsed.paymentMode || o.payment_mode || 'cash').toLowerCase();
-    const amt = Number(o.total_amount || 0);
+    const amt = td.grandTotal;
     if (mode === 'upi') upiRev += amt;
     else if (mode === 'cash') cashRev += amt;
     else if (mode === 'card') cardRev += amt;
     else payLaterRev += amt;
   });
 
-  const s = getBillSettings();
-  const taxCollected = grossRev * (s.cgstRate + s.sgstRate) / (100 + s.cgstRate + s.sgstRate);
+  const totalOrdersCount = list.length;
   const aov = activeOrders.length > 0 ? (grossRev / activeOrders.length) : 0;
 
   return {
     list,
     activeOrders,
     grossRev,
+    taxableRev,
+    cgstRev,
+    sgstRev,
     totalOrdersCount,
     tableOrdersCount,
     deliveryOrdersCount,
@@ -1592,6 +1817,9 @@ function renderOrdersReport() {
     list,
     activeOrders,
     grossRev,
+    taxableRev,
+    cgstRev,
+    sgstRev,
     totalOrdersCount,
     tableOrdersCount,
     deliveryOrdersCount,
@@ -1621,22 +1849,23 @@ function renderOrdersReport() {
   renderOrdersReportCharts(activeOrders);
 
   // 3. Summary Bar
-  if ($('orders-report-count')) $('orders-report-count').textContent = `${list.length} ${list.length === 1 ? 'order' : 'orders'}`;
+  if ($('orders-report-count')) $('orders-report-count').textContent = `${list.length} ${list.length === 1 ? 'bill' : 'bills'}`;
   if ($('orders-report-amount')) $('orders-report-amount').textContent = `₹${grossRev.toFixed(2)}`;
-  if ($('orders-report-tax-amt')) $('orders-report-tax-amt').textContent = `₹${taxCollected.toFixed(2)}`;
+  if ($('orders-report-tax-amt')) $('orders-report-tax-amt').textContent = `₹${taxCollected.toFixed(2)} (CGST ₹${cgstRev.toFixed(2)} + SGST ₹${sgstRev.toFixed(2)})`;
 
   // 4. Data Table
   const tbody = $('orders-report-table-body');
   if (!tbody) return;
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2.5rem;color:var(--adm-muted);">No orders match your selected filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2.5rem;color:var(--adm-muted);">No consolidated orders match your selected filters.</td></tr>';
     return;
   }
 
-  const s = getBillSettings();
   tbody.innerHTML = list.map(o => {
-    const items = getItemsForOrder(o.id);
+    const rawItems = getItemsForOrder(o.id);
+    const taxDetails = computeOrderTaxDetails(o, rawItems);
+    const items = taxDetails.items;
     const parsed = parseNotesMetadata(o.notes, o);
     const tableNum = parsed.tableNumber || o.table_number || '';
     const isTable = parsed.type === 'table';
@@ -1645,7 +1874,7 @@ function renderOrdersReport() {
       : (parsed.type === 'delivery' ? '<span style="background:#eff6ff;color:#1d4ed8;padding:.15rem .5rem;border-radius:999px;font-weight:600;font-size:.75rem;">🚗 Delivery</span>' : '<span style="background:#fef3c7;color:#b45309;padding:.15rem .5rem;border-radius:999px;font-weight:600;font-size:.75rem;">🥡 Pickup</span>');
 
     const itemsSummary = items.length
-      ? items.slice(0, 2).map(i => `${i.quantity}× ${escapeHtml(i.item_name)}`).join(', ') + (items.length > 2 ? ` +${items.length - 2} more` : '')
+      ? items.slice(0, 2).map(i => `${i.quantity || i.qty}× ${escapeHtml(i.item_name || i.name)}`).join(', ') + (items.length > 2 ? ` +${items.length - 2} more` : '')
       : '<span style="color:var(--adm-muted);">No items recorded</span>';
 
     const isPaid = o.payment_status === 'paid';
@@ -1655,27 +1884,29 @@ function renderOrdersReport() {
       ? `<span style="background:#f0fdf4;color:#166534;font-size:.72rem;font-weight:700;padding:.1rem .4rem;border-radius:4px;border:1px solid #bbf7d0;">Paid · ${escapeHtml(payModeStr)}</span>`
       : (isCancelled ? '<span style="background:#fee2e2;color:#b91c1c;font-size:.72rem;font-weight:700;padding:.1rem .4rem;border-radius:4px;">Cancelled</span>' : '<span style="background:#fef2f2;color:#991b1b;font-size:.72rem;font-weight:700;padding:.1rem .4rem;border-radius:4px;border:1px solid #fecaca;">Unpaid</span>');
 
-    const ordTax = (Number(o.total_amount || 0) * (s.cgstRate + s.sgstRate) / (100 + s.cgstRate + s.sgstRate));
     const d = new Date(o.created_at);
     const dateStr = d.toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) + ', ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
 
     return `
       <tr>
         <td>
-          <strong style="color:#111827;font-size:.88rem;">#${o.order_number || o.id.slice(0, 8)}</strong>
+          <strong style="color:#111827;font-size:.88rem;">#${formatDailyOrderNumber(o)}</strong>
         </td>
         <td>
           <div style="font-weight:700;color:#111827;font-size:.85rem;">${escapeHtml(o.customer_name || 'Walk-in')}</div>
           <div style="font-size:.75rem;color:var(--adm-muted);">${escapeHtml(o.customer_phone || '—')}</div>
         </td>
         <td>${typeLabel}</td>
-        <td style="max-width:200px;font-size:.8rem;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${items.map(i=>`${i.quantity}x ${i.item_name}`).join(', ')}">
+        <td style="max-width:200px;font-size:.8rem;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${items.map(i=>`${i.quantity || i.qty}x ${i.item_name || i.name}`).join(', ')}">
           ${itemsSummary}
         </td>
         <td>${payBadge}</td>
-        <td style="text-align:right;font-size:.82rem;color:var(--adm-muted);">₹${ordTax.toFixed(2)}</td>
+        <td style="text-align:right;font-size:.82rem;font-weight:600;color:#334155;">₹${taxDetails.taxableValue.toFixed(2)}</td>
+        <td style="text-align:right;font-size:.82rem;color:#64748b;">₹${taxDetails.cgstAmt.toFixed(2)}</td>
+        <td style="text-align:right;font-size:.82rem;color:#64748b;">₹${taxDetails.sgstAmt.toFixed(2)}</td>
+        <td style="text-align:right;font-size:.82rem;font-weight:700;color:#4f46e5;">₹${taxDetails.totalGst.toFixed(2)}</td>
         <td style="text-align:right;">
-          <strong style="font-size:.9rem;color:${isCancelled ? '#9ca3af' : '#059669'};">₹${Number(o.total_amount || 0).toFixed(2)}</strong>
+          <strong style="font-size:.9rem;color:${isCancelled ? '#9ca3af' : '#059669'};">₹${taxDetails.grandTotal.toFixed(2)}</strong>
         </td>
         <td style="font-size:.78rem;color:var(--adm-muted);">${dateStr}</td>
         <td style="text-align:right;">
@@ -1708,26 +1939,60 @@ function exportOrdersReportCSV() {
     return;
   }
 
-  const s = getBillSettings();
-  const headers = ['Order Number', 'Date & Time', 'Customer Name', 'Phone', 'Order Type', 'Table', 'Payment Mode', 'Status', 'Payment Status', 'Items', 'Tax (INR)', 'Total Amount (INR)'];
+  const headers = [
+    'Invoice / Bill No',
+    'Invoice Date',
+    'Invoice Time',
+    'Customer Name',
+    'Customer Phone',
+    'Order Channel',
+    'Table No',
+    'Payment Mode',
+    'Payment Status',
+    'Consolidated Items',
+    'Food Base Subtotal (INR)',
+    'Discount (INR)',
+    'Taxable Value (INR)',
+    'CGST Rate (%)',
+    'CGST Amount (INR)',
+    'SGST Rate (%)',
+    'SGST Amount (INR)',
+    'Total GST (5%) (INR)',
+    'Delivery Charges (INR)',
+    'Invoice Grand Total (INR)',
+    'Status'
+  ];
+
   const rows = list.map(o => {
-    const items = getItemsForOrder(o.id);
+    const td = computeOrderTaxDetails(o);
     const parsed = parseNotesMetadata(o.notes, o);
-    const itemsStr = items.map(i => `${i.quantity}x ${i.item_name}`).join('; ');
-    const ordTax = (Number(o.total_amount || 0) * (s.cgstRate + s.sgstRate) / (100 + s.cgstRate + s.sgstRate));
+    const d = new Date(o.created_at);
+    const dateStr = d.toLocaleDateString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const itemsStr = td.items.map(i => `${i.quantity || i.qty}x ${i.item_name || i.name} @ ₹${(i.unit_price || i.price).toFixed(2)}`).join('; ');
+
     return [
-      `"${o.order_number || ''}"`,
-      `"${new Date(o.created_at).toLocaleString('en-IN')}"`,
+      `"${formatDailyOrderNumber(o)}"`,
+      `"${dateStr}"`,
+      `"${timeStr}"`,
       `"${(o.customer_name || 'Walk-in').replace(/"/g, '""')}"`,
       `"${o.customer_phone || ''}"`,
       `"${parsed.type || o.order_type || 'table'}"`,
       `"${parsed.tableNumber || o.table_number || ''}"`,
       `"${parsed.paymentMode || o.payment_mode || 'Cash/UPI'}"`,
-      `"${o.status}"`,
-      `"${o.payment_status}"`,
+      `"${o.payment_status || 'paid'}"`,
       `"${itemsStr.replace(/"/g, '""')}"`,
-      `"${ordTax.toFixed(2)}"`,
-      `"${Number(o.total_amount || 0).toFixed(2)}"`
+      `"${td.subtotal.toFixed(2)}"`,
+      `"${td.discountAmt.toFixed(2)}"`,
+      `"${td.taxableValue.toFixed(2)}"`,
+      `"${td.cgstRate}%"`,
+      `"${td.cgstAmt.toFixed(2)}"`,
+      `"${td.sgstRate}%"`,
+      `"${td.sgstAmt.toFixed(2)}"`,
+      `"${td.totalGst.toFixed(2)}"`,
+      `"${td.deliveryFee.toFixed(2)}"`,
+      `"${td.grandTotal.toFixed(2)}"`,
+      `"${o.status}"`
     ];
   });
 
@@ -1737,12 +2002,12 @@ function exportOrdersReportCSV() {
   const dateStr = new Date().toISOString().slice(0, 10);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `LIMRA_Orders_Sales_Report_${dateStr}.csv`);
+  link.setAttribute('download', `LIMRA_Restaurant_GST_Audit_Report_${dateStr}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  showAdminToast('Orders sales report exported to Excel CSV! 📥', 'success');
+  showAdminToast('Orders sales & GST report exported to Excel CSV! 📥', 'success');
 }
 
 function initOrdersReportListeners() {
@@ -2097,7 +2362,9 @@ function getFilteredOrders() {
   const paymentFilter = $('orders-payment-filter')?.value || 'all';
   const dateFilter = $('orders-date-filter')?.value || '';
   const search = ($('orders-search')?.value || getGlobalSearch()).toLowerCase().trim();
-  let filtered = orders.filter(o => o.status !== 'hold'); // exclude held KOTs from Order List
+  
+  // Unified Order List: displays all orders from Table System and Website (Delivery & Pickup)
+  let filtered = [...orders];
   
   if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
   
@@ -2125,7 +2392,7 @@ function getFilteredOrders() {
   } else if (activeOrderTypeFilter === 'table') {
     filtered = filtered.filter(o => {
       const meta = parseNotesMetadata(o.notes, o);
-      return meta.type === 'table' || o.order_type === 'table';
+      return meta.type === 'table' || o.order_type === 'table' || Boolean(meta.tableNumber || o.table_number);
     });
   } else if (activeOrderTypeFilter === 'pickup') {
     filtered = filtered.filter(o => {
@@ -2138,10 +2405,14 @@ function getFilteredOrders() {
     filtered = filtered.filter(o => {
       const items = getItemsForOrder(o.id);
       const itemsText = items.map(i => i.item_name).join(' ').toLowerCase();
+      const meta = parseNotesMetadata(o.notes, o);
+      const tableStr = String(meta.tableNumber || o.table_number || '').toLowerCase();
       return (
         (o.customer_name && o.customer_name.toLowerCase().includes(search)) ||
         (o.customer_phone && o.customer_phone.includes(search)) ||
         String(o.order_number).includes(search) ||
+        formatDailyOrderNumber(o).includes(search) ||
+        tableStr.includes(search) ||
         itemsText.includes(search) ||
         getLocalDateString(o.created_at).includes(search) ||
         new Date(o.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase().includes(search)
@@ -2377,9 +2648,10 @@ function createBillForOrder(orderId) {
       $('pos-notes').value = order.notes ? `[Ref #${order.order_number}] ${parsedMeta.notes || ''}`.trim() : '';
     }
 
-    // Load items into POS Cart
-    if (items && items.length > 0) {
-      posCart = items.map(i => ({
+    // Load strictly food items and base unit prices into POS Cart (excluding any tax/fee entries)
+    const foodOnlyItems = (items || []).filter(isFoodDishItem);
+    if (foodOnlyItems.length > 0) {
+      posCart = foodOnlyItems.map(i => ({
         id: i.menu_item_id || null,
         name: i.item_name || i.name,
         price: parseFloat(i.unit_price || i.price || (i.line_total / (i.quantity || 1)) || 0),
@@ -2392,6 +2664,18 @@ function createBillForOrder(orderId) {
         price: parseFloat(order.total_amount || 0),
         qty: 1
       }];
+    }
+
+    // Set discount percentage if present in order notes
+    if (parsedMeta.discountPct && $('pos-discount-pct')) {
+      $('pos-discount-pct').value = parsedMeta.discountPct;
+    } else if (parsedMeta.discountAmt && $('pos-discount-pct')) {
+      const foodSubtotal = posCart.reduce((sum, i) => sum + i.price * i.qty, 0);
+      if (foodSubtotal > 0) {
+        $('pos-discount-pct').value = Math.round((parsedMeta.discountAmt / foodSubtotal) * 100);
+      }
+    } else if ($('pos-discount-pct')) {
+      $('pos-discount-pct').value = '0';
     }
 
     updatePosCartUI();
@@ -2649,7 +2933,8 @@ async function renderOrderDetail(orderId) {
   ).join('');
   statusSelect.onchange = () => updateOrderStatus(order.id, statusSelect.value);
 
-  const items = getItemsForOrder(order.id);
+  const rawItems = getItemsForOrder(order.id);
+  const items = consolidateOrderItems(rawItems);
   const itemsSubtotal = items.reduce((s, i) => s + Number(i.line_total), 0);
   const steps = [
     { label: 'Order Created', done: true, time: order.created_at },
@@ -2863,6 +3148,40 @@ async function renderOrderDetail(orderId) {
                 <td colspan="3" class="adm-table-total-label">Items Subtotal</td>
                 <td><strong>${fmtMoney(itemsSubtotal)}</strong></td>
               </tr>
+              ${(() => {
+                const s = getBillSettings();
+                const discPct = parsedMeta.discountPct || 0;
+                const discAmt = parsedMeta.discountAmt || (itemsSubtotal * (discPct / 100));
+                const taxableAmt = Math.max(0, itemsSubtotal - discAmt);
+                const cgstRate = parsedMeta.cgstRate ?? s.cgstRate;
+                const sgstRate = parsedMeta.sgstRate ?? s.sgstRate;
+                const cgstAmt = taxableAmt * (cgstRate / 100);
+                const sgstAmt = taxableAmt * (sgstRate / 100);
+                const delCharge = parsedMeta.deliveryFee || 0;
+
+                return `
+                  ${discAmt > 0 ? `
+                    <tr style="cursor:default;color:#ef4444;">
+                      <td colspan="3" class="adm-table-total-label">Discount ${discPct > 0 ? `(${discPct}%)` : ''}</td>
+                      <td><strong>-${fmtMoney(discAmt)}</strong></td>
+                    </tr>
+                  ` : ''}
+                  <tr style="cursor:default;font-size:0.8rem;color:#64748b;">
+                    <td colspan="3" class="adm-table-total-label">CGST (${cgstRate}%)</td>
+                    <td><span>${fmtMoney(cgstAmt)}</span></td>
+                  </tr>
+                  <tr style="cursor:default;font-size:0.8rem;color:#64748b;">
+                    <td colspan="3" class="adm-table-total-label">SGST (${sgstRate}%)</td>
+                    <td><span>${fmtMoney(sgstAmt)}</span></td>
+                  </tr>
+                  ${delCharge > 0 ? `
+                    <tr style="cursor:default;font-size:0.8rem;color:#64748b;">
+                      <td colspan="3" class="adm-table-total-label">Delivery Charge</td>
+                      <td><span>${fmtMoney(delCharge)}</span></td>
+                    </tr>
+                  ` : ''}
+                `;
+              })()}
               <tr style="cursor:default;background:#e6f7f1">
                 <td colspan="3" class="adm-table-total-label">Grand Total</td>
                 <td><strong class="adm-grand-total">${fmtMoney(order.total_amount)}</strong></td>
@@ -3467,6 +3786,8 @@ function initCustomersListeners() {
 
 // ── Hold Orders ──────────────────────────────────────────
 
+// ── Hold Orders & Table Session Manager ──────────────────────────────────────────
+
 function getHeldOrders() {
   return orders
     .filter(o => o.status === 'hold')
@@ -3484,55 +3805,284 @@ function timeSince(dateStr) {
   return `${days}d ago`;
 }
 
+function getActiveTableSessions() {
+  const activeTableOrders = orders.filter(o => {
+    if (o.status === 'delivered' || o.status === 'cancelled') return false;
+    const meta = parseNotesMetadata(o.notes, o);
+    return o.order_type === 'table' || meta.type === 'table' || meta.tableNumber || o.table_number;
+  });
+
+  const sessionMap = new Map();
+
+  for (const order of activeTableOrders) {
+    const meta = parseNotesMetadata(order.notes, order);
+    const tNum = parseInt(String(meta.tableNumber || order.table_number || '').replace(/\D/g, ''), 10);
+    if (!tNum) continue;
+
+    if (!sessionMap.has(tNum)) {
+      sessionMap.set(tNum, {
+        tableNumber: tNum,
+        orders: [],
+        orderIds: [],
+        kots: [],
+        items: [],
+        totalAmount: 0,
+        earliestTime: order.created_at,
+        customerName: order.customer_name || 'Dine-in Guest',
+        customerPhone: order.customer_phone || ''
+      });
+    }
+
+    const sess = sessionMap.get(tNum);
+    sess.orders.push(order);
+    sess.orderIds.push(order.id);
+    sess.kots.push({
+      id: order.id,
+      orderNumber: formatDailyOrderNumber(order),
+      amount: Number(order.total_amount || 0),
+      createdAt: order.created_at
+    });
+    sess.totalAmount += Number(order.total_amount || 0);
+    if (new Date(order.created_at) < new Date(sess.earliestTime)) {
+      sess.earliestTime = order.created_at;
+    }
+    const oItems = getItemsForOrder(order.id);
+    sess.items.push(...oItems);
+  }
+
+  return Array.from(sessionMap.values()).map(sess => {
+    sess.consolidatedItems = consolidateOrderItems(sess.items);
+    return sess;
+  }).sort((a, b) => a.tableNumber - b.tableNumber);
+}
+
+async function createFinalBillForTableSession(tableNum) {
+  const sessions = getActiveTableSessions();
+  const session = sessions.find(s => s.tableNumber === tableNum);
+  if (!session || !session.orders.length) {
+    showAdminToast('No active session found for Table ' + tableNum, 'error');
+    return;
+  }
+
+  if (!confirm(`Generate Final Bill for Table ${tableNum} (${session.kots.length} KOTs · ₹${session.totalAmount.toFixed(2)}) and close session?`)) {
+    return;
+  }
+
+  // 1. Consolidate all items across all KOTs in this session
+  const consolidatedItems = session.consolidatedItems;
+  const subtotal = consolidatedItems.reduce((s, i) => s + (i.price * i.qty), 0);
+  const s = getBillSettings();
+  const cgst = subtotal * (s.cgstRate / 100);
+  const sgst = subtotal * (s.sgstRate / 100);
+  const grandTotal = subtotal + cgst + sgst;
+
+  const primaryOrder = session.orders[0];
+  const kotNumbersText = session.kots.map(k => `#${k.orderNumber}`).join(' + ');
+
+  const finalBillOrder = {
+    ...primaryOrder,
+    total_amount: grandTotal,
+    status: 'delivered',
+    payment_status: 'paid',
+    notes: `[TABLE: ${tableNum}] [FINAL_BILL] [KOTS: ${kotNumbersText}] [CGST: ${s.cgstRate}%] [SGST: ${s.sgstRate}%] [PAYMENT: cash]`
+  };
+
+  // 2. Print Final Consolidated Bill with Tax & UPI QR
+  await printOrderReceiptWithTax(finalBillOrder, consolidatedItems);
+
+  // 3. Mark ALL orders in this session as delivered / paid, assign all order_items to primaryOrder
+  try {
+    // 3a. Update primary final bill order
+    await insforge.database
+      .from('orders')
+      .update({
+        total_amount: grandTotal,
+        status: 'delivered',
+        payment_status: 'paid',
+        notes: finalBillOrder.notes
+      })
+      .eq('id', primaryOrder.id);
+
+    const localPrimary = orders.find(x => x.id === primaryOrder.id);
+    if (localPrimary) {
+      localPrimary.total_amount = grandTotal;
+      localPrimary.status = 'delivered';
+      localPrimary.payment_status = 'paid';
+      localPrimary.notes = finalBillOrder.notes;
+    }
+
+    // 3b. Update sibling orders and reassign their order_items to primaryOrder
+    const siblingOrders = session.orders.slice(1);
+    const siblingOrderIds = siblingOrders.map(o => o.id);
+
+    for (const ord of siblingOrders) {
+      await insforge.database
+        .from('orders')
+        .update({ status: 'delivered', payment_status: 'paid' })
+        .eq('id', ord.id);
+      
+      const local = orders.find(x => x.id === ord.id);
+      if (local) {
+        local.status = 'delivered';
+        local.payment_status = 'paid';
+      }
+    }
+
+    if (siblingOrderIds.length > 0) {
+      await insforge.database
+        .from('order_items')
+        .update({ order_id: primaryOrder.id })
+        .in('order_id', siblingOrderIds);
+
+      orderItems.forEach(item => {
+        if (siblingOrderIds.includes(item.order_id)) {
+          item.order_id = primaryOrder.id;
+        }
+      });
+    }
+
+    showAdminToast(`Table ${tableNum} Final Bill generated & session closed! ✅`, 'success');
+    renderOverview();
+    renderHoldOrdersPanel();
+    renderClosedOrdersPanel();
+    renderBillingQuickCards();
+    renderBillingTotalBills();
+  } catch (err) {
+    showAdminToast('Failed to close table session: ' + err.message, 'error');
+  }
+}
+
 function renderHoldOrdersPanel() {
-  const held = getHeldOrders();
   const search = ($('hold-orders-search')?.value || '').toLowerCase().trim();
+  const tableSessions = getActiveTableSessions();
+  const nonTableHoldOrders = orders.filter(o => {
+    if (o.status !== 'hold') return false;
+    const meta = parseNotesMetadata(o.notes, o);
+    const isTable = meta.type === 'table' || o.order_type === 'table' || meta.tableNumber || o.table_number;
+    return !isTable;
+  });
 
-  const filtered = search
-    ? held.filter(o =>
-        (o.customer_name && o.customer_name.toLowerCase().includes(search)) ||
-        (o.customer_phone && o.customer_phone.includes(search)) ||
-        String(o.order_number).includes(search) ||
-        String(o.table_number || '').includes(search)
-      )
-    : held;
+  // Calculate totals
+  const totalTableVal = tableSessions.reduce((s, t) => s + t.totalAmount, 0);
+  const totalNonTableVal = nonTableHoldOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+  const totalValue = totalTableVal + totalNonTableVal;
+  const totalCount = tableSessions.length + nonTableHoldOrders.length;
 
-  const totalValue = held.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-  $('hold-stat-count').textContent = held.length;
+  $('hold-stat-count').textContent = totalCount;
   $('hold-stat-value').textContent = fmtMoney(totalValue);
-  $('hold-stat-oldest').textContent = held.length ? timeSince(held[0].created_at) : '—';
+  const oldestTime = tableSessions.length ? tableSessions[0].earliestTime : (nonTableHoldOrders.length ? nonTableHoldOrders[0].created_at : null);
+  $('hold-stat-oldest').textContent = oldestTime ? timeSince(oldestTime) : '—';
 
   const container = $('hold-orders-container');
   if (!container) return;
 
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="adm-card adm-empty">${held.length === 0 ? 'No orders on hold right now' : 'No held orders match your search'}</div>`;
+  if (tableSessions.length === 0 && nonTableHoldOrders.length === 0) {
+    container.innerHTML = `<div class="adm-card adm-empty">No active dining tables or held orders right now</div>`;
     return;
   }
 
-  container.innerHTML = filtered.map(order => {
-    const items = getItemsForOrder(order.id);
+  const s = getBillSettings();
+  let cardsHtml = '';
+
+  // 1. Render Grouped Active Table Sessions
+  tableSessions.forEach(sess => {
+    if (search && !String(sess.tableNumber).includes(search) && !sess.customerName.toLowerCase().includes(search) && !sess.customerPhone.includes(search)) {
+      return;
+    }
+
+    const itemsHtml = sess.consolidatedItems.map(i => `
+      <li style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #f1f5f9;">
+        <span style="font-weight:600;color:#1e293b;">${i.quantity}× ${escapeHtml(i.item_name)}</span>
+        <span style="color:var(--adm-muted);font-size:.8rem;font-weight:700;">₹${Number(i.line_total).toFixed(2)}</span>
+      </li>
+    `).join('');
+
+    const subtotal = sess.consolidatedItems.reduce((sum, i) => sum + Number(i.line_total), 0);
+    const cgst = subtotal * s.cgstRate / 100;
+    const sgst = subtotal * s.sgstRate / 100;
+    const grandTotal = subtotal + cgst + sgst;
+
+    const kotBadges = sess.kots.map(k => `
+      <span style="background:#fff3e0;color:#b45309;border:1px solid #fed7aa;border-radius:6px;padding:.15rem .45rem;font-size:.72rem;font-weight:700;">
+        🗒️ KOT #${k.orderNumber} (₹${k.amount.toFixed(0)})
+      </span>
+    `).join('');
+
+    cardsHtml += `
+      <div class="adm-hold-card" data-table-number="${sess.tableNumber}" style="border-top:4px solid #6366f1;">
+        <div class="adm-hold-card-head">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+              <span style="background:#eef2ff;color:#4f46e5;font-size:.85rem;font-weight:900;padding:.2rem .65rem;border-radius:999px;border:1px solid #c7d2fe;">
+                🪑 Table ${sess.tableNumber}
+              </span>
+              <span style="background:#ecfdf5;color:#059669;font-size:.72rem;font-weight:700;padding:.15rem .45rem;border-radius:999px;">
+                ● Active Dining Session
+              </span>
+            </div>
+            <div style="font-size:.75rem;color:var(--adm-muted);margin-top:4px;">
+              ${escapeHtml(sess.customerName)} ${sess.customerPhone ? `· ${escapeHtml(sess.customerPhone)}` : ''}
+            </div>
+            <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.4rem;">
+              ${kotBadges}
+            </div>
+          </div>
+          <span class="adm-hold-time">⏱ ${timeSince(sess.earliestTime)}</span>
+        </div>
+
+        <div style="font-size:.75rem;font-weight:700;color:var(--adm-muted);text-transform:uppercase;margin-top:.6rem;letter-spacing:.5px;">
+          Combined Items (${sess.consolidatedItems.length} dishes):
+        </div>
+        <ul class="adm-hold-items" style="list-style:none;padding:0;margin:.4rem 0;max-height:160px;overflow-y:auto;">
+          ${itemsHtml}
+        </ul>
+
+        <!-- Tax & Totals Summary -->
+        <div style="border-top:1px dashed var(--adm-border);padding-top:.5rem;margin-top:.25rem;font-size:.78rem;color:var(--adm-muted);">
+          <div style="display:flex;justify-content:space-between;"><span>Combined Subtotal</span><span>₹${subtotal.toFixed(2)}</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>Taxes (CGST ${s.cgstRate}% + SGST ${s.sgstRate}%)</span><span>₹${(cgst + sgst).toFixed(2)}</span></div>
+          <div style="display:flex;justify-content:space-between;font-weight:900;color:var(--adm-text);margin-top:.3rem;font-size:.92rem;">
+            <span>Current Table Total</span>
+            <span style="color:#6366f1;">₹${grandTotal.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div class="adm-hold-card-footer" style="margin-top:.85rem;">
+          <strong class="adm-hold-amount" style="font-size:1.1rem;color:#6366f1;">₹${grandTotal.toFixed(2)}</strong>
+          <div class="adm-hold-actions" style="flex-wrap:wrap;gap:.4rem;">
+            <button type="button" class="adm-btn adm-btn-outline adm-btn-sm table-add-kot-btn" data-table="${sess.tableNumber}" style="background:#eef2ff;color:#4f46e5;border-color:#c7d2fe;font-weight:700;" title="Add dishes with new KOT">
+              ✏️ Add Order KOT
+            </button>
+            <button type="button" class="adm-btn adm-btn-outline adm-btn-sm table-print-kot-btn" data-table="${sess.tableNumber}" style="background:#fff3e0;border-color:#f59e0b;color:#b45309;" title="Print consolidated kitchen ticket">
+              🖨️ Repr. KOTs
+            </button>
+            <button type="button" class="adm-btn adm-btn-primary adm-btn-sm table-final-bill-btn" data-table="${sess.tableNumber}" style="background:#10b981;border-color:#10b981;font-weight:800;padding:.35rem .75rem;" title="Combine all KOTs & create 1 Final Bill">
+              🧾 Create Final Bill
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  // 2. Render Non-Table Hold Orders (Delivery & Pickup)
+  nonTableHoldOrders.forEach(order => {
+    if (search && !order.customer_name.toLowerCase().includes(search) && !order.customer_phone.includes(search) && !String(order.order_number).includes(search)) {
+      return;
+    }
+    const rawItems = getItemsForOrder(order.id);
+    const items = consolidateOrderItems(rawItems);
     const parsedMeta = parseNotesMetadata(order.notes, order);
-    const tableNum = parsedMeta.tableNumber || order.table_number || '';
-    const typeLabel = parsedMeta.type === 'table'
-      ? `🪑 Table ${tableNum || '—'}`
-      : (parsedMeta.type === 'delivery' ? '🚗 Delivery' : '🥡 Pickup');
+    const typeLabel = parsedMeta.type === 'delivery' ? '🚗 Delivery Hold' : '🥡 Pickup Hold';
 
     const itemsHtml = items.map(i => `<li style="display:flex;justify-content:space-between;padding:2px 0;"><span>${i.quantity}× ${escapeHtml(i.item_name)}</span><span style="color:var(--adm-muted);font-size:.8rem;font-weight:600;">₹${Number(i.line_total).toFixed(2)}</span></li>`).join('');
 
-    const cgstRate = parseFloat(localStorage.getItem('qz-bill-cgst-rate') || '2.5');
-    const sgstRate = parseFloat(localStorage.getItem('qz-bill-sgst-rate') || '2.5');
-    const subtotal = items.reduce((s, i) => s + Number(i.line_total), 0);
-    const cgst = subtotal * cgstRate / 100;
-    const sgst = subtotal * sgstRate / 100;
-
-    return `
+    cardsHtml += `
       <div class="adm-hold-card" data-order-id="${order.id}">
         <div class="adm-hold-card-head">
           <div style="flex:1;">
             <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
               <p class="adm-hold-card-title">#${formatDailyOrderNumber(order)} · ${escapeHtml(order.customer_name || 'Walk-in')}</p>
-              ${tableNum ? `<span style="background:#eef2ff;color:#6366f1;font-size:.7rem;font-weight:700;padding:.15rem .55rem;border-radius:999px;">Table ${tableNum}</span>` : ''}
             </div>
             <div style="font-size:.75rem;color:var(--adm-muted);margin-top:2px;">${escapeHtml(order.customer_phone || '—')}</div>
             <span class="adm-pill" style="background:#fff3e6;color:#f2994a;margin-top:.25rem;display:inline-block;">${typeLabel}</span>
@@ -3541,13 +4091,6 @@ function renderHoldOrdersPanel() {
         </div>
 
         <ul class="adm-hold-items" style="list-style:none;padding:0;margin:.5rem 0;max-height:160px;overflow-y:auto;">${itemsHtml}</ul>
-
-        <!-- Tax summary -->
-        <div style="border-top:1px dashed var(--adm-border);padding-top:.5rem;margin-top:.25rem;font-size:.78rem;color:var(--adm-muted);">
-          <div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>₹${subtotal.toFixed(2)}</span></div>
-          <div style="display:flex;justify-content:space-between;"><span>CGST ${cgstRate}% + SGST ${sgstRate}%</span><span>₹${(cgst + sgst).toFixed(2)}</span></div>
-          <div style="display:flex;justify-content:space-between;font-weight:800;color:var(--adm-text);margin-top:.25rem;font-size:.85rem;"><span>Current Total</span><span style="color:#6366f1;">₹${Number(order.total_amount).toFixed(2)}</span></div>
-        </div>
 
         <div class="adm-hold-card-footer" style="margin-top:.75rem;">
           <strong class="adm-hold-amount">₹${Number(order.total_amount).toFixed(2)}</strong>
@@ -3560,9 +4103,39 @@ function renderHoldOrdersPanel() {
         </div>
       </div>
     `;
-  }).join('');
+  });
 
-  // Wire up all buttons
+  container.innerHTML = cardsHtml || `<div class="adm-card adm-empty">No held orders match your search</div>`;
+
+  // Wire up Table Session Buttons
+  container.querySelectorAll('.table-final-bill-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tableNum = parseInt(btn.dataset.table, 10);
+      if (tableNum) createFinalBillForTableSession(tableNum);
+    });
+  });
+
+  container.querySelectorAll('.table-add-kot-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tableNum = parseInt(btn.dataset.table, 10);
+      const session = tableSessions.find(s => s.tableNumber === tableNum);
+      if (session && session.orders.length) {
+        openHoldAddItemsModal(session.orders[0].id);
+      }
+    });
+  });
+
+  container.querySelectorAll('.table-print-kot-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tableNum = parseInt(btn.dataset.table, 10);
+      const session = tableSessions.find(s => s.tableNumber === tableNum);
+      if (!session) return;
+      const primaryOrder = session.orders[0];
+      await printKOT(primaryOrder, session.consolidatedItems);
+    });
+  });
+
+  // Wire up Non-Table Hold Buttons
   container.querySelectorAll('.hold-add-items-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       openHoldAddItemsModal(btn.dataset.orderId);
@@ -4795,10 +5368,11 @@ function renderClosedOrdersPanel() {
   const tbody = $('closed-orders-table-body');
   if (!tbody) return;
 
-  // 1. Calculate Executive KPI Metrics
+  // 1. Consolidate Closed Orders to ensure merged orders display only the compiled single record
   const allClosed = orders.filter(o => o.status === 'delivered' || o.status === 'cancelled' || o.payment_status === 'paid');
-  const deliveredOrders = allClosed.filter(o => o.status === 'delivered' || o.payment_status === 'paid');
-  const cancelledOrders = allClosed.filter(o => o.status === 'cancelled');
+  const consolidatedClosed = getConsolidatedClosedBills(allClosed);
+  const deliveredOrders = consolidatedClosed.filter(o => o.status === 'delivered' || o.payment_status === 'paid');
+  const cancelledOrders = consolidatedClosed.filter(o => o.status === 'cancelled');
 
   const totalClosedRev = deliveredOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
   const totalClosedCount = deliveredOrders.length;
@@ -4820,8 +5394,8 @@ function renderClosedOrdersPanel() {
   if ($('closed-kpi-cancel-loss')) $('closed-kpi-cancel-loss').textContent = `Cancelled: ₹${cancelledLoss.toFixed(2)}`;
   if ($('closed-kpi-aov')) $('closed-kpi-aov').textContent = `₹${aov.toFixed(2)}`;
 
-  // 2. Filter Table List
-  let list = allClosed.slice();
+  // 2. Filter Table List from the Consolidated Closed Orders
+  let list = [...consolidatedClosed];
 
   // Date Filtering
   if (closedDateFilter === 'today') {
@@ -4883,22 +5457,36 @@ function renderClosedOrdersPanel() {
   // Sort newest first
   list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-  // Update Summary Bar
-  const sumAmount = list.reduce((s, o) => s + (o.status !== 'cancelled' ? Number(o.total_amount || 0) : 0), 0);
-  const s = getBillSettings();
-  const sumTax = sumAmount * (s.cgstRate + s.sgstRate) / (100 + s.cgstRate + s.sgstRate);
+  // Update Summary Bar with standard Restaurant GST breakdown
+  const activeDelivered = list.filter(o => o.status !== 'cancelled');
+  let sumGrand = 0;
+  let sumTaxable = 0;
+  let sumCgst = 0;
+  let sumSgst = 0;
+  let sumTotalGst = 0;
 
-  if ($('closed-orders-count')) $('closed-orders-count').textContent = `${list.length} ${list.length === 1 ? 'order' : 'orders'}`;
-  if ($('closed-orders-amount')) $('closed-orders-amount').textContent = `₹${sumAmount.toFixed(2)}`;
-  if ($('closed-orders-tax-amt')) $('closed-orders-tax-amt').textContent = `₹${sumTax.toFixed(2)}`;
+  activeDelivered.forEach(o => {
+    const td = computeOrderTaxDetails(o);
+    sumGrand += td.grandTotal;
+    sumTaxable += td.taxableValue;
+    sumCgst += td.cgstAmt;
+    sumSgst += td.sgstAmt;
+    sumTotalGst += td.totalGst;
+  });
+
+  if ($('closed-orders-count')) $('closed-orders-count').textContent = `${list.length} ${list.length === 1 ? 'bill' : 'bills'}`;
+  if ($('closed-orders-amount')) $('closed-orders-amount').textContent = `₹${sumGrand.toFixed(2)}`;
+  if ($('closed-orders-tax-amt')) $('closed-orders-tax-amt').textContent = `₹${sumTotalGst.toFixed(2)} (CGST ₹${sumCgst.toFixed(2)} + SGST ₹${sumSgst.toFixed(2)})`;
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2.5rem;color:var(--adm-muted);">No closed orders match your selected filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2.5rem;color:var(--adm-muted);">No closed orders match your selected filters.</td></tr>';
     return;
   }
 
   tbody.innerHTML = list.map(o => {
-    const items = getItemsForOrder(o.id);
+    const rawItems = getItemsForOrder(o.id);
+    const taxDetails = computeOrderTaxDetails(o, rawItems);
+    const items = taxDetails.items;
     const parsed = parseNotesMetadata(o.notes, o);
     const tableNum = parsed.tableNumber || o.table_number || '';
     const isTable = parsed.type === 'table';
@@ -4907,7 +5495,7 @@ function renderClosedOrdersPanel() {
       : (parsed.type === 'delivery' ? '<span style="background:#eff6ff;color:#1d4ed8;padding:.15rem .5rem;border-radius:999px;font-weight:600;font-size:.75rem;">🚗 Delivery</span>' : '<span style="background:#fef3c7;color:#b45309;padding:.15rem .5rem;border-radius:999px;font-weight:600;font-size:.75rem;">🥡 Pickup</span>');
 
     const itemsSummary = items.length
-      ? items.slice(0, 2).map(i => `${i.quantity}× ${escapeHtml(i.item_name)}`).join(', ') + (items.length > 2 ? ` +${items.length - 2} more` : '')
+      ? items.slice(0, 2).map(i => `${i.quantity || i.qty}× ${escapeHtml(i.item_name || i.name)}`).join(', ') + (items.length > 2 ? ` +${items.length - 2} more` : '')
       : '<span style="color:var(--adm-muted);">No items recorded</span>';
 
     const isPaid = o.payment_status === 'paid';
@@ -4933,14 +5521,22 @@ function renderClosedOrdersPanel() {
           <div style="font-size:.75rem;color:var(--adm-muted);">${escapeHtml(o.customer_phone || '—')}</div>
         </td>
         <td>${typeLabel}</td>
-        <td style="max-width:220px;font-size:.8rem;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${items.map(i=>`${i.quantity}x ${i.item_name}`).join(', ')}">
+        <td style="max-width:200px;font-size:.8rem;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${items.map(i=>`${i.quantity || i.qty}x ${i.item_name || i.name}`).join(', ')}">
           ${itemsSummary}
         </td>
-        <td>
-          <strong style="font-size:.9rem;color:${isCancelled ? '#9ca3af' : '#059669'};">₹${Number(o.total_amount || 0).toFixed(2)}</strong>
+        <td style="text-align:right;font-size:.82rem;font-weight:600;color:#334155;">₹${taxDetails.taxableValue.toFixed(2)}</td>
+        <td style="text-align:right;font-size:.82rem;color:#64748b;">₹${taxDetails.cgstAmt.toFixed(2)}</td>
+        <td style="text-align:right;font-size:.82rem;color:#64748b;">₹${taxDetails.sgstAmt.toFixed(2)}</td>
+        <td style="text-align:right;font-size:.82rem;font-weight:700;color:#4f46e5;">₹${taxDetails.totalGst.toFixed(2)}</td>
+        <td style="text-align:right;">
+          <strong style="font-size:.9rem;color:${isCancelled ? '#9ca3af' : '#059669'};">₹${taxDetails.grandTotal.toFixed(2)}</strong>
         </td>
-        <td>${statusPill}</td>
-        <td>${payPill}</td>
+        <td>
+          <div style="display:flex;flex-direction:column;gap:.2rem;align-items:flex-start;">
+            ${statusPill}
+            ${payPill}
+          </div>
+        </td>
         <td style="font-size:.78rem;color:var(--adm-muted);">${dateStr}</td>
         <td style="text-align:right;">
           <div style="display:flex;gap:.35rem;justify-content:flex-end;align-items:center;">
@@ -5178,18 +5774,175 @@ async function saveClosedOrderCorrections(orderId, shouldReprint = false) {
   }
 }
 
+function exportRestaurantGSTReportCSV() {
+  const allClosed = orders.filter(o => o.status === 'delivered' || o.status === 'cancelled' || o.payment_status === 'paid');
+  const consolidatedClosed = getConsolidatedClosedBills(allClosed);
+  if (!consolidatedClosed.length) {
+    showAdminToast('No closed bills available to export.', 'error');
+    return;
+  }
+
+  // Filter based on active Closed Orders filters (date, type, status, search)
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  let list = [...consolidatedClosed];
+
+  if (closedDateFilter === 'today') {
+    list = list.filter(o => new Date(o.created_at).getTime() >= todayStart);
+  } else if (closedDateFilter === 'yesterday') {
+    const yestStart = todayStart - 86400000;
+    list = list.filter(o => {
+      const t = new Date(o.created_at).getTime();
+      return t >= yestStart && t < todayStart;
+    });
+  } else if (closedDateFilter === 'week') {
+    const weekStart = todayStart - (6 * 86400000);
+    list = list.filter(o => new Date(o.created_at).getTime() >= weekStart);
+  } else if (closedDateFilter === 'month') {
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    list = list.filter(o => new Date(o.created_at).getTime() >= monthStart);
+  } else if (closedDateFilter === 'custom' && closedCustomStart) {
+    const cStart = new Date(closedCustomStart).getTime();
+    const cEnd = closedCustomEnd ? (new Date(closedCustomEnd).getTime() + 86400000) : (cStart + 86400000);
+    list = list.filter(o => {
+      const t = new Date(o.created_at).getTime();
+      return t >= cStart && t < cEnd;
+    });
+  }
+
+  const typeFilter = $('closed-orders-type-filter')?.value || 'all';
+  if (typeFilter !== 'all') {
+    list = list.filter(o => {
+      const parsed = parseNotesMetadata(o.notes, o);
+      return parsed.type === typeFilter || o.order_type === typeFilter;
+    });
+  }
+
+  const statusFilter = $('closed-orders-status-filter')?.value || 'all';
+  if (statusFilter !== 'all') {
+    if (statusFilter === 'delivered') {
+      list = list.filter(o => o.status === 'delivered' || o.payment_status === 'paid');
+    } else {
+      list = list.filter(o => o.status === statusFilter);
+    }
+  }
+
+  const search = ($('closed-orders-search')?.value || '').toLowerCase().trim();
+  if (search) {
+    list = list.filter(o => {
+      const parsed = parseNotesMetadata(o.notes, o);
+      return (
+        String(o.order_number || '').includes(search) ||
+        (o.customer_name && o.customer_name.toLowerCase().includes(search)) ||
+        (o.customer_phone && o.customer_phone.includes(search)) ||
+        String(parsed.tableNumber || o.table_number || '').toLowerCase().includes(search)
+      );
+    });
+  }
+
+  list.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  const headers = [
+    'Invoice / Bill No',
+    'Invoice Date',
+    'Invoice Time',
+    'Customer Name',
+    'Customer Phone',
+    'Order Channel',
+    'Table No',
+    'Payment Mode',
+    'Payment Status',
+    'Consolidated Items',
+    'Food Base Subtotal (INR)',
+    'Discount (INR)',
+    'Taxable Value (INR)',
+    'CGST Rate (%)',
+    'CGST Amount (INR)',
+    'SGST Rate (%)',
+    'SGST Amount (INR)',
+    'Total GST (5%) (INR)',
+    'Delivery Charges (INR)',
+    'Invoice Grand Total (INR)',
+    'Settlement Status'
+  ];
+
+  const rows = list.map(o => {
+    const td = computeOrderTaxDetails(o);
+    const parsed = parseNotesMetadata(o.notes, o);
+    const d = new Date(o.created_at);
+    const dateStr = d.toLocaleDateString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const itemsStr = td.items.map(i => `${i.quantity || i.qty}x ${i.item_name || i.name} @ ₹${(i.unit_price || i.price).toFixed(2)}`).join('; ');
+
+    return [
+      `"${formatDailyOrderNumber(o)}"`,
+      `"${dateStr}"`,
+      `"${timeStr}"`,
+      `"${(o.customer_name || 'Walk-in').replace(/"/g, '""')}"`,
+      `"${o.customer_phone || ''}"`,
+      `"${parsed.type || o.order_type || 'table'}"`,
+      `"${parsed.tableNumber || o.table_number || ''}"`,
+      `"${parsed.paymentMode || o.payment_mode || 'Cash/UPI'}"`,
+      `"${o.payment_status || 'paid'}"`,
+      `"${itemsStr.replace(/"/g, '""')}"`,
+      `"${td.subtotal.toFixed(2)}"`,
+      `"${td.discountAmt.toFixed(2)}"`,
+      `"${td.taxableValue.toFixed(2)}"`,
+      `"${td.cgstRate}%"`,
+      `"${td.cgstAmt.toFixed(2)}"`,
+      `"${td.sgstRate}%"`,
+      `"${td.sgstAmt.toFixed(2)}"`,
+      `"${td.totalGst.toFixed(2)}"`,
+      `"${td.deliveryFee.toFixed(2)}"`,
+      `"${td.grandTotal.toFixed(2)}"`,
+      `"${o.status}"`
+    ];
+  });
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', `LIMRA_Restaurant_GST_Report_${dateStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  showAdminToast('Standard Restaurant GST Report exported successfully! 🧾📥', 'success');
+}
+
 function exportClosedOrdersCSV() {
   const allClosed = orders.filter(o => o.status === 'delivered' || o.status === 'cancelled' || o.payment_status === 'paid');
-  if (!allClosed.length) {
+  const consolidatedClosed = getConsolidatedClosedBills(allClosed);
+  if (!consolidatedClosed.length) {
     showAdminToast('No closed orders available to export.', 'error');
     return;
   }
 
-  const headers = ['Order Number', 'Date', 'Customer Name', 'Phone', 'Order Type', 'Table', 'Status', 'Payment Status', 'Payment Mode', 'Items', 'Total Amount'];
-  const rows = allClosed.map(o => {
-    const items = getItemsForOrder(o.id);
+  const headers = [
+    'Order Number',
+    'Date & Time',
+    'Customer Name',
+    'Phone',
+    'Order Type',
+    'Table',
+    'Status',
+    'Payment Status',
+    'Payment Mode',
+    'Consolidated Items',
+    'Food Taxable (INR)',
+    'CGST (INR)',
+    'SGST (INR)',
+    'Total GST (INR)',
+    'Total Amount (INR)'
+  ];
+
+  const rows = consolidatedClosed.map(o => {
+    const td = computeOrderTaxDetails(o);
     const parsed = parseNotesMetadata(o.notes, o);
-    const itemsStr = items.map(i => `${i.quantity}x ${i.item_name}`).join('; ');
+    const itemsStr = td.items.map(i => `${i.quantity || i.qty}x ${i.item_name || i.name}`).join('; ');
     return [
       `"${formatDailyOrderNumber(o)}"`,
       `"${new Date(o.created_at).toLocaleString('en-IN')}"`,
@@ -5201,19 +5954,25 @@ function exportClosedOrdersCSV() {
       `"${o.payment_status}"`,
       `"${parsed.paymentMode || o.payment_mode || 'Cash/UPI'}"`,
       `"${itemsStr.replace(/"/g, '""')}"`,
-      `"${Number(o.total_amount || 0).toFixed(2)}"`
+      `"${td.taxableValue.toFixed(2)}"`,
+      `"${td.cgstAmt.toFixed(2)}"`,
+      `"${td.sgstAmt.toFixed(2)}"`,
+      `"${td.totalGst.toFixed(2)}"`,
+      `"${td.grandTotal.toFixed(2)}"`
     ];
   });
 
-  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-  const encodedUri = encodeURI(csvContent);
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `LIMRA_Closed_Orders_${new Date().toISOString().slice(0, 10)}.csv`);
+  link.href = url;
+  link.setAttribute('download', `LIMRA_Closed_Orders_Audit_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  showAdminToast('Closed orders report exported to CSV! 📥', 'success');
+  URL.revokeObjectURL(url);
+  showAdminToast('Closed orders audit log exported to CSV! 📥', 'success');
 }
 
 function initClosedOrdersListeners() {
@@ -5240,6 +5999,7 @@ function initClosedOrdersListeners() {
   $('closed-orders-type-filter')?.addEventListener('change', renderClosedOrdersPanel);
   $('closed-orders-status-filter')?.addEventListener('change', renderClosedOrdersPanel);
   $('closed-orders-search')?.addEventListener('input', renderClosedOrdersPanel);
+  $('closed-orders-gst-export-btn')?.addEventListener('click', exportRestaurantGSTReportCSV);
   $('closed-orders-export-btn')?.addEventListener('click', exportClosedOrdersCSV);
 
   // Closed Order Edit Modal Listeners
@@ -5630,6 +6390,7 @@ function initDashboardUI() {
 initDashboardAuth();
 initDashboardUI();
 initAuth();
+loadPrinterSettingsFromDB();
 
 // ═══════════════════════════════════════
 // QZ TRAY PRINTING INTEGRATION
@@ -7269,21 +8030,25 @@ let printerSettings = {
   // Sizing & Dimensions (mm)
   kot_paper_width: parseFloat(localStorage.getItem('qz-paper-size-kot') || '80'),
   kot_printable_width: 72,
+  kot_side_gap: parseFloat(localStorage.getItem('qz-kot-side-gap') || '2'),
   kot_top_margin: 0,
-  kot_bottom_feed: 3,
+  kot_bottom_feed: parseInt(localStorage.getItem('qz-kot-bottom-feed') || '3'),
   kot_font_size: 'large',
   kot_auto_cut: 'partial',
   kot_item_separator: 'dashed',
   
   bill_paper_width: parseFloat(localStorage.getItem('qz-paper-size-bill') || '80'),
   bill_printable_width: 72,
+  bill_side_gap: parseFloat(localStorage.getItem('qz-bill-side-gap') || '2'),
   bill_top_margin: 0,
-  bill_bottom_feed: 4,
+  bill_bottom_feed: parseInt(localStorage.getItem('qz-bill-bottom-feed') || '4'),
   bill_auto_cut: 'full',
   
   // Branding & Taxes
   bill_show_logo: localStorage.getItem('qz-bill-show-logo') !== 'false',
   bill_logo_url: localStorage.getItem('qz-bill-logo-url') || '/images/logo.png',
+  bill_show_place: localStorage.getItem('qz-bill-show-place') !== 'false',
+  bill_show_table: localStorage.getItem('qz-bill-show-table') !== 'false',
   restaurant_name: localStorage.getItem('qz-bill-restaurant-name') || 'LIMRA RESTAURANT',
   restaurant_address: localStorage.getItem('qz-bill-address') || 'Main Road, Near Bus Stand, Egra',
   restaurant_phone: localStorage.getItem('qz-bill-phone') || '+91 99999 88888',
@@ -7344,7 +8109,7 @@ async function generateUpiQrDataUrl(upiId, payeeName, amount, billNo) {
   }
 }
 
-function printViaNativeDriver(receiptHtml, widthMm = 80) {
+function printViaNativeDriver(receiptHtml, widthMm = 80, sideGapMm = 2) {
   return new Promise((resolve) => {
     let frame = document.getElementById('thermal-native-print-frame');
     if (!frame) {
@@ -7356,7 +8121,8 @@ function printViaNativeDriver(receiptHtml, widthMm = 80) {
 
     const isA4 = String(widthMm) === 'A4';
     const paperWidthCss = isA4 ? '210mm' : `${widthMm || 80}mm`;
-    const printableWidthCss = isA4 ? '190mm' : `${Math.max(48, (widthMm || 80) - 8)}mm`;
+    const gap = typeof sideGapMm === 'number' ? sideGapMm : 2;
+    const printableWidthCss = isA4 ? '190mm' : `${Math.max(36, (parseFloat(widthMm) || 80) - (2 * gap))}mm`;
 
     const docHtml = `
       <!DOCTYPE html>
@@ -7387,7 +8153,7 @@ function printViaNativeDriver(receiptHtml, widthMm = 80) {
           .thermal-print-wrapper {
             width: ${printableWidthCss};
             margin: 0 auto;
-            padding: 2mm 0;
+            padding: 2mm ${gap}mm;
           }
         </style>
       </head>
@@ -7432,7 +8198,7 @@ function updatePrinterPanelStatus() {
     badge.style.background = '#ecfdf5';
     badge.style.color = '#059669';
     badge.style.borderColor = '#a7f3d0';
-    if (msgEl) msgEl.textContent = 'Direct Windows Driver Spooler · 80mm Roll · Maximum Sharpness & Silent Kiosk Mode';
+    if (msgEl) msgEl.textContent = 'Direct Windows Driver Spooler · Mini/Standard Roll · Maximum Sharpness & Silent Kiosk Mode';
   } else {
     const isConn = (typeof qz !== 'undefined') && qz.websocket.isActive() && qzConnected;
     if (isConn) {
@@ -7451,11 +8217,89 @@ function updatePrinterPanelStatus() {
   }
 }
 
+const PRINTER_SETTINGS_DB_COLUMNS = [
+  'id',
+  'printer_model',
+  'active_printer_name',
+  'connection_mode',
+  'kot_paper_width',
+  'kot_printable_width',
+  'kot_top_margin',
+  'kot_bottom_feed',
+  'kot_font_size',
+  'kot_auto_cut',
+  'kot_item_separator',
+  'bill_paper_width',
+  'bill_printable_width',
+  'bill_top_margin',
+  'bill_bottom_feed',
+  'bill_auto_cut',
+  'bill_show_logo',
+  'bill_logo_url',
+  'bill_show_header',
+  'bill_show_tax_summary',
+  'bill_show_payment_mode',
+  'bill_show_upi_qr',
+  'restaurant_name',
+  'restaurant_address',
+  'restaurant_phone',
+  'restaurant_gstin',
+  'restaurant_fssai',
+  'cgst_rate',
+  'sgst_rate',
+  'bill_upi_id',
+  'bill_upi_payee_name',
+  'bill_footer_message',
+  'kot_show_table',
+  'kot_show_order_type',
+  'kot_show_customer',
+  'kot_show_timestamp',
+  'kot_show_item_notes',
+  'kot_show_category',
+  'kot_highlight_qty',
+  'updated_at'
+];
+
+function sanitizePrinterSettingsForDB(settings) {
+  const sanitized = {};
+  for (const col of PRINTER_SETTINGS_DB_COLUMNS) {
+    if (settings[col] !== undefined) {
+      sanitized[col] = settings[col];
+    }
+  }
+  sanitized.id = 'default';
+  sanitized.updated_at = new Date().toISOString();
+  return sanitized;
+}
+
 async function loadPrinterSettingsFromDB() {
   try {
-    const { data } = await insforge.database.from('printer_settings').select('*').eq('id', 'default').maybeSingle();
-    if (data) {
+    const { data, error } = await insforge.database.from('printer_settings').select('*').eq('id', 'default').maybeSingle();
+    if (data && !error) {
       printerSettings = { ...printerSettings, ...data };
+      
+      // Sync to localStorage as offline cache
+      localStorage.setItem('printer-connection-mode', printerSettings.connection_mode || 'driver');
+      localStorage.setItem('qz-printer-name', printerSettings.active_printer_name || '');
+      localStorage.setItem('qz-paper-size-kot', String(printerSettings.kot_paper_width || '80'));
+      localStorage.setItem('qz-kot-side-gap', String(printerSettings.kot_side_gap ?? 2));
+      localStorage.setItem('qz-kot-bottom-feed', String(printerSettings.kot_bottom_feed || 3));
+      localStorage.setItem('qz-paper-size-bill', String(printerSettings.bill_paper_width || '80'));
+      localStorage.setItem('qz-bill-side-gap', String(printerSettings.bill_side_gap ?? 2));
+      localStorage.setItem('qz-bill-bottom-feed', String(printerSettings.bill_bottom_feed || 4));
+      localStorage.setItem('qz-bill-show-logo', String(printerSettings.bill_show_logo));
+      localStorage.setItem('qz-bill-logo-url', printerSettings.bill_logo_url || '/images/logo.png');
+      localStorage.setItem('qz-bill-restaurant-name', printerSettings.restaurant_name || 'LIMRA RESTAURANT');
+      localStorage.setItem('qz-bill-address', printerSettings.restaurant_address || 'Main Road, Near Bus Stand, Egra');
+      localStorage.setItem('qz-bill-phone', printerSettings.restaurant_phone || '+91 99999 88888');
+      localStorage.setItem('qz-bill-gstin', printerSettings.restaurant_gstin || '');
+      localStorage.setItem('qz-bill-fssai', printerSettings.restaurant_fssai || '');
+      localStorage.setItem('qz-bill-cgst-rate', String(printerSettings.cgst_rate ?? 2.5));
+      localStorage.setItem('qz-bill-sgst-rate', String(printerSettings.sgst_rate ?? 2.5));
+      localStorage.setItem('qz-bill-upi-id', printerSettings.bill_upi_id || '');
+      localStorage.setItem('qz-bill-upi-payee-name', printerSettings.bill_upi_payee_name || 'LIMRA RESTAURANT');
+      localStorage.setItem('qz-bill-footer-msg', printerSettings.bill_footer_message || 'Thank you for dining with us! Please visit again.');
+
       syncPrinterSettingsToUI();
       await renderThermalLivePreview();
     }
@@ -7476,6 +8320,18 @@ function syncPrinterSettingsToUI() {
   if (kotCut) kotCut.value = printerSettings.kot_auto_cut || 'partial';
   const kotFeed = document.getElementById('kot-bottom-feed');
   if (kotFeed) kotFeed.value = printerSettings.kot_bottom_feed || 3;
+  const kotFeedSlider = document.getElementById('kot-bottom-feed-slider');
+  if (kotFeedSlider) kotFeedSlider.value = printerSettings.kot_bottom_feed || 3;
+  const kotDownLabel = document.getElementById('kot-down-gap-label');
+  if (kotDownLabel) kotDownLabel.textContent = `${printerSettings.kot_bottom_feed || 3} lines`;
+
+  const kotSideGapInp = document.getElementById('kot-side-gap');
+  if (kotSideGapInp) kotSideGapInp.value = printerSettings.kot_side_gap ?? 2;
+  const kotSideGapSlider = document.getElementById('kot-side-gap-slider');
+  if (kotSideGapSlider) kotSideGapSlider.value = printerSettings.kot_side_gap ?? 2;
+  const kotSideLabel = document.getElementById('kot-side-gap-label');
+  if (kotSideLabel) kotSideLabel.textContent = `${printerSettings.kot_side_gap ?? 2} mm`;
+
   const kotFont = document.getElementById('kot-font-size');
   if (kotFont) kotFont.value = printerSettings.kot_font_size || 'large';
   const kotSep = document.getElementById('kot-item-separator');
@@ -7504,11 +8360,27 @@ function syncPrinterSettingsToUI() {
   if (billCut) billCut.value = printerSettings.bill_auto_cut || 'full';
   const billFeed = document.getElementById('bill-bottom-feed');
   if (billFeed) billFeed.value = printerSettings.bill_bottom_feed || 4;
+  const billFeedSlider = document.getElementById('bill-bottom-feed-slider');
+  if (billFeedSlider) billFeedSlider.value = printerSettings.bill_bottom_feed || 4;
+  const billDownLabel = document.getElementById('bill-down-gap-label');
+  if (billDownLabel) billDownLabel.textContent = `${printerSettings.bill_bottom_feed || 4} lines`;
+
+  const billSideGapInp = document.getElementById('bill-side-gap');
+  if (billSideGapInp) billSideGapInp.value = printerSettings.bill_side_gap ?? 2;
+  const billSideGapSlider = document.getElementById('bill-side-gap-slider');
+  if (billSideGapSlider) billSideGapSlider.value = printerSettings.bill_side_gap ?? 2;
+  const billSideLabel = document.getElementById('bill-side-gap-label');
+  if (billSideLabel) billSideLabel.textContent = `${printerSettings.bill_side_gap ?? 2} mm`;
 
   const chkLogo = document.getElementById('bill-show-logo');
   if (chkLogo) chkLogo.checked = printerSettings.bill_show_logo ?? true;
   const logoUrlInp = document.getElementById('bill-logo-url');
   if (logoUrlInp) logoUrlInp.value = printerSettings.bill_logo_url || '/images/logo.png';
+
+  const chkPlace = document.getElementById('bill-toggle-show-place');
+  if (chkPlace) chkPlace.checked = printerSettings.bill_show_place ?? true;
+  const chkTableBill = document.getElementById('bill-toggle-show-table');
+  if (chkTableBill) chkTableBill.checked = printerSettings.bill_show_table ?? true;
 
   const bName = document.getElementById('bill-restaurant-name');
   if (bName) bName.value = printerSettings.restaurant_name || 'LIMRA RESTAURANT';
@@ -7540,6 +8412,7 @@ function readPrinterSettingsFromUI() {
   printerSettings.kot_paper_width = parseFloat(document.getElementById('kot-custom-width')?.value || '80');
   printerSettings.kot_auto_cut = document.getElementById('kot-auto-cut')?.value || 'partial';
   printerSettings.kot_bottom_feed = parseInt(document.getElementById('kot-bottom-feed')?.value || '3');
+  printerSettings.kot_side_gap = parseFloat(document.getElementById('kot-side-gap')?.value || '2');
   printerSettings.kot_font_size = document.getElementById('kot-font-size')?.value || 'large';
   printerSettings.kot_item_separator = document.getElementById('kot-item-separator')?.value || 'dashed';
 
@@ -7555,9 +8428,12 @@ function readPrinterSettingsFromUI() {
   printerSettings.bill_paper_width = billWVal === 'A4' ? 'A4' : parseFloat(billWVal || '80');
   printerSettings.bill_auto_cut = document.getElementById('bill-auto-cut')?.value || 'full';
   printerSettings.bill_bottom_feed = parseInt(document.getElementById('bill-bottom-feed')?.value || '4');
+  printerSettings.bill_side_gap = parseFloat(document.getElementById('bill-side-gap')?.value || '2');
 
   printerSettings.bill_show_logo = document.getElementById('bill-show-logo')?.checked ?? true;
   printerSettings.bill_logo_url = document.getElementById('bill-logo-url')?.value?.trim() || '/images/logo.png';
+  printerSettings.bill_show_place = document.getElementById('bill-toggle-show-place')?.checked ?? true;
+  printerSettings.bill_show_table = document.getElementById('bill-toggle-show-table')?.checked ?? true;
   printerSettings.restaurant_name = document.getElementById('bill-restaurant-name')?.value?.trim() || 'LIMRA RESTAURANT';
   printerSettings.restaurant_phone = document.getElementById('bill-phone')?.value?.trim() || '';
   printerSettings.restaurant_address = document.getElementById('bill-address')?.value?.trim() || '';
@@ -7573,36 +8449,38 @@ function readPrinterSettingsFromUI() {
 async function savePrinterSettingsToDB() {
   readPrinterSettingsFromUI();
 
-  // Save to localStorage
+  // Save to localStorage as offline fallback
   localStorage.setItem('printer-connection-mode', printerSettings.connection_mode || 'driver');
   localStorage.setItem('qz-printer-name', printerSettings.active_printer_name || '');
   localStorage.setItem('qz-paper-size-kot', String(printerSettings.kot_paper_width || '80'));
+  localStorage.setItem('qz-kot-side-gap', String(printerSettings.kot_side_gap ?? 2));
+  localStorage.setItem('qz-kot-bottom-feed', String(printerSettings.kot_bottom_feed || 3));
   localStorage.setItem('qz-paper-size-bill', String(printerSettings.bill_paper_width || '80'));
+  localStorage.setItem('qz-bill-side-gap', String(printerSettings.bill_side_gap ?? 2));
+  localStorage.setItem('qz-bill-bottom-feed', String(printerSettings.bill_bottom_feed || 4));
   localStorage.setItem('qz-bill-show-logo', String(printerSettings.bill_show_logo));
-  localStorage.setItem('qz-bill-logo-url', printerSettings.bill_logo_url);
-  localStorage.setItem('qz-bill-restaurant-name', printerSettings.restaurant_name);
-  localStorage.setItem('qz-bill-address', printerSettings.restaurant_address);
-  localStorage.setItem('qz-bill-phone', printerSettings.restaurant_phone);
-  localStorage.setItem('qz-bill-gstin', printerSettings.restaurant_gstin);
-  localStorage.setItem('qz-bill-fssai', printerSettings.restaurant_fssai);
-  localStorage.setItem('qz-bill-cgst-rate', String(printerSettings.cgst_rate));
-  localStorage.setItem('qz-bill-sgst-rate', String(printerSettings.sgst_rate));
-  localStorage.setItem('qz-bill-upi-id', printerSettings.bill_upi_id);
-  localStorage.setItem('qz-bill-upi-payee-name', printerSettings.bill_upi_payee_name);
-  localStorage.setItem('qz-bill-footer-msg', printerSettings.bill_footer_message);
+  localStorage.setItem('qz-bill-logo-url', printerSettings.bill_logo_url || '/images/logo.png');
+  localStorage.setItem('qz-bill-restaurant-name', printerSettings.restaurant_name || 'LIMRA RESTAURANT');
+  localStorage.setItem('qz-bill-address', printerSettings.restaurant_address || 'Main Road, Near Bus Stand, Egra');
+  localStorage.setItem('qz-bill-phone', printerSettings.restaurant_phone || '+91 99999 88888');
+  localStorage.setItem('qz-bill-gstin', printerSettings.restaurant_gstin || '');
+  localStorage.setItem('qz-bill-fssai', printerSettings.restaurant_fssai || '');
+  localStorage.setItem('qz-bill-cgst-rate', String(printerSettings.cgst_rate ?? 2.5));
+  localStorage.setItem('qz-bill-sgst-rate', String(printerSettings.sgst_rate ?? 2.5));
+  localStorage.setItem('qz-bill-upi-id', printerSettings.bill_upi_id || '');
+  localStorage.setItem('qz-bill-upi-payee-name', printerSettings.bill_upi_payee_name || 'LIMRA RESTAURANT');
+  localStorage.setItem('qz-bill-footer-msg', printerSettings.bill_footer_message || 'Thank you for dining with us! Please visit again.');
 
   await renderThermalLivePreview();
 
   try {
-    await insforge.database.from('printer_settings').upsert([{
-      ...printerSettings,
-      id: 'default',
-      updated_at: new Date().toISOString()
-    }]);
-    showAdminToast('Printer & KOT settings saved to database! 💾', 'success');
+    const payload = sanitizePrinterSettingsForDB(printerSettings);
+    const { error } = await insforge.database.from('printer_settings').upsert([payload]);
+    if (error) throw error;
+    showAdminToast('Printer & KOT configuration saved to database! 💾', 'success');
   } catch (err) {
     console.error('[Printer] Save to DB error:', err);
-    showAdminToast('Settings saved locally. (DB warning: ' + err.message + ')', 'warning');
+    showAdminToast('Failed to save to database: ' + (err.message || err), 'error');
   }
 }
 
@@ -7633,20 +8511,24 @@ async function renderThermalLivePreview() {
   const isKot = activePreviewMode === 'kot';
   const widthMm = isKot ? (printerSettings.kot_paper_width || 80) : (printerSettings.bill_paper_width || 80);
   const isA4 = String(widthMm) === 'A4';
-  const widthPx = isA4 ? 380 : Math.max(180, Math.min(380, Math.round(widthMm * 3.54)));
+  const widthPx = isA4 ? 380 : Math.max(160, Math.min(380, Math.round(parseFloat(widthMm) * 3.54)));
+  const sideGapMm = isKot ? (printerSettings.kot_side_gap ?? 2) : (printerSettings.bill_side_gap ?? 2);
+  const sideGapPx = Math.round(sideGapMm * 3.54);
 
   canvas.style.width = `${widthPx}px`;
-  if (badge) badge.textContent = `${isA4 ? 'A4' : widthMm + 'mm'} (${widthPx}px)`;
+  canvas.style.paddingLeft = `${sideGapPx}px`;
+  canvas.style.paddingRight = `${sideGapPx}px`;
+  if (badge) badge.textContent = `${isA4 ? 'A4' : widthMm + 'mm'} · Side: ${sideGapMm}mm`;
 
   const mockOrder = {
     order_number: 108,
     customer_name: 'Imran Khan',
     customer_phone: '+91 98765 43210',
-    order_type: 'table',
+    order_type: 'delivery',
     table_number: '04',
     created_at: new Date().toISOString(),
     payment_status: 'paid',
-    notes: '[TABLE: 04] [PAYMENT: UPI] [DISCOUNT_PCT: 10%] [DISCOUNT_AMT: 50.00] Please serve hot',
+    notes: '[DELIVERY] Place: Contai Central (Bus Stand) | Address: Flat 204, Green Valley Apts | Delivery charge: ₹30 [PAYMENT: UPI] [DISCOUNT_PCT: 10%] [DISCOUNT_AMT: 50.00] Please serve hot',
     total_amount: 471.5
   };
 
@@ -7744,11 +8626,9 @@ async function generateBillPreviewHtml(order, items) {
       ${p.restaurant_phone ? `<div style="font-size:10px;">Tel: ${escapeHtml(p.restaurant_phone)}</div>` : ''}
       ${p.restaurant_gstin ? `<div style="font-size:10px;">GSTIN: ${escapeHtml(p.restaurant_gstin)}</div>` : ''}
       ${p.restaurant_fssai ? `<div style="font-size:10px;">FSSAI Lic: ${escapeHtml(p.restaurant_fssai)}</div>` : ''}
+      
+      <!-- Table / Delivery Invoice Title -->
       <div style="font-size:12px;font-weight:bold;margin-top:6px;padding:3px 0;border-top:1px solid #000;border-bottom:1px solid #000;">
-        TAX INVOICE — TABLE ${order.table_number || '01'}
-      </div>
-    </div>
-
     <div style="font-size:10px;line-height:1.5;margin-top:6px;">
       <div><strong>Bill #:</strong> ${formatDailyOrderNumber(order)} | <strong>Date:</strong> ${timeStr}</div>
       <div><strong>Customer:</strong> ${escapeHtml(order.customer_name)} (${order.customer_phone})</div>
@@ -7988,7 +8868,35 @@ async function initPrinterPanel() {
 
   bindLiveInput('kot-custom-width', () => { printerSettings.kot_paper_width = parseFloat(document.getElementById('kot-custom-width').value || '80'); updatePresetButtonsUI(); });
   bindLiveInput('kot-auto-cut', () => { printerSettings.kot_auto_cut = document.getElementById('kot-auto-cut').value; });
-  bindLiveInput('kot-bottom-feed', () => { printerSettings.kot_bottom_feed = parseInt(document.getElementById('kot-bottom-feed').value || '3'); });
+  
+  // KOT Down Gap / Bottom Feed Sync
+  const syncKotFeed = (val) => {
+    const num = Math.max(1, Math.min(10, parseInt(val || '3')));
+    printerSettings.kot_bottom_feed = num;
+    const inp = document.getElementById('kot-bottom-feed');
+    const sld = document.getElementById('kot-bottom-feed-slider');
+    const lbl = document.getElementById('kot-down-gap-label');
+    if (inp && inp.value != num) inp.value = num;
+    if (sld && sld.value != num) sld.value = num;
+    if (lbl) lbl.textContent = `${num} lines`;
+  };
+  bindLiveInput('kot-bottom-feed', () => syncKotFeed(document.getElementById('kot-bottom-feed')?.value));
+  bindLiveInput('kot-bottom-feed-slider', () => syncKotFeed(document.getElementById('kot-bottom-feed-slider')?.value));
+
+  // KOT Side Gap Sync
+  const syncKotSideGap = (val) => {
+    const num = Math.max(0, Math.min(12, parseFloat(val || '2')));
+    printerSettings.kot_side_gap = num;
+    const inp = document.getElementById('kot-side-gap');
+    const sld = document.getElementById('kot-side-gap-slider');
+    const lbl = document.getElementById('kot-side-gap-label');
+    if (inp && inp.value != num) inp.value = num;
+    if (sld && sld.value != num) sld.value = num;
+    if (lbl) lbl.textContent = `${num} mm`;
+  };
+  bindLiveInput('kot-side-gap', () => syncKotSideGap(document.getElementById('kot-side-gap')?.value));
+  bindLiveInput('kot-side-gap-slider', () => syncKotSideGap(document.getElementById('kot-side-gap-slider')?.value));
+
   bindLiveInput('kot-font-size', () => { printerSettings.kot_font_size = document.getElementById('kot-font-size').value; });
   bindLiveInput('kot-item-separator', () => { printerSettings.kot_item_separator = document.getElementById('kot-item-separator').value; });
 
@@ -8002,9 +8910,39 @@ async function initPrinterPanel() {
 
   bindLiveInput('bill-custom-width', () => { printerSettings.bill_paper_width = document.getElementById('bill-custom-width').value; updatePresetButtonsUI(); });
   bindLiveInput('bill-auto-cut', () => { printerSettings.bill_auto_cut = document.getElementById('bill-auto-cut').value; });
-  bindLiveInput('bill-bottom-feed', () => { printerSettings.bill_bottom_feed = parseInt(document.getElementById('bill-bottom-feed').value || '4'); });
+  
+  // Bill Down Gap / Bottom Feed Sync
+  const syncBillFeed = (val) => {
+    const num = Math.max(1, Math.min(10, parseInt(val || '4')));
+    printerSettings.bill_bottom_feed = num;
+    const inp = document.getElementById('bill-bottom-feed');
+    const sld = document.getElementById('bill-bottom-feed-slider');
+    const lbl = document.getElementById('bill-down-gap-label');
+    if (inp && inp.value != num) inp.value = num;
+    if (sld && sld.value != num) sld.value = num;
+    if (lbl) lbl.textContent = `${num} lines`;
+  };
+  bindLiveInput('bill-bottom-feed', () => syncBillFeed(document.getElementById('bill-bottom-feed')?.value));
+  bindLiveInput('bill-bottom-feed-slider', () => syncBillFeed(document.getElementById('bill-bottom-feed-slider')?.value));
+
+  // Bill Side Gap Sync
+  const syncBillSideGap = (val) => {
+    const num = Math.max(0, Math.min(12, parseFloat(val || '2')));
+    printerSettings.bill_side_gap = num;
+    const inp = document.getElementById('bill-side-gap');
+    const sld = document.getElementById('bill-side-gap-slider');
+    const lbl = document.getElementById('bill-side-gap-label');
+    if (inp && inp.value != num) inp.value = num;
+    if (sld && sld.value != num) sld.value = num;
+    if (lbl) lbl.textContent = `${num} mm`;
+  };
+  bindLiveInput('bill-side-gap', () => syncBillSideGap(document.getElementById('bill-side-gap')?.value));
+  bindLiveInput('bill-side-gap-slider', () => syncBillSideGap(document.getElementById('bill-side-gap-slider')?.value));
+
   bindLiveInput('bill-show-logo', () => { printerSettings.bill_show_logo = document.getElementById('bill-show-logo').checked; });
   bindLiveInput('bill-logo-url', () => { printerSettings.bill_logo_url = document.getElementById('bill-logo-url').value; });
+  bindLiveInput('bill-toggle-show-place', () => { printerSettings.bill_show_place = document.getElementById('bill-toggle-show-place').checked; });
+  bindLiveInput('bill-toggle-show-table', () => { printerSettings.bill_show_table = document.getElementById('bill-toggle-show-table').checked; });
   bindLiveInput('bill-restaurant-name', () => { printerSettings.restaurant_name = document.getElementById('bill-restaurant-name').value; });
   bindLiveInput('bill-phone', () => { printerSettings.restaurant_phone = document.getElementById('bill-phone').value; });
   bindLiveInput('bill-address', () => { printerSettings.restaurant_address = document.getElementById('bill-address').value; });
@@ -8422,14 +9360,24 @@ function initPosPlaceSearch() {
 
 function getBillSettings() {
   return {
-    restaurantName: localStorage.getItem('qz-bill-restaurant-name') || 'LIMRA RESTAURANT',
-    address: localStorage.getItem('qz-bill-address') || 'Main Road, Near Bus Stand, Egra',
-    phone: localStorage.getItem('qz-bill-phone') || '+91 99999 88888',
-    gstin: localStorage.getItem('qz-bill-gstin') || '',
-    cgstRate: parseFloat(localStorage.getItem('qz-bill-cgst-rate') || '2.5'),
-    sgstRate: parseFloat(localStorage.getItem('qz-bill-sgst-rate') || '2.5'),
-    billPaperSize: parseInt(localStorage.getItem('qz-paper-size-bill') || localStorage.getItem('qz-paper-size') || '80'),
-    kotPaperSize: parseInt(localStorage.getItem('qz-paper-size-kot') || '80'),
+    restaurantName: printerSettings.restaurant_name || localStorage.getItem('qz-bill-restaurant-name') || 'LIMRA RESTAURANT',
+    address: printerSettings.restaurant_address || localStorage.getItem('qz-bill-address') || 'Main Road, Near Bus Stand, Egra',
+    phone: printerSettings.restaurant_phone || localStorage.getItem('qz-bill-phone') || '+91 99999 88888',
+    gstin: printerSettings.restaurant_gstin || localStorage.getItem('qz-bill-gstin') || '',
+    fssai: printerSettings.restaurant_fssai || localStorage.getItem('qz-bill-fssai') || '',
+    cgstRate: parseFloat(printerSettings.cgst_rate ?? localStorage.getItem('qz-bill-cgst-rate') ?? 2.5),
+    sgstRate: parseFloat(printerSettings.sgst_rate ?? localStorage.getItem('qz-bill-sgst-rate') ?? 2.5),
+    billPaperSize: parseInt(printerSettings.bill_paper_width || localStorage.getItem('qz-paper-size-bill') || '80'),
+    kotPaperSize: parseInt(printerSettings.kot_paper_width || localStorage.getItem('qz-paper-size-kot') || '80'),
+    billSideGap: parseFloat(printerSettings.bill_side_gap ?? localStorage.getItem('qz-bill-side-gap') ?? 2),
+    kotSideGap: parseFloat(printerSettings.kot_side_gap ?? localStorage.getItem('qz-kot-side-gap') ?? 2),
+    billBottomFeed: parseInt(printerSettings.bill_bottom_feed ?? localStorage.getItem('qz-bill-bottom-feed') ?? 4),
+    kotBottomFeed: parseInt(printerSettings.kot_bottom_feed ?? localStorage.getItem('qz-kot-bottom-feed') ?? 3),
+    showLogo: printerSettings.bill_show_logo !== false,
+    logoUrl: printerSettings.bill_logo_url || '/images/logo.png',
+    upiId: printerSettings.bill_upi_id || '',
+    upiPayeeName: printerSettings.bill_upi_payee_name || 'LIMRA RESTAURANT',
+    footerMessage: printerSettings.bill_footer_message || 'Thank you for dining with us! Please visit again.'
   };
 }
 
@@ -8666,14 +9614,16 @@ async function buildOrderFromPos(action) {
 async function generateKOTHtml(order, items, isNewItemsOnly = false) {
   const p = printerSettings;
   const kotWidth = p.kot_paper_width || 80;
-  const wPx = kotWidth === 'A4' ? 595 : Math.round(parseInt(kotWidth) * 2.835);
+  const wPx = kotWidth === 'A4' ? 595 : Math.round(parseFloat(kotWidth || 80) * 2.835);
+  const sideGapPx = Math.round((p.kot_side_gap ?? 2) * 2.835);
   const parsedMeta = parseNotesMetadata(order.notes, order);
   const tableInfo = parsedMeta.tableNumber || order.table_number || '';
   const formattedTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
   const fontSize = p.kot_font_size === 'xlarge' ? '16px' : (p.kot_font_size === 'medium' ? '12px' : '14px');
   const sep = getSeparatorLineHtml(p.kot_item_separator);
 
-  const itemsHtml = items.map(i => `
+  const displayItems = isNewItemsOnly ? items : consolidateOrderItems(items);
+  const itemsHtml = displayItems.map(i => `
     <div style="padding:4px 0;border-bottom:1px dashed #000;">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <span style="font-weight:700;font-size:${fontSize};">${escapeHtml(i.item_name || i.name)}</span>
@@ -8685,7 +9635,7 @@ async function generateKOTHtml(order, items, isNewItemsOnly = false) {
 
   const feedSpaces = '<br/>'.repeat(Math.max(1, p.kot_bottom_feed || 3));
 
-  return `<div style="width:${wPx}px;font-family:monospace;font-size:12px;color:#000;padding:0 6px;margin:0 auto;">
+  return `<div style="width:${wPx}px;font-family:monospace;font-size:12px;color:#000;padding:0 ${sideGapPx}px;margin:0 auto;">
     <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:8px;">
       <div style="font-size:15px;font-weight:900;letter-spacing:1px;">** KOT - KITCHEN ORDER **</div>
       <div style="font-size:11px;font-weight:bold;">${isNewItemsOnly ? '(ADDITIONAL ITEMS)' : 'TVS RP3200 PLUS ESC/POS'}</div>
@@ -8723,18 +9673,20 @@ async function printKOT(order, items, isNewOnly = false) {
   }
 
   // Default: Native Driver (Direct Windows Spooler / Silent Kiosk)
-  await printViaNativeDriver(html, p.kot_paper_width || 80);
+  await printViaNativeDriver(html, p.kot_paper_width || 80, p.kot_side_gap ?? 2);
   showAdminToast('KOT sent to TVS RP3200 Plus Driver! 🖨️', 'success');
 }
 
 async function generateBillWithTaxHtml(order, itemsList) {
   const p = printerSettings;
-  const wPx = p.bill_paper_width === 'A4' ? 595 : Math.round(parseInt(p.bill_paper_width || 80) * 2.835);
+  const wPx = p.bill_paper_width === 'A4' ? 595 : Math.round(parseFloat(p.bill_paper_width || 80) * 2.835);
+  const sideGapPx = Math.round((p.bill_side_gap ?? 2) * 2.835);
   const parsedMeta = parseNotesMetadata(order.notes, order);
   const allItems = itemsList || getItemsForOrder(order.id);
   
-  // Strictly filter items to food & drinks only
-  const items = allItems.filter(i => !/delivery|discount|tax|fee/i.test(i.item_name || i.name || ''));
+  // Strictly filter items to food & drinks only, then consolidate duplicate rounds
+  const rawItems = allItems.filter(i => !/delivery|discount|tax|fee/i.test(i.item_name || i.name || ''));
+  const items = consolidateOrderItems(rawItems);
   const subtotal = items.reduce((sum, i) => sum + Number(i.line_total || (i.price * i.qty) || 0), 0);
   
   // Parse discount, taxes, and delivery charges from metadata or calculate
@@ -8767,7 +9719,7 @@ async function generateBillWithTaxHtml(order, itemsList) {
   const qrDataUrl = p.bill_upi_id ? await generateUpiQrDataUrl(p.bill_upi_id, p.bill_upi_payee_name || p.restaurant_name, grandTotal, formatDailyOrderNumber(order)) : '';
 
   return `
-    <div style="width:${wPx}px;font-family:monospace;font-size:12px;color:#000;padding:0 8px;margin:0 auto;">
+    <div style="width:${wPx}px;font-family:monospace;font-size:12px;color:#000;padding:0 ${sideGapPx}px;margin:0 auto;">
       <div style="text-align:center;margin-bottom:10px;">
         ${p.bill_show_logo && p.bill_logo_url ? `
           <div style="margin-bottom:6px;text-align:center;">
@@ -8779,10 +9731,20 @@ async function generateBillWithTaxHtml(order, itemsList) {
         ${p.restaurant_phone ? `<div style="font-size:10px;">Tel: ${escapeHtml(p.restaurant_phone)}</div>` : ''}
         ${p.restaurant_gstin ? `<div style="font-size:10px;">GSTIN: ${escapeHtml(p.restaurant_gstin)}</div>` : ''}
         ${p.restaurant_fssai ? `<div style="font-size:10px;">FSSAI Lic: ${escapeHtml(p.restaurant_fssai)}</div>` : ''}
+        
+        <!-- Table / Delivery Invoice Title -->
         <div style="font-size:12px;font-weight:bold;border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;margin-top:6px;">
-          ${parsedMeta.type === 'delivery' ? 'TAX INVOICE — DELIVERY' : tableInfo ? `TAX INVOICE — TABLE ${tableInfo}` : 'TAX INVOICE — PICKUP'}
+          ${parsedMeta.type === 'delivery' ? 'TAX INVOICE — DELIVERY' : (tableInfo && p.bill_show_table ? `TAX INVOICE — TABLE ${tableInfo}` : 'TAX INVOICE — PICKUP')}
         </div>
       </div>
+
+      <!-- Place & Delivery Area Makeup Block -->
+      ${p.bill_show_place && (parsedMeta.type === 'delivery' || parsedMeta.area || parsedMeta.address) ? `
+        <div style="margin:4px 0 6px 0;padding:4px 6px;background:#f8fafc;border:1px solid #000;border-radius:4px;font-size:10px;text-align:left;line-height:1.4;">
+          <div><strong>📍 AREA / PLACE:</strong> ${escapeHtml(parsedMeta.area || 'Standard Delivery Area')}</div>
+          ${parsedMeta.address ? `<div style="font-size:9px;margin-top:2px;"><strong>🏠 Landmark / Address:</strong> ${escapeHtml(parsedMeta.address)}</div>` : ''}
+        </div>
+      ` : ''}
       
       <div style="font-size:10px;line-height:1.5;margin-bottom:8px;">
         <div><strong>Bill No:</strong> #${formatDailyOrderNumber(order)}</div>
@@ -8859,7 +9821,7 @@ async function printOrderReceiptWithTax(order, itemsList) {
   }
 
   // Default: Native Driver (Direct Windows Spooler / Silent Kiosk)
-  await printViaNativeDriver(html, p.bill_paper_width || 80);
+  await printViaNativeDriver(html, p.bill_paper_width || 80, p.bill_side_gap ?? 2);
   showAdminToast(`Bill for #${order.order_number} sent to TVS RP3200 Plus Driver! ✅`, 'success');
 }
 

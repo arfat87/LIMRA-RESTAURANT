@@ -128,9 +128,38 @@ async function run() {
 
   const localFileByPath = new Map(files.map(f => [f.path, f]));
 
-  // Upload files with concurrency
-  const concurrency = 8;
+  // Upload files with concurrency and retry support
+  const concurrency = 5;
   let nextIndex = 0;
+
+  async function uploadSingleFileWithRetry(fileToUpload, localFile, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/deployments/${encodeURIComponent(deploymentId)}/files/${encodeURIComponent(fileToUpload.fileId)}/content`,
+          {
+            method: 'PUT',
+            headers: {
+              'x-api-key': API_KEY,
+              'Content-Type': 'application/octet-stream',
+              'Content-Length': String(localFile.size)
+            },
+            body: fs.createReadStream(localFile.absolutePath),
+            duplex: 'half'
+          }
+        );
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`HTTP ${response.status} ${response.statusText} - ${text}`);
+        }
+        return true;
+      } catch (err) {
+        if (attempt === maxRetries) throw err;
+        console.warn(`⚠️ Retrying upload for ${fileToUpload.path} (attempt ${attempt + 1}/${maxRetries}): ${err.message}`);
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+      }
+    }
+  }
 
   async function uploadWorker() {
     while (nextIndex < session.files.length) {
@@ -140,24 +169,7 @@ async function run() {
         throw new Error(`Session requested file not found locally: ${fileToUpload.path}`);
       }
       console.log(`Uploading [${nextIndex}/${session.files.length}] ${fileToUpload.path} (${localFile.size} bytes)...`);
-      
-      const response = await fetch(
-        `${API_BASE_URL}/api/deployments/${encodeURIComponent(deploymentId)}/files/${encodeURIComponent(fileToUpload.fileId)}/content`,
-        {
-          method: 'PUT',
-          headers: {
-            'x-api-key': API_KEY,
-            'Content-Type': 'application/octet-stream',
-            'Content-Length': String(localFile.size)
-          },
-          body: fs.createReadStream(localFile.absolutePath),
-          duplex: 'half'
-        }
-      );
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Failed to upload ${fileToUpload.path}: ${response.statusText} - ${text}`);
-      }
+      await uploadSingleFileWithRetry(fileToUpload, localFile);
     }
   }
 
@@ -187,12 +199,12 @@ async function run() {
     attempts++;
     const statusData = await api(`/api/deployments/${encodeURIComponent(deploymentId)}`);
     deploymentStatus = statusData;
-    console.log(`Live Status (attempt ${attempts}): ${statusData.status}`);
-    if (statusData.status === 'success' || statusData.status === 'ready' || statusData.status === 'active') {
+    const statusLower = String(statusData.status || '').toLowerCase();
+    if (statusLower === 'success' || statusLower === 'ready' || statusLower === 'active') {
       console.log('✅ Deployment is LIVE and Healthy!');
       break;
     }
-    if (statusData.status === 'failed' || statusData.status === 'error') {
+    if (statusLower === 'failed' || statusLower === 'error') {
       throw new Error(`Deployment failed: ${JSON.stringify(statusData, null, 2)}`);
     }
     await new Promise(resolve => setTimeout(resolve, 2500));

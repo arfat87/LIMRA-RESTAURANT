@@ -51,6 +51,7 @@
 <!-- Auth loading -->
 <div id="auth-loading" class="adm-gate-screen">
   <div class="adm-gate-card">
+    <img src="/images/logo.png" alt="LIMRA Logo" style="width:52px;height:52px;border-radius:50%;margin:0 auto 10px;object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,0.1);" />
     <p class="adm-brand adm-gate-brand">LIMRA<span>.</span></p>
     <div class="adm-spinner" aria-hidden="true"></div>
     <p class="adm-gate-text">Loading your dashboard…</p>
@@ -60,7 +61,7 @@
 <!-- Access denied -->
 <div id="unauthorized-screen" class="adm-gate-screen adm-hidden">
   <div class="adm-gate-card adm-gate-card--denied">
-    <div class="adm-gate-icon" aria-hidden="true">🔒</div>
+    <img src="/images/logo.png" alt="LIMRA Logo" style="width:48px;height:48px;border-radius:50%;margin:0 auto 10px;object-fit:cover;" />
     <h2 class="adm-gate-title">Access Denied</h2>
     <p class="adm-gate-desc">Your account is not authorized as admin yet. Contact the restaurant owner to grant access to your email.</p>
     <div class="adm-gate-actions">
@@ -73,7 +74,7 @@
 <div id="dashboard" class="adm-layout adm-hidden">
     <aside id="sidebar" class="adm-sidebar">
     <div class="adm-sidebar-head">
-      <p class="adm-brand"><span class="adm-nav-icon">🍽️</span><span class="adm-nav-label">LIMRA</span></p>
+      <p class="adm-brand" style="display:flex;align-items:center;gap:8px;"><img src="/images/logo.png" alt="LIMRA Logo" style="width:30px;height:30px;border-radius:50%;object-fit:cover;" /><span class="adm-nav-label">LIMRA</span></p>
     </div>
 
     <nav class="adm-nav">
@@ -625,6 +626,7 @@
             <select id="orders-status-filter" class="adm-select" style="font-weight:600;font-size:.85rem;">
               <option value="all">All Statuses</option>
               <option value="pending">⏳ Pending</option>
+              <option value="hold">🕒 Hold / Active Table</option>
               <option value="confirmed">✅ Confirmed</option>
               <option value="preparing">👨‍🍳 Preparing</option>
               <option value="ready">🍽️ Ready</option>
@@ -731,8 +733,11 @@
             <p class="adm-page-sub">Settled bills, delivered orders, audit log, and error correction</p>
           </div>
           <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            <button type="button" id="closed-orders-gst-export-btn" class="adm-btn adm-btn-primary" style="background:#10b981;border-color:#10b981;font-weight:700;display:inline-flex;align-items:center;gap:.35rem;">
+              <span>🧾</span> Export Restaurant GST Report (.csv)
+            </button>
             <button type="button" id="closed-orders-export-btn" class="adm-btn adm-btn-outline" style="font-weight:600;display:inline-flex;align-items:center;gap:.35rem;">
-              <span>📥</span> Export CSV
+              <span>📥</span> Export Audit Log
             </button>
           </div>
         </div>
@@ -838,13 +843,16 @@
           <table class="adm-table">
             <thead>
               <tr>
-                <th>Order #</th>
+                <th>Bill / Order #</th>
                 <th>Customer Details</th>
                 <th>Type &amp; Table</th>
-                <th>Dishes Ordered</th>
-                <th>Total Amount</th>
-                <th>Status</th>
-                <th>Payment</th>
+                <th>Consolidated Dishes</th>
+                <th style="text-align:right;">Taxable Base</th>
+                <th style="text-align:right;">CGST (2.5%)</th>
+                <th style="text-align:right;">SGST (2.5%)</th>
+                <th style="text-align:right;">Total GST (5%)</th>
+                <th style="text-align:right;">Grand Total</th>
+                <th>Status &amp; Payment</th>
                 <th>Date &amp; Time</th>
                 <th style="text-align:right;">Actions</th>
               </tr>
@@ -1610,12 +1618,15 @@
           <table class="adm-table">
             <thead>
               <tr>
-                <th>Order #</th>
+                <th>Bill / Order #</th>
                 <th>Customer Details</th>
                 <th>Type &amp; Table</th>
                 <th>Dishes Summary</th>
                 <th>Payment Mode</th>
-                <th style="text-align:right;">Tax (5%)</th>
+                <th style="text-align:right;">Taxable Value</th>
+                <th style="text-align:right;">CGST (2.5%)</th>
+                <th style="text-align:right;">SGST (2.5%)</th>
+                <th style="text-align:right;">Total GST (5%)</th>
                 <th style="text-align:right;">Grand Total</th>
                 <th>Date &amp; Time</th>
                 <th style="text-align:right;">Action</th>
@@ -3036,20 +3047,43 @@
                   <button class="kot-w-preset adm-btn adm-btn-primary adm-btn-sm" data-width="80">80 mm (TVS Standard)</button>
                   <button class="kot-w-preset adm-btn adm-btn-outline adm-btn-sm" data-width="72">72 mm (Print Area)</button>
                   <button class="kot-w-preset adm-btn adm-btn-outline adm-btn-sm" data-width="58">58 mm (Compact)</button>
+                  <button class="kot-w-preset adm-btn adm-btn-outline adm-btn-sm" data-width="56">56 mm (Mini Thermal)</button>
                 </div>
                 <input type="number" id="kot-custom-width" class="adm-input" placeholder="Custom width (mm)" min="40" max="120" style="width:100%;margin-top:.5rem;" />
               </div>
               <div>
-                <label class="adm-label">Auto-Cutter & Paper Feed</label>
+                <label class="adm-label">Auto-Cutter Action</label>
                 <select id="kot-auto-cut" class="adm-select" style="width:100%;margin-top:.3rem;">
                   <option value="partial">✂️ Partial Cut (Recommended)</option>
                   <option value="full">✂️ Full Cut</option>
                   <option value="none">📜 No Cut (Manual Tear)</option>
                 </select>
-                <div style="display:flex;align-items:center;gap:.5rem;margin-top:.5rem;">
-                  <label class="adm-label" style="margin:0;white-space:nowrap;">Feed Lines:</label>
-                  <input type="number" id="kot-bottom-feed" class="adm-input" min="1" max="8" value="3" style="width:70px;" />
+              </div>
+            </div>
+
+            <!-- KOT Gap Controls: Side Gap & Down Gap -->
+            <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--adm-border);display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <label class="adm-label" style="font-weight:700;margin:0;">↔️ Side Gap (Left-Right Margin)</label>
+                  <span id="kot-side-gap-label" style="font-size:.78rem;font-weight:800;color:#6366f1;">2 mm</span>
                 </div>
+                <div style="display:flex;gap:.5rem;align-items:center;margin-top:.25rem;">
+                  <input type="range" id="kot-side-gap-slider" min="0" max="12" step="0.5" value="2" style="flex:1;" class="accent-indigo-600" />
+                  <input type="number" id="kot-side-gap" class="adm-input" min="0" max="12" step="0.5" value="2" style="width:65px;" />
+                </div>
+                <p style="font-size:.72rem;color:var(--adm-muted);margin:2px 0 0 0;">Adjust left/right margin to prevent edge cutoff</p>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <label class="adm-label" style="font-weight:700;margin:0;">↕️ Down Gap (Bottom Feed Lines)</label>
+                  <span id="kot-down-gap-label" style="font-size:.78rem;font-weight:800;color:#6366f1;">3 lines</span>
+                </div>
+                <div style="display:flex;gap:.5rem;align-items:center;margin-top:.25rem;">
+                  <input type="range" id="kot-bottom-feed-slider" min="1" max="10" step="1" value="3" style="flex:1;" class="accent-indigo-600" />
+                  <input type="number" id="kot-bottom-feed" class="adm-input" min="1" max="10" value="3" style="width:65px;" />
+                </div>
+                <p style="font-size:.72rem;color:var(--adm-muted);margin:2px 0 0 0;">Empty feed space at bottom before tear-off</p>
               </div>
             </div>
           </div>
@@ -3123,21 +3157,44 @@
                   <button class="bill-w-preset adm-btn adm-btn-primary adm-btn-sm" data-width="80">80 mm (TVS 3-inch)</button>
                   <button class="bill-w-preset adm-btn adm-btn-outline adm-btn-sm" data-width="72">72 mm (Print Area)</button>
                   <button class="bill-w-preset adm-btn adm-btn-outline adm-btn-sm" data-width="58">58 mm (Compact)</button>
+                  <button class="bill-w-preset adm-btn adm-btn-outline adm-btn-sm" data-width="56">56 mm (Mini Thermal)</button>
                   <button class="bill-w-preset adm-btn adm-btn-outline adm-btn-sm" data-width="A4">A4 Sheet</button>
                 </div>
                 <input type="number" id="bill-custom-width" class="adm-input" placeholder="Custom width (mm)" min="40" max="220" style="width:100%;margin-top:.5rem;" />
               </div>
               <div>
-                <label class="adm-label">Auto-Cutter & Feed</label>
+                <label class="adm-label">Auto-Cutter Action</label>
                 <select id="bill-auto-cut" class="adm-select" style="width:100%;margin-top:.3rem;">
                   <option value="full" selected>✂️ Full Cut</option>
                   <option value="partial">✂️ Partial Cut</option>
                   <option value="none">📜 No Cut</option>
                 </select>
-                <div style="display:flex;align-items:center;gap:.5rem;margin-top:.5rem;">
-                  <label class="adm-label" style="margin:0;white-space:nowrap;">Feed Lines:</label>
-                  <input type="number" id="bill-bottom-feed" class="adm-input" min="1" max="8" value="4" style="width:70px;" />
+              </div>
+            </div>
+
+            <!-- Bill Gap Controls: Side Gap & Down Gap -->
+            <div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--adm-border);display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <label class="adm-label" style="font-weight:700;margin:0;">↔️ Side Gap (Left-Right Margin)</label>
+                  <span id="bill-side-gap-label" style="font-size:.78rem;font-weight:800;color:#6366f1;">2 mm</span>
                 </div>
+                <div style="display:flex;gap:.5rem;align-items:center;margin-top:.25rem;">
+                  <input type="range" id="bill-side-gap-slider" min="0" max="12" step="0.5" value="2" style="flex:1;" class="accent-indigo-600" />
+                  <input type="number" id="bill-side-gap" class="adm-input" min="0" max="12" step="0.5" value="2" style="width:65px;" />
+                </div>
+                <p style="font-size:.72rem;color:var(--adm-muted);margin:2px 0 0 0;">Adjust left/right margin to fit roll width perfectly</p>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <label class="adm-label" style="font-weight:700;margin:0;">↕️ Down Gap (Bottom Feed Lines)</label>
+                  <span id="bill-down-gap-label" style="font-size:.78rem;font-weight:800;color:#6366f1;">4 lines</span>
+                </div>
+                <div style="display:flex;gap:.5rem;align-items:center;margin-top:.25rem;">
+                  <input type="range" id="bill-bottom-feed-slider" min="1" max="10" step="1" value="4" style="flex:1;" class="accent-indigo-600" />
+                  <input type="number" id="bill-bottom-feed" class="adm-input" min="1" max="10" value="4" style="width:65px;" />
+                </div>
+                <p style="font-size:.72rem;color:var(--adm-muted);margin:2px 0 0 0;">Empty feed space at bottom before cutting/tearing</p>
               </div>
             </div>
           </div>
@@ -3160,6 +3217,18 @@
                   <input type="text" id="bill-logo-url" class="adm-input" placeholder="/images/logo.png" value="/images/logo.png" style="flex:1;font-size:.8rem;" />
                   <button type="button" class="adm-btn adm-btn-outline adm-btn-sm" onclick="document.getElementById('bill-logo-url').value='/images/logo.png';document.getElementById('bill-logo-url').dispatchEvent(new Event('input'));">Default Logo</button>
                 </div>
+              </div>
+
+              <!-- Place & Table Makeup Toggles -->
+              <div style="grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;gap:.6rem;padding:.5rem .75rem;background:#f1f5f9;border:1px solid var(--adm-border);border-radius:8px;">
+                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:700;font-size:.82rem;color:#1e293b;">
+                  <input type="checkbox" id="bill-toggle-show-place" checked class="accent-indigo-600" />
+                  <span>📍 Print Delivery Place / Area Badge</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:700;font-size:.82rem;color:#1e293b;">
+                  <input type="checkbox" id="bill-toggle-show-table" checked class="accent-indigo-600" />
+                  <span>🪑 Print Dining Table Badge</span>
+                </label>
               </div>
 
               <div>
