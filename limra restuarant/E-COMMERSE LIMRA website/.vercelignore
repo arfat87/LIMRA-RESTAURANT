@@ -1,9 +1,10 @@
 node_modules
 .git
 .vscode
+.agents
+.vite
+scratch
+scripts
 *.log
 *.zip
 *.tar.gz
-src/MEDIA
-src/MEDIA/
-src/MEDIA/**
