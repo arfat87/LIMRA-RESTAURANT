@@ -1,22 +1,18 @@
 {
-  "buildCommand": "echo 'Build skipped'",
-  "outputDirectory": ".",
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
   "rewrites": [
-
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/admin-login", "destination": "/admin-login.html" },
-
     { "source": "/admin-login/", "destination": "/admin-login.html" },
-
     { "source": "/admin", "destination": "/admin.html" },
-
     { "source": "/admin/", "destination": "/admin.html" },
-
     { "source": "/table/qr-admin", "destination": "/table/qr-admin.html" },
     { "source": "/table/qr-admin/", "destination": "/table/qr-admin.html" },
     { "source": "/table", "destination": "/table/index.html" },
     { "source": "/table/", "destination": "/table/index.html" },
-    { "source": "/((?!api/|media/|assets/|images/|favicon\\.svg|icons\\.svg|robots\\.txt|sitemap\\.xml|admin\\.html|admin-login\\.html|table/|table$).*)", "destination": "/index.html" }
-
+    { "source": "/stock-manager", "destination": "/stock-manager/index.html" },
+    { "source": "/stock-manager/", "destination": "/stock-manager/index.html" },
+    { "source": "/((?!api/|media/|assets/|images/|favicon\\.svg|icons\\.svg|robots\\.txt|sitemap\\.xml|admin\\.html|admin-login\\.html|table/|table$|stock-manager/).*)", "destination": "/index.html" }
   ]
-
 }
