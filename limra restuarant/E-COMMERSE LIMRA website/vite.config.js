@@ -101,6 +101,7 @@ export default defineConfig({
     apiMiddlewarePlugin()
   ],
   build: {
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       input: {
         main: 'index.html',
@@ -111,6 +112,15 @@ export default defineConfig({
         qrAdmin: 'table/qr-admin.html',
         stockManager: 'stock-manager/index.html',
       },
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('chart.js')) return 'vendor-chart';
+            if (id.includes('qrcode')) return 'vendor-qr';
+            return 'vendor';
+          }
+        }
+      }
     },
   },
 })
