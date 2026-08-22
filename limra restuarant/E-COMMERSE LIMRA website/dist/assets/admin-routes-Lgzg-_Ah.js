@@ -1,1 +1,0 @@
-var e=`/admin-login.html`,t=`/admin.html`;function n(n=t){let r=n.startsWith(`/`)?n:t;return`${e}?redirect=${encodeURIComponent(r)}`}function r(e=t){let n=new URLSearchParams(window.location.search).get(`redirect`);return!n||!n.startsWith(`/`)||n.startsWith(`//`)?e:n}function i(){return`${window.location.origin}${window.location.pathname}`}export{r as i,n,i as r,t};
