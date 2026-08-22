@@ -207,9 +207,12 @@
           
           <!-- Dropdown -->
           <div id="notification-dropdown" class="adm-dropdown adm-hidden">
-            <div class="adm-dropdown-header">
-              <h4 id="notification-header-title">Notifications</h4>
-              <button id="clear-notifications-btn" class="adm-btn adm-btn-outline adm-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; border-radius: 6px;">Clear All</button>
+            <div class="adm-dropdown-header" style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
+              <h4 id="notification-header-title" style="margin:0;font-size:.85rem;font-weight:700;">Notifications</h4>
+              <div style="display:flex;gap:.35rem;align-items:center;">
+                <button type="button" onclick="testNotificationSound()" class="adm-btn adm-btn-outline adm-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; border-radius: 6px; color:#4f46e5; border-color:#c7d2fe; background:#eef2ff;" title="Test chime audio">🔊 Test Sound</button>
+                <button id="clear-notifications-btn" class="adm-btn adm-btn-outline adm-btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; border-radius: 6px;">Clear All</button>
+              </div>
             </div>
             <div id="notification-items" class="adm-dropdown-list">
               <p class="adm-dropdown-empty">No new notifications</p>
@@ -2669,16 +2672,29 @@
         <div>
           <label class="adm-label">Category *</label>
           <select id="add-dish-category" class="adm-select" required style="width:100%;margin-top:3px;">
-            <option value="biryani">Biryani</option>
-            <option value="starters">Starters</option>
-            <option value="tandoor-kabab">Tandoori &amp; Kabab</option>
-            <option value="nonveg-curry">Main Course (Non-Veg)</option>
-            <option value="veg-curry">Main Course (Veg)</option>
-            <option value="bread">Breads</option>
-            <option value="soup">Soups</option>
-            <option value="dessert">Desserts</option>
-            <option value="beverages">Beverages</option>
-            <option value="combos">Combos &amp; Deals</option>
+            <option value="soup">🍲 Soups</option>
+            <option value="veg-starters">🥗 Veg Starters</option>
+            <option value="nonveg-starters">🍗 Non-Veg Starters</option>
+            <option value="tandoor-kabab">🔥 Tandoori &amp; Kabab</option>
+            <option value="bread">🫓 Breads &amp; Naan</option>
+            <option value="biryani" selected>🍚 Biryani</option>
+            <option value="veg-curry">🥘 Veg Curries</option>
+            <option value="nonveg-curry">🍛 Non-Veg Curries</option>
+            <option value="veg-rice">🍳 Veg Fried Rice</option>
+            <option value="nonveg-rice">🍳 Non-Veg Fried Rice</option>
+            <option value="chinese-veg">🍜 Chinese (Veg)</option>
+            <option value="chinese-nonveg">🍜 Chinese (Non-Veg)</option>
+            <option value="noodles">🍝 Noodles</option>
+            <option value="thali">🍽️ Thali</option>
+            <option value="desserts">🍨 Desserts</option>
+            <option value="salads">🥗 Salads &amp; Papad</option>
+            <option value="momos-chaat">🥟 Momos &amp; Chaat</option>
+            <option value="juices">🧃 Fresh Juices</option>
+            <option value="lassi">🥛 Lassi</option>
+            <option value="milkshakes">🥤 Milkshakes</option>
+            <option value="mocktails">🍹 Mocktails</option>
+            <option value="beverages">💧 Beverages</option>
+            <option value="combos">🎁 Combos &amp; Deals</option>
           </select>
         </div>
         <div>
@@ -2802,6 +2818,71 @@
 
       </div>
     </div>
+  </div>
+</div>
+
+<!-- POS Cart Item & Note Editor Modal -->
+<div id="adm-pos-edit-item-modal" class="adm-hold-modal" style="display:none;align-items:center;justify-content:center;">
+  <div class="adm-hold-modal-content" style="max-width:460px;border-radius:14px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.3);">
+    <!-- Modal Header -->
+    <div style="padding:1rem 1.25rem;background:#1e293b;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <h3 style="font-size:1.05rem;font-weight:800;margin:0;display:flex;align-items:center;gap:.4rem;">
+          <span>✏️ Edit Dish &amp; Cooking Note</span>
+        </h3>
+        <p style="font-size:.75rem;color:#94a3b8;margin:2px 0 0 0;">Customize item name, price, quantity, and kitchen instructions</p>
+      </div>
+      <button type="button" id="pos-edit-item-close-btn" style="background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:1.1rem;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+
+    <!-- Modal Form Body -->
+    <form id="pos-edit-item-form" style="padding:1.25rem;display:flex;flex-direction:column;gap:.85rem;background:#f8fafc;" onsubmit="return false;">
+      <input type="hidden" id="pos-edit-item-index" value="-1" />
+
+      <div>
+        <label class="adm-label" style="font-weight:700;font-size:.82rem;">Dish / Item Name *</label>
+        <input type="text" id="pos-edit-item-name" class="adm-input" required style="width:100%;margin-top:3px;font-weight:600;" />
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div>
+          <label class="adm-label" style="font-weight:700;font-size:.82rem;">Unit Price (₹) *</label>
+          <input type="number" id="pos-edit-item-price" class="adm-input" required min="0" step="0.01" style="width:100%;margin-top:3px;font-weight:700;" />
+        </div>
+        <div>
+          <label class="adm-label" style="font-weight:700;font-size:.82rem;">Quantity *</label>
+          <input type="number" id="pos-edit-item-qty" class="adm-input" required min="1" step="1" style="width:100%;margin-top:3px;font-weight:700;" />
+        </div>
+      </div>
+
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label class="adm-label" style="font-weight:700;font-size:.82rem;margin:0;">📝 Kitchen Note / Special Instructions</label>
+          <span style="font-size:.7rem;color:var(--adm-muted);">Prints on KOT &amp; Bill</span>
+        </div>
+        <textarea id="pos-edit-item-notes" class="adm-input" rows="2" placeholder="e.g. Less spicy, No onion / garlic, Extra crispy, Half portion..." style="width:100%;resize:none;margin-top:3px;font-size:.82rem;"></textarea>
+      </div>
+
+      <!-- Quick Preset Note Chips -->
+      <div>
+        <label style="font-size:.72rem;color:var(--adm-muted);font-weight:600;display:block;margin-bottom:4px;">Quick Note Presets:</label>
+        <div id="pos-edit-note-presets" style="display:flex;gap:.3rem;flex-wrap:wrap;">
+          <button type="button" class="pos-preset-chip" onclick="posApplyNotePreset('Less spicy')">🌶️ Less spicy</button>
+          <button type="button" class="pos-preset-chip" onclick="posApplyNotePreset('Extra spicy')">🔥 Extra spicy</button>
+          <button type="button" class="pos-preset-chip" onclick="posApplyNotePreset('No onion/garlic')">🧅 No onion/garlic</button>
+          <button type="button" class="pos-preset-chip" onclick="posApplyNotePreset('Crispy')">✨ Crispy</button>
+          <button type="button" class="pos-preset-chip" onclick="posApplyNotePreset('Separate Gravy')">🍲 Separate Gravy</button>
+          <button type="button" class="pos-preset-chip" onclick="posApplyNotePreset('Half portion')">🥣 Half portion</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem;border-top:1px solid var(--adm-border);padding-top:.75rem;">
+        <button type="button" id="pos-edit-item-cancel-btn" class="adm-btn adm-btn-outline">Cancel</button>
+        <button type="button" id="pos-edit-item-save-btn" class="adm-btn adm-btn-primary" style="font-weight:700;background:#6366f1;border-color:#6366f1;">
+          ✓ Save &amp; Update Cart
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 

@@ -612,6 +612,7 @@
 .adm-pill.preparing, .adm-pill.ready { background: #e8f4fd; color: #2d9cdb; }
 .adm-pill.delivered, .adm-pill.completed { background: var(--adm-green-light); color: var(--adm-green); }
 .adm-pill.cancelled { background: #fdecea; color: #ff5b5b; }
+.adm-pill.hold, .adm-pill.merged { background: #fff3e0; color: #d97706; border: 1px solid #fed7aa; }
 
 /* Buttons */
 .adm-btn {
@@ -1594,6 +1595,28 @@
 #hold-modal-food-grid::-webkit-scrollbar { width: 5px; }
 #hold-modal-food-grid::-webkit-scrollbar-track { background: transparent; }
 #hold-modal-food-grid::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+.pos-preset-chip {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.pos-preset-chip:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #4f46e5;
+  transform: translateY(-1px);
+}
+.pos-preset-chip:active {
+  transform: scale(0.96);
+}
 
 @media (max-width: 768px) {
   .adm-hold-modal-content > div:nth-child(2) {

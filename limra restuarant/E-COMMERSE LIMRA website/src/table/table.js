@@ -713,7 +713,9 @@ function setupCartUI() {
 
       const appendBadge = $('#success-append-badge');
       if (appendBadge) {
-        if (orderData.is_appended) {
+        if (orderData.is_subsequent_round || orderData.is_appended) {
+          const roundText = orderData.round_number ? `Round ${orderData.round_number} Sent to Kitchen! 🍽️` : 'Additional Round Sent to Kitchen! 🍽️';
+          appendBadge.textContent = roundText;
           show(appendBadge);
         } else {
           hide(appendBadge);

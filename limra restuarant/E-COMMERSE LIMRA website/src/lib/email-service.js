@@ -8,14 +8,16 @@ function fmtMoney(n) {
   return `₹${Number(n || 0).toLocaleString('en-IN')}`;
 }
 
+const env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : (typeof process !== 'undefined' && process.env ? process.env : {});
+
 // Check if keys are configured
 const emailJsConfig = {
-  serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID || '',
-  templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '',
-  publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY || ''
+  serviceId: env.VITE_EMAILJS_SERVICE_ID || '',
+  templateId: env.VITE_EMAILJS_TEMPLATE_ID || '',
+  publicKey: env.VITE_EMAILJS_PUBLIC_KEY || ''
 };
 
-const resendApiKey = import.meta.env.VITE_RESEND_API_KEY || '';
+const resendApiKey = env.VITE_RESEND_API_KEY || '';
 
 /**
  * Sends a premium HTML email notification.
