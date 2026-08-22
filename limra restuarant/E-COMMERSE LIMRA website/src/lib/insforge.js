@@ -3,7 +3,7 @@
  * 100% disconnected from InsForge — direct MongoDB Atlas serverless and REST API
  */
 
-// Helper to execute MongoDB Universal API requests
+// Helper to execute MongoDB Universal API requests safely
 async function callMongoDbApi(body) {
   try {
     const res = await fetch("/api/db", {
@@ -12,8 +12,18 @@ async function callMongoDbApi(body) {
       body: JSON.stringify(body)
     });
 
-    const json = await res.json();
-    return json;
+    const text = await res.text();
+    if (!text || !text.trim()) {
+      return { data: null, error: { message: `Server returned empty response (HTTP ${res.status})` } };
+    }
+
+    try {
+      const json = JSON.parse(text);
+      return json;
+    } catch (parseErr) {
+      console.error("[MongoDB Client Parse Error]:", text);
+      return { data: null, error: { message: `HTTP ${res.status}: ${text.slice(0, 120)}` } };
+    }
   } catch (error) {
     console.error("[MongoDB Atlas Client Error]:", error);
     return { data: null, error: { message: error.message || "Failed to communicate with MongoDB Atlas" } };

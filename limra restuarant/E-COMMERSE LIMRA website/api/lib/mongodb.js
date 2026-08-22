@@ -8,7 +8,7 @@ try {
   dns.setServers(['8.8.8.8', '1.1.1.1']);
 } catch (e) {}
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://arfatalis451_db_user:QGLrLdwQK0j8h33K@limra.pp0vnqp.mongodb.net/limra_restaurant?retryWrites=true&w=majority&appName=limra';
+const DEFAULT_URI = 'mongodb+srv://arfatalis451_db_user:QGLrLdwQK0j8h33K@limra.pp0vnqp.mongodb.net/limra_restaurant?retryWrites=true&w=majority&appName=limra';
 const dbName = process.env.MONGODB_DB_NAME || 'limra_restaurant';
 
 const options = {
@@ -24,10 +24,7 @@ const options = {
 };
 
 export async function getMongoClient() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error('MONGODB_URI is missing in environment variables');
-  }
+  const uri = process.env.MONGODB_URI || DEFAULT_URI;
 
   if (!global._mongoClientPromise) {
     const client = new MongoClient(uri, options);

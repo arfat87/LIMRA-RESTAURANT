@@ -8,6 +8,23 @@ function generateOrderNumber() {
   return "ORD-" + dateStr + "-" + rand;
 }
 
+async function parseRequestBody(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  if (typeof req.body === "string") {
+    try { return JSON.parse(req.body); } catch (e) { return {}; }
+  }
+  return new Promise((resolve) => {
+    let chunks = [];
+    req.on("data", (chunk) => chunks.push(chunk));
+    req.on("end", () => {
+      const raw = Buffer.concat(chunks).toString();
+      if (!raw) return resolve({});
+      try { resolve(JSON.parse(raw)); } catch (e) { resolve({}); }
+    });
+    req.on("error", () => resolve({}));
+  });
+}
+
 export default async function handler(req, res) {
   if (res.setHeader) {
     res.setHeader("Access-Control-Allow-Credentials", true);
@@ -24,7 +41,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { action, table, collection, query, filter, data, updates, options, rpc, params, auth } = req.body || {};
+    const parsedBody = await parseRequestBody(req);
+    const { action, table, collection, query, filter, data, updates, options, rpc, params, auth } = parsedBody || {};
     const targetCollection = collection || table;
 
     // --- RPC DISPATCHER ---
